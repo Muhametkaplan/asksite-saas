@@ -38,6 +38,13 @@ export async function POST(req: NextRequest) {
       theme_color_primary: '#ff4d6d',
       theme_color_tech: '#6c5ce7',
       bg_music_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+      custom_audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+      spotify_url: 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M',
+      spotify_lyrics: [
+        'Sen benim kalbimin en tatlı melodisisin... 🎶',
+        'Gözlerine baktığım an zaman duruyor...',
+        'Birlikte yazacağımız nice masallara ❤️',
+      ],
       whatsapp_number: whatsapp_number || '905524185530',
       whatsapp_message: 'Acil sarılmana ihtiyacım var 🥺',
       love_reasons: [
@@ -46,7 +53,34 @@ export async function POST(req: NextRequest) {
         'Seninleyken zamanın nasıl aktığını unutuyorum.',
         'Gözlerinin içi parlayarak güldüğün an dünyadaki her şey güzelleşiyor.',
         'Senin sesin, duyduğum en huzurlu ve en tatlı melodi.'
-      ]
+      ],
+      memories: [
+        {
+          id: `m-${Date.now()}-1`,
+          photo_url: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=800&auto=format&fit=crop',
+          date: start_date ? new Date(start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          title: 'İlk Karşılaşmamız ✨',
+          note: 'Gözlerinin içine ilk baktığım an dünyadaki tüm sesler sustu.',
+        },
+      ],
+      bucket_list: [
+        { id: `b-${Date.now()}-1`, title: 'Roma & Venedik Gezisi 🇮🇹', category: 'city' as const, completed: false },
+        { id: `b-${Date.now()}-2`, title: 'Kapadokya Balon Turu 🎈', category: 'activity' as const, completed: false },
+        { id: `b-${Date.now()}-3`, title: 'Romantik Sinema Gecesi 🍿', category: 'movie' as const, completed: true },
+      ],
+      upcoming_event: {
+        title: `${partner1_name} & ${partner2_name} Yıldönümü Kaçamağı 🎈`,
+        date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        location: 'Kapadokya',
+      },
+      feature_toggles: {
+        spotify: true,
+        memory: true,
+        bucket_list: true,
+        day_night: true,
+        countdown: true,
+        custom_audio: true,
+      },
     };
 
     await saveCoupleConfig(newCouple);

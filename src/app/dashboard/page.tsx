@@ -255,6 +255,12 @@ function DashboardContent() {
     }
   };
 
+  const [baseUrl, setBaseUrl] = useState('');
+
+  useEffect(() => {
+    setBaseUrl(window.location.origin);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-pink-50 text-rose-600 font-bold">
@@ -275,7 +281,10 @@ function DashboardContent() {
             {config.partner1_name} & {config.partner2_name} Siteniz 💖
           </h1>
           <p className="text-xs text-gray-500">
-            Canlı Linkiniz: <span className="font-semibold text-rose-600">asksite.com/c/{config.slug}</span>
+            Canlı Linkiniz:{' '}
+            <a href={`/c/${config.slug}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-rose-600 hover:underline">
+              {baseUrl ? `${baseUrl}/c/${config.slug}` : `/c/${config.slug}`}
+            </a>
           </p>
         </div>
 

@@ -38,7 +38,7 @@ export default function SaaSPlatformHome() {
             <Smartphone className="h-8 w-8 text-rose-500 mb-4" />
             <h3 className="text-lg font-bold text-gray-900 mb-2">Özel Dynamic Slug URL</h3>
             <p className="text-sm text-gray-600">
-              `asksite.com/c/ahmet-ayse` formatında kendinize özel linkinizi anında alın ve sevgilinizle paylaşın.
+              `/c/ahmet-ayse` formatında kendinize özel linkinizi anında alın ve sevgilinizle paylaşın.
             </p>
           </div>
 
