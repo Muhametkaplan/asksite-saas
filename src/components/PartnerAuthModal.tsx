@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, UserCheck, KeyRound, Mail, Sparkles, X, ArrowLeft, User, ShieldCheck } from 'lucide-react';
+import { Heart, UserCheck, ArrowLeft, Users } from 'lucide-react';
 import { AllowedUsers } from '@/types/couple';
 import { updatePartnerPresence } from '@/lib/couples';
 
@@ -23,7 +23,7 @@ export default function PartnerAuthModal({
   
   // 2-Step Flow States
   const [step, setStep] = useState<'select_profile' | 'verify_pin'>('select_profile');
-  const [targetRole, setTargetRole] = useState<'partner1' | 'partner2' | null>(null);
+  const [targetRole, setTargetRole] = useState<'partner1' | 'partner2' | 'guest' | null>(null);
 
   const [pinInput, setPinInput] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -31,6 +31,7 @@ export default function PartnerAuthModal({
   const [errorMessage, setErrorMessage] = useState('');
 
   const correctPin = allowedUsers?.access_pin || '1234';
+  const visitorPin = allowedUsers?.visitor_pin || '1111';
   const partner1Email = (allowedUsers?.partner1_email || 'irem@asksite.com').toLowerCase();
   const partner2Email = (allowedUsers?.partner2_email || 'muhammet@asksite.com').toLowerCase();
 
@@ -69,11 +70,12 @@ export default function PartnerAuthModal({
     };
   }, []);
 
-  const handleSelectProfile = (role: 'partner1' | 'partner2') => {
+  const handleSelectProfile = (role: 'partner1' | 'partner2' | 'guest') => {
     setTargetRole(role);
     setPinInput('');
     setUserEmail('');
     setErrorMessage('');
+    setVerificationMethod('pin');
     setStep('verify_pin');
   };
 
@@ -81,12 +83,18 @@ export default function PartnerAuthModal({
     e.preventDefault();
     setErrorMessage('');
 
-    if (pinInput.trim() === correctPin) {
-      if (targetRole) {
-        completeAuth(targetRole, `${targetRole}@asksite.com`);
+    if (targetRole === 'guest') {
+      if (pinInput.trim() === visitorPin) {
+        completeAuth('guest', 'visitor');
+      } else {
+        setErrorMessage('Ziyaretçi PIN kodu hatalı. Varsayılan PIN: 1111');
       }
     } else {
-      setErrorMessage('PIN kodu hatalı. Varsayılan PIN: 1234');
+      if (pinInput.trim() === correctPin) {
+        if (targetRole) completeAuth(targetRole, `${targetRole}@asksite.com`);
+      } else {
+        setErrorMessage('Çift PIN kodu hatalı. Varsayılan PIN: 1234');
+      }
     }
   };
 
@@ -94,15 +102,19 @@ export default function PartnerAuthModal({
     e.preventDefault();
     setErrorMessage('');
 
+    if (targetRole === 'guest') {
+      setErrorMessage('Ziyaretçi girişi sadece 4 haneli Ziyaretçi PIN kodu ile yapılabilir.');
+      return;
+    }
+
     const trimmed = userEmail.trim().toLowerCase();
     const targetEmail = targetRole === 'partner1' ? partner1Email : partner2Email;
+    const targetName = targetRole === 'partner1' ? partner1Name : partner2Name;
 
     if (trimmed === targetEmail) {
-      if (targetRole) {
-        completeAuth(targetRole, trimmed);
-      }
+      if (targetRole) completeAuth(targetRole, trimmed);
     } else {
-      setErrorMessage(`Girdiğiniz e-posta (${trimmed}) ${targetRole === 'partner1' ? partner1Name : partner2Name} profiline ait değil.`);
+      setErrorMessage(`Girdiğiniz e-posta (${trimmed}) ${targetName} profiline ait değil.`);
     }
   };
 
@@ -119,10 +131,6 @@ export default function PartnerAuthModal({
     }
   };
 
-  const handleVisitorMode = () => {
-    completeAuth('guest', 'visitor');
-  };
-
   if (!isOpen) {
     return (
       <div className="fixed top-4 right-4 z-30 flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-md px-3.5 py-1.5 text-xs font-semibold shadow-md border border-white/80">
@@ -132,7 +140,7 @@ export default function PartnerAuthModal({
             ? `💗 ${partner1Name}`
             : authRole === 'partner2'
             ? `💙 ${partner2Name}`
-            : '👁️ Ziyaretçi'}
+            : '👥 Ziyaretçi'}
         </span>
         <button
           onClick={() => {
@@ -147,19 +155,16 @@ export default function PartnerAuthModal({
     );
   }
 
-  const targetName = targetRole === 'partner1' ? partner1Name : partner2Name;
+  const targetName =
+    targetRole === 'partner1'
+      ? partner1Name
+      : targetRole === 'partner2'
+      ? partner2Name
+      : 'Ziyaretçi';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
       <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-gray-100 text-center">
-        <button
-          onClick={handleVisitorMode}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1"
-          title="Kapat & Ziyaretçi Ol"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
         {/* STEP 1: PROFİL SEÇİMİ */}
         {step === 'select_profile' && (
           <div className="animate-in fade-in zoom-in-95 duration-200">
@@ -168,14 +173,14 @@ export default function PartnerAuthModal({
             </div>
 
             <h3 className="text-xl font-extrabold text-gray-900 mb-1">
-              Profilinizi Seçin 💖
+              Giriş Profilinizi Seçin 🔐
             </h3>
             <p className="text-xs text-gray-500 mb-6">
-              Bu özel alan <span className="font-bold text-rose-600">{partner1Name} & {partner2Name}</span> çiftine aittir. Kimliğinizi doğrulayarak devam edin.
+              Bu özel alan <span className="font-bold text-rose-600">{partner1Name} & {partner2Name}</span> çiftine aittir. Devam etmek için şifreli profilinizi seçin.
             </p>
 
-            {/* Partner Profile Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            {/* Profile Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               {/* Partner 1 Card */}
               <button
                 onClick={() => handleSelectProfile('partner1')}
@@ -201,12 +206,18 @@ export default function PartnerAuthModal({
               </button>
             </div>
 
-            {/* Visitor Option */}
+            {/* Visitor Card */}
             <button
-              onClick={handleVisitorMode}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-50 border border-gray-200 py-3 text-xs font-bold text-gray-600 hover:bg-gray-100 transition"
+              onClick={() => handleSelectProfile('guest')}
+              className="group w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50 border-2 border-gray-200 hover:border-gray-400 hover:bg-gray-100 transition active:scale-98 text-left"
             >
-              👁️ Ziyaretçi Olarak Sayfayı İncele
+              <div className="h-9 w-9 rounded-full bg-gray-700 text-white flex items-center justify-center text-sm font-bold shadow-xs">
+                👥
+              </div>
+              <div className="flex-1">
+                <span className="block text-sm font-bold text-gray-900">Ziyaretçi / Misafir Girişi</span>
+                <span className="block text-[11px] text-gray-500">Özel Ziyaretçi PIN Kodu ile İncele</span>
+              </div>
             </button>
           </div>
         )}
@@ -227,35 +238,39 @@ export default function PartnerAuthModal({
             </div>
 
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 font-extrabold text-xl shadow-xs">
-              {targetRole === 'partner1' ? '💗' : '💙'}
+              {targetRole === 'partner1' ? '💗' : targetRole === 'partner2' ? '💙' : '👥'}
             </div>
 
             <h3 className="text-lg font-extrabold text-gray-900 mb-1">
               {targetName} Giriş Şifresi 🔑
             </h3>
             <p className="text-xs text-gray-500 mb-4">
-              Lütfen {targetName} için 4 haneli PIN kodunuzu giriniz.
+              {targetRole === 'guest'
+                ? 'Çift tarafından verilen 4 haneli Ziyaretçi PIN kodunu giriniz.'
+                : `Lütfen ${targetName} için 4 haneli Çift PIN kodunuzu giriniz.`}
             </p>
 
-            {/* Method Selector Tab */}
-            <div className="flex rounded-xl bg-gray-100 p-1 mb-4">
-              <button
-                onClick={() => setVerificationMethod('pin')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
-                  verificationMethod === 'pin' ? 'bg-white text-rose-600 shadow-xs' : 'text-gray-500'
-                }`}
-              >
-                🔑 4 Haneli PIN
-              </button>
-              <button
-                onClick={() => setVerificationMethod('email')}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
-                  verificationMethod === 'email' ? 'bg-white text-rose-600 shadow-xs' : 'text-gray-500'
-                }`}
-              >
-                📧 E-Posta İle
-              </button>
-            </div>
+            {/* Method Selector Tab for Partners only */}
+            {targetRole !== 'guest' && (
+              <div className="flex rounded-xl bg-gray-100 p-1 mb-4">
+                <button
+                  onClick={() => setVerificationMethod('pin')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
+                    verificationMethod === 'pin' ? 'bg-white text-rose-600 shadow-xs' : 'text-gray-500'
+                  }`}
+                >
+                  🔑 4 Haneli PIN
+                </button>
+                <button
+                  onClick={() => setVerificationMethod('email')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
+                    verificationMethod === 'email' ? 'bg-white text-rose-600 shadow-xs' : 'text-gray-500'
+                  }`}
+                >
+                  📧 E-Posta İle
+                </button>
+              </div>
+            )}
 
             {errorMessage && (
               <div className="mb-3 rounded-xl bg-red-50 p-2.5 text-xs text-red-600 font-semibold border border-red-100">
@@ -271,7 +286,7 @@ export default function PartnerAuthModal({
                     type="password"
                     maxLength={4}
                     autoFocus
-                    placeholder="Örn: 1234"
+                    placeholder={targetRole === 'guest' ? 'Örn: 1111' : 'Örn: 1234'}
                     value={pinInput}
                     onChange={(e) => setPinInput(e.target.value)}
                     className="w-full text-center tracking-widest text-xl font-bold rounded-xl border border-gray-200 py-3 outline-none focus:border-rose-500"
@@ -287,7 +302,7 @@ export default function PartnerAuthModal({
             )}
 
             {/* Email Input Form */}
-            {verificationMethod === 'email' && (
+            {verificationMethod === 'email' && targetRole !== 'guest' && (
               <form onSubmit={handleEmailSubmit} className="space-y-3">
                 <div>
                   <input

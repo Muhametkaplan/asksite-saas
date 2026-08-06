@@ -23,6 +23,7 @@ export interface AllowedUsers {
   partner1_email?: string;
   partner2_email?: string;
   access_pin?: string;
+  visitor_pin?: string;
 }
 
 export interface FeatureToggles {

@@ -573,9 +573,9 @@ function DashboardContent() {
                 <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
                   🔐 Çift İçi Kimlik Doğrulama & PIN Ayarları
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">4 Haneli Giriş PIN'i</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">4 Haneli Çift PIN'i</label>
                     <input
                       type="text"
                       maxLength={4}
@@ -584,6 +584,21 @@ function DashboardContent() {
                         setConfig({
                           ...config,
                           allowed_users: { ...config.allowed_users, access_pin: e.target.value },
+                        })
+                      }
+                      className="w-full text-center font-bold tracking-widest rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Ziyaretçi PIN Kodu</label>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={config.allowed_users?.visitor_pin || '1111'}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          allowed_users: { ...config.allowed_users, visitor_pin: e.target.value },
                         })
                       }
                       className="w-full text-center font-bold tracking-widest rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
