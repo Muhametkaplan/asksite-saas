@@ -1,8 +1,18 @@
 import { CoupleConfig, MapMarker } from '@/types/couple';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { db, isFirebaseConfigured } from './firebase';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 export const DEMO_COUPLE: CoupleConfig = {
-  id: 'demo-uuid-irem-muhammet',
+  id: 'irem-muhammet',
   slug: 'irem-muhammet',
   partner1_name: 'İrem',
   partner2_name: 'Muhammet',
@@ -36,7 +46,7 @@ export const DEMO_COUPLE: CoupleConfig = {
     'Küçük sürprizlerinle, bana kendimi dünyanın en şanslı insanı hissettiriyorsun.',
     'Ellerim ellerindeyken kendimi hiç olmadığım kadar güçlü ve cesur hissediyorum.',
     'Sadece sevgilim değil, ruh eşim olduğunu her gün bana hissettiriyorsun.',
-    'Dünyadaki en güzel, en yumuşak ve en huzurlu sarılmalara sahipsin.'
+    'Dünyadaki en güzel, en yumuşak ve en huzurlu sarılmalara sahipsin.',
   ],
   memories: [
     {
@@ -86,46 +96,58 @@ export const DEMO_COUPLE: CoupleConfig = {
 const localCouplesMemoryStore = new Map<string, CoupleConfig>();
 localCouplesMemoryStore.set('irem-muhammet', DEMO_COUPLE);
 
-const parseJsonField = <T>(val: any, fallback: T): T => {
-  if (!val) return fallback;
-  if (typeof val === 'string') {
-    try {
-      return JSON.parse(val);
-    } catch {
-      return fallback;
-    }
-  }
-  return val;
-};
-
 export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null> {
-  if (localCouplesMemoryStore.has(slug)) {
-    return localCouplesMemoryStore.get(slug)!;
-  }
-
-  if (isSupabaseConfigured && supabase) {
+  // If Firestore is available, fetch from 'couples' collection
+  if (isFirebaseConfigured && db) {
     try {
-      const { data, error } = await supabase
-        .from('couples')
-        .select('*')
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .single();
+      const coupleRef = doc(db, 'couples', slug);
+      const snap = await getDoc(coupleRef);
 
-      if (data && !error) {
+      if (snap.exists()) {
+        const data = snap.data();
+
+        // Also fetch sub-collections if present
+        const memoriesSnap = await getDocs(collection(db, `couples/${slug}/modules_memories`));
+        const memories = memoriesSnap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+
+        const bucketSnap = await getDocs(collection(db, `couples/${slug}/modules_bucket`));
+        const bucketList = bucketSnap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
+
         return {
-          ...data,
-          love_reasons: parseJsonField(data.love_reasons, []),
-          memories: parseJsonField(data.memories, DEMO_COUPLE.memories),
-          bucket_list: parseJsonField(data.bucket_list, DEMO_COUPLE.bucket_list),
-          upcoming_event: parseJsonField(data.upcoming_event, DEMO_COUPLE.upcoming_event),
-          feature_toggles: parseJsonField(data.feature_toggles, DEMO_COUPLE.feature_toggles),
-          spotify_lyrics: parseJsonField(data.spotify_lyrics, DEMO_COUPLE.spotify_lyrics),
+          id: snap.id,
+          slug: data.slug || slug,
+          partner1_name: data.names?.partner1 || data.partner1_name || 'Partner 1',
+          partner2_name: data.names?.partner2 || data.partner2_name || 'Partner 2',
+          subtitle: data.subtitle || 'Bizim Dünyamız ❤️',
+          start_date: data.startDate || data.start_date || '2023-01-01T00:00:00.000Z',
+          theme_color_primary: data.theme?.primaryColor || data.theme_color_primary || '#ff4d6d',
+          theme_color_tech: data.theme?.techColor || data.theme_color_tech || '#6c5ce7',
+          bg_music_url: data.bgMusicUrl || data.bg_music_url || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+          custom_audio_url: data.customAudioUrl || data.custom_audio_url || data.bg_music_url,
+          spotify_url: data.spotify?.spotifyUrl || data.spotify_url || DEMO_COUPLE.spotify_url,
+          spotify_lyrics: data.spotify?.lyrics || data.spotify_lyrics || DEMO_COUPLE.spotify_lyrics,
+          whatsapp_number: data.whatsapp?.number || data.whatsapp_number || '905524185530',
+          whatsapp_message: data.whatsapp?.message || data.whatsapp_message || 'Acil sarılmana ihtiyacım var 🥺',
+          love_reasons: data.love_reasons || DEMO_COUPLE.love_reasons,
+          memories: memories.length > 0 ? memories : data.memories || DEMO_COUPLE.memories,
+          bucket_list: bucketList.length > 0 ? bucketList : data.bucket_list || DEMO_COUPLE.bucket_list,
+          upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
+          feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
+          is_active: data.isActive !== undefined ? data.isActive : true,
         };
+      } else if (slug === 'irem-muhammet') {
+        // Auto-seed demo couple on first request
+        await seedDemoCoupleToFirebase();
+        return DEMO_COUPLE;
       }
     } catch (e) {
-      console.error('Error fetching couple from Supabase:', e);
+      console.error('Error fetching couple from Firestore:', e);
     }
+  }
+
+  // Fallback to local memory store
+  if (localCouplesMemoryStore.has(slug)) {
+    return localCouplesMemoryStore.get(slug)!;
   }
 
   return null;
@@ -134,49 +156,60 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
 export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConfig | null> {
   localCouplesMemoryStore.set(config.slug, config);
 
-  if (isSupabaseConfigured && supabase) {
+  if (isFirebaseConfigured && db) {
     try {
+      const coupleRef = doc(db, 'couples', config.slug);
+
       const payload = {
         slug: config.slug,
         partner1_name: config.partner1_name,
         partner2_name: config.partner2_name,
+        names: {
+          partner1: config.partner1_name,
+          partner2: config.partner2_name,
+        },
         subtitle: config.subtitle,
+        startDate: config.start_date,
         start_date: config.start_date,
+        theme: {
+          primaryColor: config.theme_color_primary,
+          techColor: config.theme_color_tech,
+          isDarkMode: false,
+          customCss: '',
+        },
         theme_color_primary: config.theme_color_primary,
         theme_color_tech: config.theme_color_tech,
+        bgMusicUrl: config.bg_music_url,
         bg_music_url: config.bg_music_url,
+        customAudioUrl: config.custom_audio_url,
         custom_audio_url: config.custom_audio_url,
+        spotify: {
+          spotifyUrl: config.spotify_url,
+          lyrics: config.spotify_lyrics || [],
+        },
         spotify_url: config.spotify_url,
-        spotify_lyrics: JSON.stringify(config.spotify_lyrics || []),
+        spotify_lyrics: config.spotify_lyrics || [],
+        whatsapp: {
+          number: config.whatsapp_number,
+          message: config.whatsapp_message,
+        },
         whatsapp_number: config.whatsapp_number,
         whatsapp_message: config.whatsapp_message,
-        love_reasons: JSON.stringify(config.love_reasons || []),
-        memories: JSON.stringify(config.memories || []),
-        bucket_list: JSON.stringify(config.bucket_list || []),
-        upcoming_event: JSON.stringify(config.upcoming_event || null),
-        feature_toggles: JSON.stringify(config.feature_toggles || {}),
-        updated_at: new Date().toISOString(),
+        love_reasons: config.love_reasons || [],
+        memories: config.memories || [],
+        bucket_list: config.bucket_list || [],
+        upcoming_event: config.upcoming_event || null,
+        feature_toggles: config.feature_toggles || {},
+        packageType: 'digital',
+        isActive: true,
+        updatedAt: serverTimestamp(),
       };
 
-      const { data, error } = await supabase
-        .from('couples')
-        .upsert(payload, { onConflict: 'slug' })
-        .select()
-        .single();
+      await setDoc(coupleRef, payload, { merge: true });
 
-      if (data && !error) {
-        return {
-          ...data,
-          love_reasons: parseJsonField(data.love_reasons, []),
-          memories: parseJsonField(data.memories, config.memories),
-          bucket_list: parseJsonField(data.bucket_list, config.bucket_list),
-          upcoming_event: parseJsonField(data.upcoming_event, config.upcoming_event),
-          feature_toggles: parseJsonField(data.feature_toggles, config.feature_toggles),
-          spotify_lyrics: parseJsonField(data.spotify_lyrics, config.spotify_lyrics),
-        };
-      }
+      return config;
     } catch (e) {
-      console.error('Error saving couple to Supabase:', e);
+      console.error('Error saving couple to Firestore:', e);
     }
   }
 
@@ -184,59 +217,83 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
 }
 
 export async function getMapMarkers(coupleId: string): Promise<MapMarker[]> {
-  if (isSupabaseConfigured && supabase) {
+  if (isFirebaseConfigured && db) {
     try {
-      const { data, error } = await supabase
-        .from('map_markers')
-        .select('*')
-        .eq('couple_id', coupleId);
-
-      if (data && !error) {
-        return data;
+      const markersRef = collection(db, `couples/${coupleId}/modules_map_markers`);
+      const snap = await getDocs(markersRef);
+      if (!snap.empty) {
+        return snap.docs.map((d) => ({ id: d.id, couple_id: coupleId, ...d.data() } as MapMarker));
       }
     } catch (e) {
-      console.error('Error fetching map markers:', e);
+      console.error('Error fetching map markers from Firestore:', e);
     }
   }
   return [];
 }
 
 export async function addMapMarker(marker: Omit<MapMarker, 'id' | 'created_at'>): Promise<MapMarker | null> {
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('map_markers')
-        .insert([marker])
-        .select()
-        .single();
+  const coupleSlug = marker.couple_id || 'irem-muhammet';
 
-      if (data && !error) {
-        return data;
-      }
+  if (isFirebaseConfigured && db) {
+    try {
+      const markersRef = collection(db, `couples/${coupleSlug}/modules_map_markers`);
+      const docRef = await addDoc(markersRef, {
+        lat: marker.lat,
+        lng: marker.lng,
+        title: marker.title || 'Bizim Aşk Noktamız ❤️',
+        createdAt: serverTimestamp(),
+      });
+
+      return {
+        id: docRef.id,
+        couple_id: coupleSlug,
+        lat: marker.lat,
+        lng: marker.lng,
+        title: marker.title,
+        created_at: new Date().toISOString(),
+      };
     } catch (e) {
-      console.error('Error inserting map marker:', e);
+      console.error('Error adding map marker to Firestore:', e);
     }
   }
+
   return {
     id: `local-${Date.now()}`,
     ...marker,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   };
 }
 
 export async function clearMapMarkers(coupleId: string): Promise<boolean> {
-  if (isSupabaseConfigured && supabase) {
+  if (isFirebaseConfigured && db) {
     try {
-      const { error } = await supabase
-        .from('map_markers')
-        .delete()
-        .eq('couple_id', coupleId);
-
-      return !error;
+      const markersRef = collection(db, `couples/${coupleId}/modules_map_markers`);
+      const snap = await getDocs(markersRef);
+      const deletePromises = snap.docs.map((d) => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
+      return true;
     } catch (e) {
-      console.error('Error clearing map markers:', e);
+      console.error('Error clearing map markers in Firestore:', e);
       return false;
     }
   }
   return true;
+}
+
+// Seed Demo Couple function
+export async function seedDemoCoupleToFirebase(): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const coupleRef = doc(db, 'couples', 'irem-muhammet');
+      const snap = await getDoc(coupleRef);
+      if (!snap.exists()) {
+        await saveCoupleConfig(DEMO_COUPLE);
+        console.log('Seeded demo couple (irem-muhammet) into Firestore!');
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to seed demo couple to Firestore:', e);
+    }
+  }
+  return false;
 }

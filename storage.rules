@@ -1,0 +1,16 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Public read and write for couple media assets in couples-assets/{slug}/...
+    match /couples-assets/{slug}/{allPaths=**} {
+      allow read, write: if true;
+    }
+
+    // General fallback rule
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}

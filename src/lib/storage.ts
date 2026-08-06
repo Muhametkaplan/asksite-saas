@@ -1,35 +1,30 @@
-import { supabase, isSupabaseConfigured } from './supabase';
+import { storage, isFirebaseConfigured } from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-export async function uploadFileToSupabase(
+export async function uploadFileToStorage(
   file: File,
+  slug: string = 'irem-muhammet',
   folder: 'music' | 'photos' = 'photos'
 ): Promise<string | null> {
-  if (isSupabaseConfigured && supabase) {
+  if (isFirebaseConfigured && storage) {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `couples-assets/${slug}/${folder}/${fileName}`;
 
-      const { data, error } = await supabase.storage
-        .from('couples-assets')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true,
-        });
+      const storageRef = ref(storage, filePath);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
 
-      if (data && !error) {
-        const { data: publicUrlData } = supabase.storage
-          .from('couples-assets')
-          .getPublicUrl(fileName);
-
-        return publicUrlData.publicUrl;
-      } else {
-        console.error('Storage upload error:', error);
-      }
+      return downloadUrl;
     } catch (e) {
-      console.error('Exception during file upload:', e);
+      console.error('Firebase Storage upload error:', e);
     }
   }
 
-  // Fallback blob URL for client-side local testing when Supabase is not connected
+  // Fallback blob URL for client-side testing when Firebase credentials are dummy/offline
   return URL.createObjectURL(file);
 }
+
+// Backwards compatibility alias
+export const uploadFileToSupabase = uploadFileToStorage;
