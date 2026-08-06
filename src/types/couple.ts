@@ -19,6 +19,12 @@ export interface UpcomingEvent {
   location?: string;
 }
 
+export interface AllowedUsers {
+  partner1_email?: string;
+  partner2_email?: string;
+  access_pin?: string;
+}
+
 export interface FeatureToggles {
   spotify?: boolean;
   memory?: boolean;
@@ -26,6 +32,7 @@ export interface FeatureToggles {
   day_night?: boolean;
   countdown?: boolean;
   custom_audio?: boolean;
+  canvas?: boolean;
 }
 
 export interface CoupleConfig {
@@ -47,6 +54,7 @@ export interface CoupleConfig {
   memories?: MemoryItem[];
   bucket_list?: BucketListItem[];
   upcoming_event?: UpcomingEvent;
+  allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;
   is_active?: boolean;
   created_at?: string;

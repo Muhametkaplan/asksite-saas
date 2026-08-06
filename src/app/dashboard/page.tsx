@@ -557,6 +557,69 @@ function DashboardContent() {
                     className="h-4 w-4 accent-rose-500 cursor-pointer"
                   />
                 </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white shadow-xs">
+                  <span className="text-xs font-bold text-gray-800">🎨 Real-time Live Canvas</span>
+                  <input
+                    type="checkbox"
+                    checked={config.feature_toggles?.canvas !== false}
+                    onChange={() => handleToggleFeature('canvas')}
+                    className="h-4 w-4 accent-rose-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Partner Auth & PIN Settings */}
+              <div className="space-y-3 pt-2 border-t">
+                <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                  🔐 Çift İçi Kimlik Doğrulama & PIN Ayarları
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">4 Haneli Giriş PIN'i</label>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={config.allowed_users?.access_pin || '1234'}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          allowed_users: { ...config.allowed_users, access_pin: e.target.value },
+                        })
+                      }
+                      className="w-full text-center font-bold tracking-widest rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">{config.partner1_name} E-Postası</label>
+                    <input
+                      type="email"
+                      value={config.allowed_users?.partner1_email || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          allowed_users: { ...config.allowed_users, partner1_email: e.target.value },
+                        })
+                      }
+                      placeholder="irem@asksite.com"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">{config.partner2_name} E-Postası</label>
+                    <input
+                      type="email"
+                      value={config.allowed_users?.partner2_email || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          allowed_users: { ...config.allowed_users, partner2_email: e.target.value },
+                        })
+                      }
+                      placeholder="muhammet@asksite.com"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* 1. Spotify & Karaoke Editor */}

@@ -18,6 +18,8 @@ import RandomMemoryWidget from '@/components/RandomMemoryWidget';
 import CoupleBucketList from '@/components/CoupleBucketList';
 import EventCountdown from '@/components/EventCountdown';
 import CustomAudioPlayer from '@/components/CustomAudioPlayer';
+import PartnerAuthModal from '@/components/PartnerAuthModal';
+import LiveCanvasWidget from '@/components/LiveCanvasWidget';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -69,12 +71,21 @@ export default async function CouplePage({ params }: PageProps) {
     day_night: true,
     countdown: true,
     custom_audio: true,
+    canvas: true,
   };
 
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-28 pt-8">
       {/* Dynamic Background Floating Hearts */}
       <FloatingHearts />
+
+      {/* Partner Identity Verification & PIN Auth Modal */}
+      <PartnerAuthModal
+        slug={couple.slug}
+        partner1Name={couple.partner1_name}
+        partner2Name={couple.partner2_name}
+        allowedUsers={couple.allowed_users}
+      />
 
       <div className="container relative z-10 mx-auto max-w-lg px-5 text-center">
         {/* Dynamic Day/Night Greeting Theme */}
@@ -107,6 +118,15 @@ export default async function CouplePage({ params }: PageProps) {
 
         {toggles.countdown !== false && (
           <EventCountdown event={couple.upcoming_event} />
+        )}
+
+        {/* Real-time Collaborative Live Canvas */}
+        {toggles.canvas !== false && (
+          <LiveCanvasWidget
+            slug={couple.slug}
+            partner1Name={couple.partner1_name}
+            partner2Name={couple.partner2_name}
+          />
         )}
 
         {/* Spotify Integration & Dynamic Karaoke */}

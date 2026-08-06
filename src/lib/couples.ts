@@ -8,6 +8,10 @@ import {
   getDocs,
   addDoc,
   deleteDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
   serverTimestamp,
 } from 'firebase/firestore';
 
@@ -83,6 +87,11 @@ export const DEMO_COUPLE: CoupleConfig = {
     date: '2026-09-15T00:00:00.000Z',
     location: 'Kapadokya',
   },
+  allowed_users: {
+    partner1_email: 'irem@asksite.com',
+    partner2_email: 'muhammet@asksite.com',
+    access_pin: '1234',
+  },
   feature_toggles: {
     spotify: true,
     memory: true,
@@ -90,6 +99,7 @@ export const DEMO_COUPLE: CoupleConfig = {
     day_night: true,
     countdown: true,
     custom_audio: true,
+    canvas: true,
   },
 };
 
@@ -132,6 +142,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           memories: memories.length > 0 ? memories : data.memories || DEMO_COUPLE.memories,
           bucket_list: bucketList.length > 0 ? bucketList : data.bucket_list || DEMO_COUPLE.bucket_list,
           upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
+          allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
           is_active: data.isActive !== undefined ? data.isActive : true,
         };
@@ -199,6 +210,11 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         memories: config.memories || [],
         bucket_list: config.bucket_list || [],
         upcoming_event: config.upcoming_event || null,
+        allowed_users: config.allowed_users || {
+          partner1_email: 'irem@asksite.com',
+          partner2_email: 'muhammet@asksite.com',
+          access_pin: '1234',
+        },
         feature_toggles: config.feature_toggles || {},
         packageType: 'digital',
         isActive: true,
@@ -296,4 +312,108 @@ export async function seedDemoCoupleToFirebase(): Promise<boolean> {
     }
   }
   return false;
+}
+
+// ================= PRESENCE STATUS SERVICES =================
+export async function updatePartnerPresence(
+  slug: string,
+  role: 'partner1' | 'partner2',
+  isOnline: boolean
+): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const presenceRef = doc(db, `couples/${slug}/presence/status`);
+      await setDoc(
+        presenceRef,
+        {
+          [role]: {
+            isOnline,
+            lastSeen: new Date().toISOString(),
+            activeRole: role,
+          },
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.error('Error updating presence:', e);
+    }
+  }
+}
+
+export function subscribeToPartnerPresence(
+  slug: string,
+  callback: (presence: { partner1?: any; partner2?: any }) => void
+): () => void {
+  if (isFirebaseConfigured && db) {
+    const presenceRef = doc(db, `couples/${slug}/presence/status`);
+    return onSnapshot(
+      presenceRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          callback(docSnap.data());
+        } else {
+          callback({});
+        }
+      },
+      (error) => console.error('Presence snapshot error:', error)
+    );
+  }
+  return () => {};
+}
+
+// ================= REAL-TIME LIVE CANVAS SERVICES =================
+export interface CanvasStrokeData {
+  id?: string;
+  points: Array<{ x: number; y: number }>;
+  color: string;
+  strokeWidth: number;
+  role: 'partner1' | 'partner2' | 'guest';
+  timestamp?: number;
+}
+
+export async function sendCanvasStroke(slug: string, stroke: CanvasStrokeData): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const canvasRef = collection(db, `couples/${slug}/modules_canvas`);
+      await addDoc(canvasRef, {
+        ...stroke,
+        createdAt: serverTimestamp(),
+        timestamp: Date.now(),
+      });
+    } catch (e) {
+      console.error('Error sending canvas stroke to Firestore:', e);
+    }
+  }
+}
+
+export function subscribeToLiveCanvas(
+  slug: string,
+  callback: (strokes: CanvasStrokeData[]) => void
+): () => void {
+  if (isFirebaseConfigured && db) {
+    const canvasRef = collection(db, `couples/${slug}/modules_canvas`);
+    const q = query(canvasRef, orderBy('createdAt', 'asc'), limit(300));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const strokes = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as CanvasStrokeData));
+        callback(strokes);
+      },
+      (error) => console.error('Canvas snapshot error:', error)
+    );
+  }
+  return () => {};
+}
+
+export async function clearLiveCanvas(slug: string): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const canvasRef = collection(db, `couples/${slug}/modules_canvas`);
+      const snap = await getDocs(canvasRef);
+      const deletes = snap.docs.map((d) => deleteDoc(d.ref));
+      await Promise.all(deletes);
+    } catch (e) {
+      console.error('Error clearing live canvas in Firestore:', e);
+    }
+  }
 }
