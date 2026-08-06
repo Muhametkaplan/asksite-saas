@@ -178,8 +178,8 @@ export default function LiveCanvasWidget({
           </div>
         </div>
 
-        {/* Presence Status Badges */}
-        <div className="flex items-center gap-2 text-[11px] font-semibold">
+        {/* Presence Status Badges & Quick Switch */}
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
           <div className="flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-rose-900 border border-rose-100">
             <Circle className={`h-2.5 w-2.5 ${presence.partner1?.isOnline ? 'fill-emerald-500 text-emerald-500 animate-pulse' : 'fill-gray-300 text-gray-300'}`} />
             <span>{partner1Name}</span>
@@ -188,6 +188,13 @@ export default function LiveCanvasWidget({
             <Circle className={`h-2.5 w-2.5 ${presence.partner2?.isOnline ? 'fill-emerald-500 text-emerald-500 animate-pulse' : 'fill-gray-300 text-gray-300'}`} />
             <span>{partner2Name}</span>
           </div>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open_partner_auth_modal'))}
+            className="rounded-full bg-white px-2.5 py-1 text-rose-500 font-extrabold border border-rose-200 hover:bg-rose-50 transition active:scale-95 shadow-xs"
+            title="Kendi profilini seç"
+          >
+            Profil Değiştir 🔄
+          </button>
         </div>
       </div>
 
