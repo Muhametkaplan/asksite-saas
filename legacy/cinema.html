@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sinemamız 🎬</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .star-rating { display: flex; justify-content: center; gap: 8px; margin-top: 10px; font-size: 1.8rem; cursor: pointer; color: #ccc; }
+        .star-rating span { transition: color 0.2s; }
+        .star-rating span.hover, .star-rating span.active { color: var(--accent); text-shadow: 0 0 10px var(--accent-glow); }
+        .movie-selector-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    </style>
+</head>
+<body>
+    <!-- Background Floating Hearts -->
+    <div class="hearts-bg" id="hearts-bg"></div>
+
+    <div class="container">
+        <!-- Back Navigation Header -->
+        <div class="back-header">
+            <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+            <h2 style="font-family:'Dancing Script', cursive; font-size: 2.2rem; color:var(--primary); margin:0;">Bizim Sinemamız</h2>
+            <div style="width:42px;"></div> <!-- Spacer -->
+        </div>
+
+        <p class="subtitle">İzlediğimiz Filmler ve Ortak Anılarımız 🍿</p>
+
+        <!-- Add Watched Movie Form -->
+        <div class="box-style">
+            <h3 style="font-size:1.1rem; color:var(--text-main); margin-bottom:5px;"><i class="fas fa-ticket-alt"></i> İzlediğimiz Bir Filmi Ekle</h3>
+            <input type="text" id="mName" placeholder="Film Adı">
+            <input type="text" id="mNote" placeholder="Film anısı veya notun (Örn: Çok ağlamıştık)">
+            
+            <div class="movie-selector-row">
+                <div>
+                    <label style="display:block; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); margin-bottom:4px;">Kim Önerdi? 🙋‍♂️</label>
+                    <select id="mProposer">
+                        <option value="Ortak Seçim 👥">Ortak Seçim 👥</option>
+                        <option value="Mami 🙋‍♂️">Mami 🙋‍♂️</option>
+                        <option value="İrem 🙋‍♀️">İrem 🙋‍♀️</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; text-align:left; font-size:0.75rem; font-weight:600; color:var(--text-muted); margin-bottom:4px;">İzleme Tarihi 📅</label>
+                    <input type="date" id="mDate" style="margin-top:0; padding:10px;">
+                </div>
+            </div>
+
+            <p style="font-size: 0.8rem; font-weight:600; text-align:left; margin-top: 15px; color:var(--text-main);">Film Puanımız (Yıldız):</p>
+            <div class="star-rating" id="stars-container">
+                <span data-val="1" onclick="rateMovie(1)">★</span>
+                <span data-val="2" onclick="rateMovie(2)">★</span>
+                <span data-val="3" onclick="rateMovie(3)">★</span>
+                <span data-val="4" onclick="rateMovie(4)">★</span>
+                <span data-val="5" onclick="rateMovie(5)">★</span>
+            </div>
+            
+            <button class="btn-main" onclick="addMovie()" style="background:#e74c3c; box-shadow: 0 8px 20px rgba(231, 76, 60, 0.35);"><i class="fas fa-plus"></i> Listeye Ekle 🎬</button>
+        </div>
+
+        <!-- Cinema Movie Lists -->
+        <div id="movie-list" style="margin-top: 25px;">
+            <p style="text-align:center; color:var(--text-muted);">Sinema lobisi yükleniyor... ⏳</p>
+        </div>
+    </div>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="navbar">
+        <a href="index.html" class="nav-link"><i class="fas fa-home"></i></a>
+        <a href="games.html" class="nav-link"><i class="fas fa-gamepad"></i></a>
+        <a href="diary.html" class="nav-link"><i class="fas fa-book"></i></a>
+    </div>
+
+    <!-- Running Ticker Banner -->
+    <div class="ticker-wrap">
+        <div class="ticker">Seni Çok Seviyorum ❤️ Bugün harika bir gün olacak ☀️ Dünyanın en tatlı gülüşüne sahipsin 😊 Yanındayım 💪 Seni seviyorum! ❤️</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
+    
+    <script>
+        // --- 1. FIREBASE START ---
+        firebase.initializeApp(window.APP_CONFIG.FIREBASE);
+        const db = firebase.database();
+        const movieRef = db.ref('movies');
+
+        // --- 2. FLOATING HEARTS GENERATOR ---
+        function createHeart() {
+            const container = document.getElementById('hearts-bg');
+            if(!container) return;
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = '❤️';
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = 7 + Math.random() * 7;
+            heart.style.animationDuration = duration + 's';
+            const size = 0.8 + Math.random() * 1.2;
+            heart.style.fontSize = size + 'rem';
+            heart.style.opacity = 0.15;
+            container.appendChild(heart);
+            setTimeout(() => { heart.remove(); }, duration * 1000);
+        }
+        setInterval(createHeart, 900);
+        for(let i=0; i<8; i++) { setTimeout(createHeart, Math.random() * 5000); }
+
+        // --- 3. STAR RATING LOGIC ---
+        let selectedStars = 5;
+        function rateMovie(val) {
+            selectedStars = val;
+            const stars = document.querySelectorAll('.star-rating span');
+            stars.forEach(star => {
+                const sVal = parseInt(star.getAttribute('data-val'));
+                star.classList.toggle('active', sVal <= val);
+            });
+        }
+        // Initialize default rating to 5
+        rateMovie(5);
+
+        // --- 4. MOVIE DATABASE CONTROLS ---
+        function addMovie() {
+            const nameInput = document.getElementById('mName');
+            const noteInput = document.getElementById('mNote');
+            const proposerSelect = document.getElementById('mProposer');
+            const dateInput = document.getElementById('mDate');
+            
+            const name = nameInput.value.trim();
+            const note = noteInput.value.trim();
+            const proposer = proposerSelect.value;
+            const watchDate = dateInput.value;
+            
+            if(!name) return alert("Tatlım, izlediğimiz filmin adını girmelisin! 🍿🎬");
+            
+            let formattedDate = "";
+            if(watchDate) {
+                formattedDate = new Date(watchDate).toLocaleDateString('tr-TR');
+            } else {
+                formattedDate = new Date().toLocaleDateString('tr-TR');
+            }
+
+            movieRef.push({ 
+                title: name, 
+                note: note,
+                proposer: proposer,
+                date: formattedDate,
+                stars: selectedStars,
+                timestamp: Date.now()
+            }).then(() => {
+                nameInput.value = "";
+                noteInput.value = "";
+                dateInput.value = "";
+                rateMovie(5); // Reset to 5 stars
+                alert("Filminiz sinema listesine kaydedildi! 🍿🎟️");
+            });
+        }
+
+        movieRef.on('value', s => {
+            const list = document.getElementById('movie-list');
+            list.innerHTML = "";
+            const val = s.val();
+
+            if(val) {
+                // Order from newest to oldest
+                const entries = Object.entries(val).sort((a,b) => b[1].timestamp - a[1].timestamp);
+
+                entries.forEach(([key, movie]) => {
+                    // Generate gold stars string
+                    let starsHTML = "";
+                    const count = movie.stars || 5;
+                    for(let i=0; i<count; i++) { starsHTML += "★"; }
+                    for(let i=count; i<5; i++) { starsHTML += "☆"; }
+
+                    const card = document.createElement('div');
+                    card.className = 'cinema-ticket';
+
+                    card.innerHTML = `
+                        <div class="delete-btn" onclick="del('${key}')" style="position:absolute; top:12px; right:15px; color:#e74c3c; cursor:pointer; font-size:0.85rem; z-index:10;"><i class="fas fa-trash-alt"></i></div>
+                        <span class="cinema-badge">${movie.proposer || 'Ortak Seçim'}</span>
+                        <div class="cinema-stub-left">
+                            <i class="fas fa-film"></i>
+                        </div>
+                        <div class="cinema-stub-right">
+                            <div class="cinema-title">${movie.title}</div>
+                            <small style="color:var(--text-muted); font-size:0.75rem; font-weight:600;"><i class="far fa-calendar-alt"></i> ${movie.date}</small>
+                            <div class="cinema-note">${movie.note || 'İzleme anısı girilmemiş.'}</div>
+                            <div class="cinema-rating">${starsHTML}</div>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            } else {
+                list.innerHTML = `<div class="glass-card" style="padding: 20px; color:var(--text-muted);">Sinema listemiz bomboş aşkım. Birlikte izlediğimiz ilk filmi yukarıdan ekleyebilirsin! 🍿🎬</div>`;
+            }
+        });
+
+        function del(key) { 
+            if(confirm("Bu filmi sinema listesinden silmek istediğine emin misin?")) {
+                db.ref('movies/' + key).remove(); 
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>İrem & Muhammet ❤️</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Floating Hearts -->
+    <div class="hearts-bg" id="hearts-bg"></div>
+
+    <div class="container">
+        <!-- Title & Header -->
+        <h1>İrem & Muhammet</h1>
+        <div class="subtitle">Bizim Dünyamız ❤️</div>
+
+        <!-- Background Music Player Widget -->
+        <div class="music-player-widget">
+            <button class="music-toggle-btn" id="music-toggle" onclick="toggleMusic()">
+                <i class="fas fa-music"></i>
+            </button>
+            <span id="music-status">Arka Plan Müziği 🎵</span>
+            <audio id="bg-audio" loop>
+                <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" type="audio/mpeg">
+            </audio>
+        </div>
+
+        <!-- Relationship Timer Widget V2 -->
+        <div class="timer-box">
+            <div style="font-size:0.8rem; font-weight:700; opacity:0.9; letter-spacing: 2.5px;">BİRLİKTELİĞİMİZ</div>
+            <div id="timer">
+                <div class="time-segment">
+                    <span class="time-val" id="days">0</span>
+                    <span class="time-lbl">Gün</span>
+                </div>
+                <div class="time-segment">
+                    <span class="time-val" id="hours">0</span>
+                    <span class="time-lbl">Saat</span>
+                </div>
+                <div class="time-segment">
+                    <span class="time-val" id="minutes">0</span>
+                    <span class="time-lbl">Dakika</span>
+                </div>
+                <div class="time-segment">
+                    <span class="time-val" id="seconds">0</span>
+                    <span class="time-lbl">Saniye</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Menu Grid V2 -->
+        <div class="menu-grid">
+            <a href="games.html" class="menu-item">
+                <i class="fas fa-gamepad"></i>
+                <span>Oyunlar</span>
+            </a>
+            <a href="coupons.html" class="menu-item">
+                <i class="fas fa-ticket-alt"></i>
+                <span>Kuponlar</span>
+            </a>
+            <a href="therapy.html" class="menu-item">
+                <i class="fas fa-paint-brush"></i>
+                <span>Sanat Galerisi</span>
+            </a>
+            <a href="diary.html" class="menu-item">
+                <i class="fas fa-book-open"></i>
+                <span>Anı Defteri</span>
+            </a>
+            <a href="capsule.html" class="menu-item">
+                <i class="fas fa-hourglass-half"></i>
+                <span>Zaman Kapsülü</span>
+            </a>
+            <a href="cinema.html" class="menu-item">
+                <i class="fas fa-film"></i>
+                <span>Sinemamız</span>
+            </a>
+            <a href="wheel.html" class="menu-item">
+                <i class="fas fa-dharmachakra"></i>
+                <span>Aşk Çarkı</span>
+            </a>
+            <a href="quiz.html" class="menu-item">
+                <i class="fas fa-brain"></i>
+                <span>Aşk Testi</span>
+            </a>
+        </div>
+
+        <!-- Map Widget -->
+        <div class="box-style">
+            <h3><i class="fas fa-map-marked-alt" style="color:var(--primary);"></i> Bizim Haritamız</h3>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom: 10px;">Haritaya dokunarak dilediğin yere kalp bırak! ❤️</p>
+            <div id="map" style="height:280px; border-radius:20px; border:2px solid white; overflow:hidden;"></div>
+            <div style="display:flex; gap:10px; margin-top:12px;">
+                <button class="btn-main btn-secondary" onclick="clearMap()" style="margin-top:0; font-size:0.85rem; padding:10px;">
+                    <i class="fas fa-trash-alt"></i> Haritayı Temizle
+                </button>
+            </div>
+        </div>
+
+        <!-- Love Jar V2 (SVG Animation & Unfolding Paper Note) -->
+        <div class="box-style">
+            <h3 style="color:#d63384;"><i class="fas fa-heart" style="color:#d63384;"></i> Sevgi Kavanozu</h3>
+            <p style="font-size:0.8rem; color:var(--text-muted);">Kavanoza tıklayıp kalbinden bir not çek...</p>
+            
+            <div class="jar-container-v2" id="jar-container" onclick="pickReason()">
+                <!-- Inline Glass Jar SVG -->
+                <svg class="jar-svg" viewBox="0 0 100 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Lid -->
+                    <rect x="25" y="10" width="50" height="12" rx="4" fill="#c5a880" stroke="#7d613b" stroke-width="2"/>
+                    <rect x="22" y="17" width="56" height="5" rx="2" fill="#d8be96"/>
+                    <!-- Neck Ribbon -->
+                    <path d="M 28 22 C 38 28, 62 28, 72 22" stroke="#e05a76" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M 50 25 L 42 42 M 50 25 L 58 42" stroke="#e05a76" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Glass Body -->
+                    <path d="M 28 22 L 28 35 C 28 40, 15 50, 15 70 L 15 105 C 15 118, 30 125, 50 125 C 70 125, 85 118, 85 105 L 85 70 C 85 50, 72 40, 72 35 L 72 22 Z" 
+                          fill="rgba(255, 255, 255, 0.45)" stroke="rgba(180, 210, 230, 0.8)" stroke-width="3.5" stroke-linejoin="round"/>
+                    <!-- Hearts inside jar -->
+                    <path d="M 45 60 C 45 55, 55 55, 50 60 C 45 55, 35 55, 45 60" fill="#ff7675" opacity="0.8"/>
+                    <path d="M 32 82 C 32 78, 40 78, 36 82 C 32 78, 24 78, 32 82" fill="#ff7675" opacity="0.9" transform="rotate(15, 32, 82)"/>
+                    <path d="M 62 75 C 62 71, 70 71, 66 75 C 62 71, 54 71, 62 75" fill="#e84393" opacity="0.85" transform="rotate(-20, 62, 75)"/>
+                    <path d="M 48 98 C 48 93, 58 93, 53 98 C 48 93, 38 93, 48 98" fill="#fd79a8" opacity="0.9"/>
+                    <!-- Reflections -->
+                    <path d="M 22 70 Q 20 90, 24 105" stroke="rgba(255, 255, 255, 0.6)" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M 78 70 Q 80 90, 76 105" stroke="rgba(255, 255, 255, 0.3)" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            
+            <button class="btn-main" onclick="pickReason()">Not Çek ✨</button>
+        </div>
+
+        <!-- Unfolding Note Modal -->
+        <div class="love-note-modal" id="note-modal" onclick="closeNote()">
+            <div class="love-note-card" id="note-card" onclick="event.stopPropagation()">
+                <button class="close-note-btn" onclick="closeNote()">✕</button>
+                <div id="note-text" style="margin-top: 10px;">Gülüşünle dünyamı aydınlatıyorsun.</div>
+            </div>
+        </div>
+
+        <!-- Mami-AI Cine-AI V2 -->
+        <div class="box-style" style="border-top: 4px solid var(--tech);">
+            <h3 style="color:var(--tech);"><i class="fas fa-robot"></i> Mami-AI Sinema Önerisi</h3>
+            <p style="font-size:0.8rem; color:var(--text-muted);">Hangi tür film istersin? (Gemini Yapay Zeka)</p>
+            
+            <div class="genre-grid">
+                <button class="genre-btn" onclick="selectGenre(this, 'Romantik')">💘 Romantik</button>
+                <button class="genre-btn" onclick="selectGenre(this, 'Komedi')">😂 Komedi</button>
+                <button class="genre-btn" onclick="selectGenre(this, 'Korku')">👻 Korku</button>
+                <button class="genre-btn" onclick="selectGenre(this, 'Bilim Kurgu')">👽 Bilim Kurgu</button>
+                <button class="genre-btn" onclick="selectGenre(this, 'Animasyon')">🦄 Animasyon</button>
+            </div>
+
+            <div id="all-genres" class="hidden-genres">
+                <div class="genre-grid">
+                    <button class="genre-btn" onclick="selectGenre(this, 'Aksiyon')">💥 Aksiyon</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Dram')">🎭 Dram</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Gerilim')">😬 Gerilim</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Gizem')">🔍 Gizem</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Macera')">🌍 Macera</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Polisiye')">👮 Polisiye</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Suç')">⚖️ Suç</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Belgesel')">🎥 Belgesel</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Fantastik')">🐉 Fantastik</button>
+                    <button class="genre-btn" onclick="selectGenre(this, 'Müzikal')">💃 Müzikal</button>
+                </div>
+            </div>
+            <button class="expand-btn" onclick="toggleGenres()">Tüm Türleri Göster 👇</button>
+
+            <p style="font-size:0.8rem; margin:15px 0 5px 0; font-weight:600; text-align:left; color: var(--text-main);">Şu an nasıl hissediyorsun?</p>
+            <input type="text" id="ai-mood" placeholder="Örn: Tatlı bir hüzün var, sarılmak istiyorum...">
+            
+            <button class="btn-main" onclick="askAI()" style="background:var(--tech); box-shadow: 0 8px 20px var(--tech-glow);">Bana Film Öner 🎬</button>
+            
+            <!-- Movie Ticket Result Stub -->
+            <div id="ai-result" class="ai-result-ticket">
+                <div class="ai-ticket-header">🍿 CINE-AI SEÇİMİ 🍿</div>
+                <div id="ai-result-content"></div>
+            </div>
+        </div>
+
+        <!-- Emergency Hug Button -->
+        <a href="https://wa.me/905524185530?text=Acil%20sarılmana%20ihtiyacım%20var%20🥺" class="btn-main" target="_blank" style="background:#25D366; box-shadow:0 8px 20px rgba(37, 211, 102, 0.3); margin-top:25px;">
+            <i class="fab fa-whatsapp" style="font-size:1.2rem;"></i> Acil Sarılma Butonu
+        </a>
+    </div>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="navbar">
+        <a href="#" class="nav-link active"><i class="fas fa-home"></i></a>
+        <a href="games.html" class="nav-link"><i class="fas fa-gamepad"></i></a>
+        <a href="diary.html" class="nav-link"><i class="fas fa-book"></i></a>
+    </div>
+
+    <!-- Ticker Running Text at the bottom -->
+    <div class="ticker-wrap">
+        <div class="ticker">Seni Çok Seviyorum ❤️ Bugün harika bir gün olacak ☀️ Dünyanın en tatlı gülüşüne sahipsin 😊 Yanındayım 💪 Seni seviyorum! ❤️</div>
+    </div>
+
+    <!-- External Library Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="config.js"></script>
+    
+    <script>
+        // --- 1. FIREBASE START ---
+        firebase.initializeApp(window.APP_CONFIG.FIREBASE);
+        const db = firebase.database();
+
+        // --- 2. FLOATING HEARTS GENERATOR ---
+        function createHeart() {
+            const container = document.getElementById('hearts-bg');
+            if(!container) return;
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = Math.random() > 0.5 ? '❤️' : '💖';
+            
+            // Random horizontal pos, duration, delay and size
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = 6 + Math.random() * 8; // 6-14s
+            heart.style.animationDuration = duration + 's';
+            const size = 0.8 + Math.random() * 1.2; // 0.8rem - 2rem
+            heart.style.fontSize = size + 'rem';
+            heart.style.opacity = 0.1 + Math.random() * 0.25;
+            
+            container.appendChild(heart);
+            
+            // Cleanup
+            setTimeout(() => { heart.remove(); }, duration * 1000);
+        }
+        setInterval(createHeart, 600);
+        for(let i=0; i<15; i++) { setTimeout(createHeart, Math.random() * 5000); }
+
+        // --- 3. BACKGROUND MUSIC LOGIC ---
+        const audio = document.getElementById('bg-audio');
+        const musicBtn = document.getElementById('music-toggle');
+        const musicStatus = document.getElementById('music-status');
+        
+        function toggleMusic() {
+            if (audio.paused) {
+                audio.play().then(() => {
+                    musicBtn.classList.add('playing');
+                    musicBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    musicStatus.innerText = "Aşk Melodisi Çalıyor... 🎹";
+                }).catch(e => console.log("Müzik çalma engellendi: ", e));
+            } else {
+                audio.pause();
+                musicBtn.classList.remove('playing');
+                musicBtn.innerHTML = '<i class="fas fa-play"></i>';
+                musicStatus.innerText = "Müzik Durduruldu 🎵";
+            }
+        }
+
+        // --- 4. RELATIONSHIP TIMER ---
+        function updateFullTimer() {
+            const now = new Date();
+            const diff = now - window.APP_CONFIG.START_DATE;
+            const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const m = Math.floor((diff / (1000 * 60)) % 60);
+            const s = Math.floor((diff / 1000) % 60);
+            
+            document.getElementById('days').innerText = d;
+            document.getElementById('hours').innerText = h;
+            document.getElementById('minutes').innerText = m;
+            document.getElementById('seconds').innerText = s;
+        }
+        setInterval(updateFullTimer, 1000); 
+        updateFullTimer();
+
+        // --- 5. ROMANTIC MAP ---
+        let map;
+        const heartsRef = db.ref('hearts');
+
+        function initMap() {
+            if (map) return;
+
+            const mapContainer = document.getElementById('map');
+
+            map = L.map(mapContainer, {
+                zoomControl: false,
+                attributionControl: false,
+                center: [39.0, 35.0],
+                zoom: 5
+            });
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            const heartIcon = L.divIcon({
+                className: '',
+                html: '❤️',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+
+            heartsRef.on('value', snapshot => {
+                map.eachLayer(layer => {
+                    if (layer instanceof L.Marker) {
+                        map.removeLayer(layer);
+                    }
+                });
+
+                const data = snapshot.val();
+                if (data) {
+                    Object.entries(data).forEach(([key, p]) => {
+                        const marker = L.marker([p.lat, p.lng], { icon: heartIcon, interactive: false }).addTo(map);
+
+                        const popupContent = document.createElement('div');
+                        popupContent.style.cssText = 'font-family:Poppins,sans-serif; font-size:0.85rem; text-align:center; padding:5px;';
+                        popupContent.innerHTML = `
+                            <div style="margin-bottom:8px; font-weight:600; color:#e84a7f;">Bizim Aşk Noktamız ❤️</div>
+                            <button id="del-heart-${key}" style="background:#e84a7f; color:white; border:none; padding:5px 12px; border-radius:12px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                                <i class="fas fa-trash-alt"></i> Sil
+                            </button>
+                        `;
+
+                        marker.bindPopup(popupContent, { closeButton: false });
+
+                        marker.on('popupopen', () => {
+                            const btn = document.getElementById(`del-heart-${key}`);
+                            if (btn) {
+                                btn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    heartsRef.child(key).remove();
+                                };
+                            }
+                        });
+                    });
+                }
+            });
+
+            map.on('click', e => {
+                heartsRef.push({
+                    lat: e.latlng.lat,
+                    lng: e.latlng.lng,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+            });
+
+            setTimeout(() => { map.invalidateSize(true); }, 200);
+        }
+
+        function clearMap() {
+            if (confirm("Tüm harita anılarını silmek istediğine emin misin?")) {
+                heartsRef.set(null);
+            }
+        }
+
+        window.addEventListener('load', initMap);
+        setTimeout(initMap, 1000);
+
+        // --- 6. LOVE JAR V2 ---
+        const jarReasons = [
+            "Gülüşünle en karanlık günlerimi bile aydınlatıyorsun.",
+            "Bana her durumda güç veriyorsun ve hep arkamda duruyorsun.",
+            "Seninleyken zamanın nasıl aktığını unutuyorum.",
+            "Gözlerinin içi parlayarak güldüğün an dünyadaki her şey güzelleşiyor.",
+            "Senin sesin, duyduğum en huzurlu ve en tatlı melodi.",
+            "Beni tüm çocuksu hallerimle ve kusurlarımla kusursuz seviyorsun.",
+            "Birlikte saçmalayabiliyor, en anlamsız şeylere dakikalarca gülebiliyoruz.",
+            "Benim hayattaki en yakın arkadaşım, en sırdaşım ve tek aşkımsın.",
+            "Varlığın ve kokun bana evdeymişim hissi veriyor, huzur buluyorum.",
+            "Kötü bir gün geçirsem bile sana sarıldığım an her şeyi arkamda bırakabiliyorum.",
+            "Geleceğe dair kurduğum her hayalin başrolünde sen varsın.",
+            "Küçük sürprizlerinle, bana kendimi dünyanın en şanslı insanı hissettiriyorsun.",
+            "Ellerim ellerindeyken kendimi hiç olmadığım kadar güçlü ve cesur hissediyorum.",
+            "Sadece sevgilim değil, ruh eşim olduğunu her gün bana hissettiriyorsun.",
+            "Dünyadaki en güzel, en yumuşak ve en huzurlu sarılmalara sahipsin."
+        ];
+
+        function pickReason() {
+            const jarContainer = document.getElementById('jar-container');
+            const noteModal = document.getElementById('note-modal');
+            const noteText = document.getElementById('note-text');
+            
+            // Add shaking effect
+            jarContainer.classList.add('shaking');
+            
+            setTimeout(() => {
+                jarContainer.classList.remove('shaking');
+                const randomReason = jarReasons[Math.floor(Math.random() * jarReasons.length)];
+                noteText.innerHTML = `✨ ${randomReason} ✨`;
+                noteModal.classList.add('active');
+            }, 600);
+        }
+
+        function closeNote() {
+            document.getElementById('note-modal').classList.remove('active');
+        }
+
+        // --- 7. MAMI-AI CINE-AI V2 ---
+        let selectedGenre = "";
+        function selectGenre(btn, genre) { 
+            document.querySelectorAll('.genre-btn').forEach(b => b.classList.remove('active')); 
+            btn.classList.add('active'); 
+            selectedGenre = genre; 
+        }
+
+        function toggleGenres() { 
+            const div = document.getElementById('all-genres'); 
+            const btn = document.querySelector('.expand-btn'); 
+            if(div.style.display === 'block') { 
+                div.style.display = 'none'; 
+                btn.innerText = "Tüm Türleri Göster 👇"; 
+            } else { 
+                div.style.display = 'block'; 
+                btn.innerText = "Gizle 👆"; 
+            } 
+        }
+
+        // Custom typing effect for AI response
+        function typeWrite(element, text) {
+            let i = 0;
+            element.innerHTML = "";
+            function worker() {
+                if (i < text.length) {
+                    const char = text.charAt(i);
+                    if (char === '<') {
+                        // Skip rendering HTML tag directly character by character
+                        const tagEnd = text.indexOf('>', i);
+                        element.innerHTML += text.substring(i, tagEnd + 1);
+                        i = tagEnd + 1;
+                    } else {
+                        element.innerHTML += char;
+                        i++;
+                    }
+                    setTimeout(worker, 15);
+                }
+            }
+            worker();
+        }
+
+        async function askAI() {
+            const mood = document.getElementById('ai-mood').value; 
+            const resBox = document.getElementById('ai-result');
+            const resContent = document.getElementById('ai-result-content');
+            
+            if(!selectedGenre) { 
+                alert("Lütfen İrem için bir film türü seç tatlım! 💖"); 
+                return; 
+            }
+            
+            resBox.style.display = 'block'; 
+            resContent.innerHTML = "🧠 Mami-AI düşünüyor, İrem için en güzel filmi arıyor... ✨";
+            
+            const prompt = `Sevgilim İrem için film önerisi yap. Tür: ${selectedGenre}. His/Mod: ${mood}. Sadece bir adet film öner. Konuşma yapma, doğrudan şu formatta cevap ver: [FILM_ADI]|[FILM_KONUSU]|[NEDEN_IZLEMELISINIZ]`;
+            
+            try {
+                const req = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${window.APP_CONFIG.GEMINI_MODEL}:generateContent?key=${window.APP_CONFIG.GEMINI_KEY}`, { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({contents: [{parts: [{text: prompt}]}]}) 
+                });
+                
+                const data = await req.json();
+                const rawText = data.candidates[0].content.parts[0].text;
+                const parts = rawText.split('|');
+                
+                if(parts.length >= 3) { 
+                    const styledOutput = `<strong style='color:var(--primary); font-size:1.25rem; display:block; margin-bottom:12px; text-shadow:0 1px 3px rgba(0,0,0,0.05);'>🎬 ${parts[0].trim()}</strong>` +
+                                         `<span class='ai-tag'>📜 Konu:</span> ${parts[1].trim()}<br>` +
+                                         `<span class='ai-tag'>❤️ Neden İzlemelisiniz:</span> ${parts[2].trim()}`;
+                    typeWrite(resContent, styledOutput);
+                } else { 
+                    typeWrite(resContent, rawText); 
+                }
+            } catch(e) { 
+                resContent.innerText = "Yapay zeka önerisi şu an alınamadı aşkım, daha sonra tekrar dener misin? 🥺"; 
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aşk Çarkıfeleği ❤️</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .wheel-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 25px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #wheel-canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 15px 35px rgba(255, 107, 129, 0.25), 0 0 0 8px rgba(255, 255, 255, 0.7);
+            transition: transform 0.1s ease-out;
+        }
+
+        .wheel-pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
+            animation: pointerBounce 1s ease-in-out infinite alternate;
+        }
+
+        .wheel-pointer svg {
+            width: 36px;
+            height: 46px;
+            fill: var(--primary);
+            stroke: white;
+            stroke-width: 2.5px;
+        }
+
+        @keyframes pointerBounce {
+            0% { transform: translateX(-50%) translateY(0); }
+            100% { transform: translateX(-50%) translateY(4px); }
+        }
+
+        .wheel-center-heart {
+            position: absolute;
+            width: 55px;
+            height: 55px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(255, 107, 129, 0.2);
+            z-index: 12;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            color: var(--primary);
+            border: 3.5px solid var(--secondary);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .wheel-center-heart:hover {
+            transform: scale(1.08);
+        }
+
+        .wheel-center-heart:active {
+            transform: scale(0.92);
+        }
+
+        .wheel-actions {
+            margin-top: 15px;
+        }
+
+        /* Customize Slices Input Section */
+        .slice-manager {
+            text-align: left;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.55);
+            border-radius: 20px;
+            padding: 18px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .slice-manager h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .slice-list {
+            max-height: 180px;
+            overflow-y: auto;
+            margin-top: 12px;
+            border-top: 1px dashed var(--secondary);
+            padding-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slice-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 107, 129, 0.1);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slice-item-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            margin-right: 8px;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .slice-delete-btn {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .slice-delete-btn:hover {
+            opacity: 1;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-group input {
+            margin-top: 0;
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+        }
+
+        .input-group button {
+            margin-top: 0;
+            width: auto;
+            padding: 10px 18px;
+            font-size: 0.85rem;
+            border-radius: 16px;
+        }
+
+        /* Confetti / Result Modal styling */
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .result-overlay.active {
+            display: flex;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 28px;
+            padding: 35px 25px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--glass-border);
+            position: relative;
+            transform: scale(0.7);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+        }
+
+        .result-overlay.active .result-card {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .result-badge {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            animation: bounceResult 1s infinite alternate;
+        }
+
+        @keyframes bounceResult {
+            from { transform: scale(1); }
+            to { transform: scale(1.15); }
+        }
+
+        .result-title {
+            font-family: 'Dancing Script', cursive;
+            font-size: 2.2rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .result-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 15px 0 25px 0;
+            padding: 12px;
+            background: var(--secondary-glow);
+            border-radius: 16px;
+            border: 1.5px dashed var(--secondary);
+            line-height: 1.5;
+        }
+
+        .result-close {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Floating Hearts -->
+    <div class="hearts-bg" id="hearts-bg"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <h1 onclick="window.location.href='index.html'" style="cursor: pointer;">Aşk Çarkıfeleği</h1>
+        <div class="subtitle">Kararları Aşka Bırakalım ❤️</div>
+
+        <!-- Main Spin Card -->
+        <div class="box-style">
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">
+                Çarkı çevir, sevgilinle birlikte yapacağın tatlı bir aktivite belirle! 🥰
+            </p>
+
+            <!-- Wheel UI -->
+            <div class="wheel-container">
+                <!-- Outer pointer -->
+                <div class="wheel-pointer">
+                    <svg viewBox="0 0 36 46">
+                        <path d="M18,46 L0,20 Q0,8 18,0 Q36,8 36,20 Z" />
+                    </svg>
+                </div>
+                <!-- Canvas Wheel -->
+                <canvas id="wheel-canvas" width="640" height="640"></canvas>
+                <!-- Central Core Heart Spin trigger -->
+                <div class="wheel-center-heart" id="spin-btn" onclick="spinWheel()">
+                    ❤️
+                </div>
+            </div>
+
+            <!-- Spin Trigger Button -->
+            <div class="wheel-actions">
+                <button class="btn-main" onclick="spinWheel()" id="spin-btn-main">
+                    <i class="fas fa-sync-alt"></i> Aşkı Çevir!
+                </button>
+            </div>
+        </div>
+
+        <!-- Dynamic Slices Manager Panel -->
+        <div class="box-style slice-manager">
+            <h4><i class="fas fa-cog" style="color:var(--primary);"></i> Çark Dilimlerini Özelleştir</h4>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">
+                Kendi ortak hayallerinizi, aktivitelerinizi ekleyip çarkı özelleştirebilirsiniz!
+            </p>
+
+            <div class="input-group">
+                <input type="text" id="new-slice-input" placeholder="Yeni aktivite yaz... (Örn: Sinema gecesi)">
+                <button class="btn-main" onclick="addNewSlice()" style="background:var(--tech); box-shadow: 0 4px 10px var(--tech-glow);">
+                    <i class="fas fa-plus"></i> Ekle
+                </button>
+            </div>
+
+            <div class="slice-list" id="slice-list-container">
+                <!-- Slices list render dynamic -->
+            </div>
+        </div>
+
+        <!-- Back Button -->
+        <a href="index.html" class="btn-main btn-secondary" style="margin-top:20px;">
+            <i class="fas fa-chevron-left"></i> Ana Sayfaya Dön
+        </a>
+    </div>
+
+    <!-- Spin Result Overlay Modal -->
+    <div class="result-overlay" id="result-modal">
+        <div class="result-card">
+            <div class="result-badge">🎉</div>
+            <div class="result-title">Günün Aşk Seçimi!</div>
+            <div class="result-text" id="result-winner-text">Aktivite Buraya Gelecek</div>
+            <button class="btn-main result-close" onclick="closeResultModal()">
+                Harika! ❤️
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="navbar">
+        <a href="index.html" class="nav-link"><i class="fas fa-home"></i></a>
+        <a href="games.html" class="nav-link"><i class="fas fa-gamepad"></i></a>
+        <a href="diary.html" class="nav-link"><i class="fas fa-book"></i></a>
+    </div>
+
+    <!-- External script setup -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
+    
+    <script>
+        // Initialize Firebase just in case we need sync, though local storage is more than sufficient and reliable for keeping their customized wheel
+        firebase.initializeApp(window.APP_CONFIG.FIREBASE);
+        const db = firebase.database();
+
+        // 1. Web Audio API Synthesis Engine
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTickSound() {
+            initAudio();
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(650, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.04);
+            gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.045);
+        }
+
+        function playWinFanfare() {
+            initAudio();
+            if (!audioCtx) return;
+            const chords = [261.63, 329.63, 392.00, 523.25, 659.25]; // C4, E4, G4, C5, E5
+            chords.forEach((freq, idx) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(freq * 1.01, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.55);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.6);
+                }, idx * 90);
+            });
+        }
+
+        // Floating Hearts Background Generator
+        function createHeart() {
+            const container = document.getElementById('hearts-bg');
+            if(!container) return;
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = Math.random() > 0.5 ? '❤️' : '💖';
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = 6 + Math.random() * 8;
+            heart.style.animationDuration = duration + 's';
+            const size = 0.8 + Math.random() * 1.2;
+            heart.style.fontSize = size + 'rem';
+            heart.style.opacity = 0.1 + Math.random() * 0.25;
+            container.appendChild(heart);
+            setTimeout(() => { heart.remove(); }, duration * 1000);
+        }
+        setInterval(createHeart, 800);
+        for(let i=0; i<10; i++) { setTimeout(createHeart, Math.random() * 5000); }
+
+        // 2. Wheel Logic
+        const canvas = document.getElementById("wheel-canvas");
+        const ctx = canvas.getContext("2d");
+
+        // Curated romantic harmonized pastel HSL colors
+        const colors = [
+            "hsl(340, 95%, 72%)",  // Rose Pink
+            "hsl(20, 95%, 72%)",   // Soft Peach
+            "hsl(43, 90%, 72%)",   // Sweet Banana Yellow
+            "hsl(160, 80%, 72%)",  // Pastel Mint Green
+            "hsl(262, 80%, 72%)",  // Mystic Violet
+            "hsl(200, 90%, 72%)",  // Sky Pastel Blue
+            "hsl(315, 90%, 72%)",  // Orchid Flower
+            "hsl(0, 95%, 75%)"     // Velvet Red Light
+        ];
+
+        // Preloaded items
+        const defaultSlices = [
+            "Mami İrem'e Masaj Yapsın 💆‍♀️",
+            "Birlikte Yemek Yapalım 🍳",
+            "Çikolata Ismarla 🍫",
+            "Trip İzni (15 dk) 🤐",
+            "El Ele Doğa Yürüyüşü 🌳",
+            "Bulaşıklar Mami'nin 🧼",
+            "Sımsıkı Sarılalım 🫂",
+            "Prenses Gibi Hisset 👸"
+        ];
+
+        let slices = [];
+
+        // Load slices from localStorage or use defaults
+        const stored = localStorage.getItem("love_wheel_slices");
+        if (stored) {
+            try {
+                slices = JSON.parse(stored);
+            } catch(e) {
+                slices = [...defaultSlices];
+            }
+        } else {
+            slices = [...defaultSlices];
+        }
+
+        // Draw Wheel
+        let currentAngle = 0; // Current angle in radians
+        let isSpinning = false;
+
+        function saveSlices() {
+            localStorage.setItem("love_wheel_slices", JSON.stringify(slices));
+            renderSliceManager();
+            drawWheel();
+        }
+
+        function drawWheel() {
+            const numSlices = slices.length;
+            const arcSize = (2 * Math.PI) / numSlices;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2 - 15;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw shadow layers first
+            ctx.shadowColor = "rgba(255, 107, 129, 0.15)";
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 8;
+
+            for (let i = 0; i < numSlices; i++) {
+                const angle = currentAngle + i * arcSize;
+                ctx.shadowColor = "transparent"; // disable shadow for interior slices
+                ctx.shadowBlur = 0;
+
+                ctx.fillStyle = colors[i % colors.length];
+
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
+                ctx.closePath();
+                ctx.fill();
+
+                // Stroke borders between wedges
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.65)";
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                // Draw Text
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + arcSize / 2);
+                ctx.fillStyle = "hsl(340, 20%, 25%)"; // Darker romantic text color for high contrast
+                ctx.font = "bold 20px 'Poppins', sans-serif";
+                ctx.textAlign = "right";
+
+                // Text truncation if too long
+                let text = slices[i];
+                if (text.length > 25) {
+                    text = text.substring(0, 23) + "...";
+                }
+
+                ctx.fillText(text, radius - 45, 7);
+                ctx.restore();
+            }
+
+            // Draw center ring
+            ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 52, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = "rgba(255, 107, 129, 0.25)";
+            ctx.lineWidth = 5;
+            ctx.stroke();
+        }
+
+        // Spin physics
+        let spinSpeed = 0;
+        let spinDecel = 0.982;
+        let lastTickAngle = 0;
+
+        function animateSpin() {
+            if (!isSpinning) return;
+
+            currentAngle += spinSpeed;
+            spinSpeed *= spinDecel;
+
+            // Tick sound trigger on slice change
+            const arcSize = (2 * Math.PI) / slices.length;
+            
+            // Pointer is at -Math.PI / 2 (directly top pointing down)
+            // Determine which segment is at pointer position:
+            // segmentIndex = Math.floor((-Math.PI/2 - currentAngle) / arcSize)
+            const normalizedAngle = (-Math.PI / 2 - currentAngle) % (2 * Math.PI);
+            const positiveAngle = normalizedAngle < 0 ? normalizedAngle + 2 * Math.PI : normalizedAngle;
+            const currentSliceIndex = Math.floor(positiveAngle / arcSize) % slices.length;
+
+            if (currentSliceIndex !== lastTickAngle) {
+                playTickSound();
+                lastTickAngle = currentSliceIndex;
+            }
+
+            drawWheel();
+
+            if (spinSpeed < 0.0035) {
+                isSpinning = false;
+                spinSpeed = 0;
+                
+                // Determine winner
+                const winnerIndex = currentSliceIndex;
+                const winnerText = slices[winnerIndex];
+                
+                playWinFanfare();
+                setTimeout(() => {
+                    showResult(winnerText);
+                }, 400);
+            } else {
+                requestAnimationFrame(animateSpin);
+            }
+        }
+
+        function spinWheel() {
+            initAudio();
+            if (isSpinning || slices.length === 0) return;
+
+            isSpinning = true;
+            // Random spin speed (12 to 24 rad/sec)
+            spinSpeed = 0.28 + Math.random() * 0.18;
+            spinDecel = 0.985 + Math.random() * 0.006; // physical variation
+            
+            lastTickAngle = -1;
+            animateSpin();
+        }
+
+        // 3. Manager UI Render
+        function renderSliceManager() {
+            const container = document.getElementById("slice-list-container");
+            container.innerHTML = "";
+
+            slices.forEach((slice, index) => {
+                const item = document.createElement("div");
+                item.className = "slice-item";
+                
+                const leftDiv = document.createElement("div");
+                leftDiv.style.display = "flex";
+                leftDiv.style.alignItems = "center";
+
+                const colorDot = document.createElement("div");
+                colorDot.className = "slice-item-color";
+                colorDot.style.backgroundColor = colors[index % colors.length];
+
+                const label = document.createElement("span");
+                label.textContent = slice;
+
+                leftDiv.appendChild(colorDot);
+                leftDiv.appendChild(label);
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.className = "slice-delete-btn";
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                deleteBtn.onclick = () => {
+                    deleteSlice(index);
+                };
+
+                item.appendChild(leftDiv);
+                item.appendChild(deleteBtn);
+                container.appendChild(item);
+            });
+        }
+
+        function addNewSlice() {
+            const input = document.getElementById("new-slice-input");
+            const text = input.value.trim();
+
+            if (text === "") {
+                alert("Lütfen geçerli bir aşk faaliyeti yaz aşkım! 💖");
+                return;
+            }
+
+            slices.push(text);
+            input.value = "";
+            saveSlices();
+        }
+
+        function deleteSlice(index) {
+            if (slices.length <= 2) {
+                alert("Çarkta en az 2 tane dilim kalmalıdır sevgilim! 😊");
+                return;
+            }
+            slices.splice(index, 1);
+            saveSlices();
+        }
+
+        // Result handling
+        function showResult(winner) {
+            document.getElementById("result-winner-text").innerHTML = `✨ ${winner} ✨`;
+            document.getElementById("result-modal").classList.add("active");
+        }
+
+        function closeResultModal() {
+            document.getElementById("result-modal").classList.remove("active");
+        }
+
+        // Initial setup
+        drawWheel();
+        renderSliceManager();
+    </script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anı Defterimiz 📔</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .mood-selector { display: flex; justify-content: space-around; gap: 8px; margin-top: 15px; }
+        .mood-opt { font-size: 1.6rem; padding: 8px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s; background: white; box-shadow: var(--shadow-sm); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
+        .mood-opt:hover { transform: scale(1.1); }
+        .mood-opt.active { border-color: var(--primary); background: var(--secondary-glow); transform: scale(1.15); box-shadow: 0 4px 12px var(--primary-glow); }
+        .diary-timeline { margin-top: 25px; display: flex; flex-direction: column; }
+    </style>
+</head>
+<body>
+    <!-- Background Floating Hearts -->
+    <div class="hearts-bg" id="hearts-bg"></div>
+
+    <div class="container">
+        <!-- Back Navigation Header -->
+        <div class="back-header">
+            <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+            <h2 style="font-family:'Dancing Script', cursive; font-size: 2.2rem; color:var(--primary); margin:0;">Anı Defterimiz</h2>
+            <div style="width:42px;"></div> <!-- Spacer -->
+        </div>
+
+        <p class="subtitle">Her güne ortak bir anı... 📔</p>
+
+        <!-- New Note Area -->
+        <div class="box-style">
+            <h3 style="font-size:1.1rem; color:var(--text-main); margin-bottom:5px;"><i class="fas fa-pen-fancy"></i> Bugün Neler Hissettin?</h3>
+            <textarea id="diaryInput" rows="3" placeholder="Örn: Bugün İrem'in gülüşünü gördüm, dünyalar benim oldu... ❤️"></textarea>
+            
+            <p style="font-size: 0.8rem; font-weight:600; text-align:left; margin-top: 15px; color:var(--text-main);">Günün Modu:</p>
+            <div class="mood-selector">
+                <button class="mood-opt active" onclick="selectMood(this, '🥰')">🥰</button>
+                <button class="mood-opt" onclick="selectMood(this, '🥺')">🥺</button>
+                <button class="mood-opt" onclick="selectMood(this, '😢')">😢</button>
+                <button class="mood-opt" onclick="selectMood(this, '🤪')">🤪</button>
+                <button class="mood-opt" onclick="selectMood(this, '😴')">😴</button>
+                <button class="mood-opt" onclick="selectMood(this, '💖')">💖</button>
+            </div>
+            
+            <button class="btn-main" onclick="addNote()"><i class="fas fa-heart"></i> Deftere Kaydet 💾</button>
+        </div>
+
+        <!-- Polaroid Wall Entries -->
+        <div id="diary-list" class="diary-timeline">
+            <p style="text-align:center; color:var(--text-muted);">Defter yaprakları yükleniyor... ⏳</p>
+        </div>
+    </div>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="navbar">
+        <a href="index.html" class="nav-link"><i class="fas fa-home"></i></a>
+        <a href="games.html" class="nav-link"><i class="fas fa-gamepad"></i></a>
+        <a href="#" class="nav-link active"><i class="fas fa-book"></i></a>
+    </div>
+
+    <!-- Running Ticker Banner -->
+    <div class="ticker-wrap">
+        <div class="ticker">Seni Çok Seviyorum ❤️ Bugün harika bir gün olacak ☀️ Dünyanın en tatlı gülüşüne sahipsin 😊 Yanındayım 💪 Seni seviyorum! ❤️</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
+    
+    <script>
+        // --- 1. FIREBASE START ---
+        firebase.initializeApp(window.APP_CONFIG.FIREBASE);
+        const db = firebase.database();
+        const diaryRef = db.ref('diary');
+
+        // --- 2. FLOATING HEARTS GENERATOR ---
+        function createHeart() {
+            const container = document.getElementById('hearts-bg');
+            if(!container) return;
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = '❤️';
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = 8 + Math.random() * 8;
+            heart.style.animationDuration = duration + 's';
+            const size = 0.8 + Math.random() * 1.2;
+            heart.style.fontSize = size + 'rem';
+            heart.style.opacity = 0.15;
+            container.appendChild(heart);
+            setTimeout(() => { heart.remove(); }, duration * 1000);
+        }
+        setInterval(createHeart, 900);
+        for(let i=0; i<8; i++) { setTimeout(createHeart, Math.random() * 5000); }
+
+        // --- 3. MOOD SELECTOR CONTROLS ---
+        let selectedMood = "🥰";
+        function selectMood(btn, mood) {
+            document.querySelectorAll('.mood-opt').forEach(opt => opt.classList.remove('active'));
+            btn.classList.add('active');
+            selectedMood = mood;
+        }
+
+        // --- 4. DIARY NOTES STORAGE & LISTING ---
+        function addNote() {
+            const textInput = document.getElementById('diaryInput');
+            const text = textInput.value.trim();
+            if(!text) return alert("Tatlım, boş anı kaydedemezsin! 💖");
+            
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('tr-TR') + ' ' + today.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'});
+            
+            diaryRef.push({
+                text: text,
+                date: dateStr,
+                mood: selectedMood,
+                timestamp: Date.now()
+            }).then(() => {
+                textInput.value = "";
+                // Reset selector to default 🥰
+                const firstMood = document.querySelector('.mood-opt');
+                selectMood(firstMood, '🥰');
+            });
+        }
+
+        diaryRef.on('value', snapshot => {
+            const list = document.getElementById('diary-list');
+            list.innerHTML = "";
+            const data = snapshot.val();
+            
+            if(data) {
+                // Sort by timestamp (newest to oldest)
+                const entries = Object.entries(data).sort((a,b) => b[1].timestamp - a[1].timestamp);
+                
+                entries.forEach(([key, val]) => {
+                    // Generate a random slight rotation for polaroid realism (-3deg to 3deg)
+                    const randomRot = (Math.random() * 6 - 3).toFixed(1);
+                    
+                    const card = document.createElement('div');
+                    card.className = 'polaroid-card';
+                    card.style.setProperty('--rot', `${randomRot}deg`);
+                    
+                    card.innerHTML = `
+                        <div class="polaroid-tape"></div>
+                        <div class="polaroid-meta">
+                            <span style="font-weight:700; color:var(--primary);"><i class="far fa-calendar-alt"></i> ${val.date}</span>
+                            <span class="polaroid-mood">${val.mood || '🥰'}</span>
+                        </div>
+                        <div class="polaroid-content">${val.text}</div>
+                        <div class="delete-btn" onclick="deleteNote('${key}')"><i class="fas fa-trash-alt"></i></div>
+                    `;
+                    
+                    list.appendChild(card);
+                });
+            } else {
+                list.innerHTML = `<div class="glass-card" style="padding: 20px; color:var(--text-muted);">Henüz deftere hiç anı yazılmamış aşkım. İlk anıyı yukarıdan yazabilirsin! 🖋️❤️</div>`;
+            }
+        });
+
+        function deleteNote(key) {
+            if(confirm("Bu anıyı silmek istediğine emin misin tatlım? (Geri getirilemez!)")) {
+                db.ref('diary/' + key).remove();
+            }
+        }
+    </script>
+</body>
+</html>

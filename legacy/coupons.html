@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aşk Kuponları 🎟️</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Floating Hearts -->
+    <div class="hearts-bg" id="hearts-bg"></div>
+
+    <div class="container">
+        <!-- Back Navigation Header -->
+        <div class="back-header">
+            <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+            <h2 style="font-family:'Dancing Script', cursive; font-size: 2.2rem; color:var(--primary); margin:0;">Aşk Kuponları</h2>
+            <div style="width:42px;"></div> <!-- Spacer -->
+        </div>
+
+        <p class="subtitle">İstediğin zaman kullan İrem! 🎟️</p>
+
+        <!-- Category Filters -->
+        <div class="filter-tabs" id="filter-container">
+            <button class="filter-tab active" onclick="filterCategory(this, 'all')">✨ Tümü</button>
+            <button class="filter-tab" onclick="filterCategory(this, 'romantic')">💖 Romantik</button>
+            <button class="filter-tab" onclick="filterCategory(this, 'service')">🍔 Hizmet & Yemek</button>
+            <button class="filter-tab" onclick="filterCategory(this, 'fun')">🎲 Eğlence</button>
+            <button class="filter-tab" onclick="filterCategory(this, 'freedom')">🃏 JOKER & Özgürlük</button>
+        </div>
+
+        <!-- Coupons List Container -->
+        <div id="coupon-list" class="coupon-grid">
+            <p style="text-align:center; color:var(--text-muted);">Kuponlar yükleniyor... ⏳</p>
+        </div>
+
+        <!-- Reset Button -->
+        <button class="btn-main btn-secondary" onclick="resetCoupons()" style="margin-top:40px; box-shadow: var(--shadow-sm);">
+            <i class="fas fa-redo"></i> Tüm Kuponları Yenile
+        </button>
+    </div>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="navbar">
+        <a href="index.html" class="nav-link"><i class="fas fa-home"></i></a>
+        <a href="games.html" class="nav-link"><i class="fas fa-gamepad"></i></a>
+        <a href="#" class="nav-link active"><i class="fas fa-book"></i></a>
+    </div>
+
+    <!-- Running Ticker Banner -->
+    <div class="ticker-wrap">
+        <div class="ticker">Seni Çok Seviyorum ❤️ Bugün harika bir gün olacak ☀️ Dünyanın en tatlı gülüşüne sahipsin 😊 Yanındayım 💪 Seni seviyorum! ❤️</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
+    
+    <script>
+        // --- 1. FIREBASE START ---
+        firebase.initializeApp(window.APP_CONFIG.FIREBASE);
+        const db = firebase.database();
+        const couponsRef = db.ref('coupons');
+
+        // --- 2. FLOATING HEARTS GENERATOR ---
+        function createHeart() {
+            const container = document.getElementById('hearts-bg');
+            if(!container) return;
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = '❤️';
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = 7 + Math.random() * 7;
+            heart.style.animationDuration = duration + 's';
+            const size = 0.8 + Math.random() * 1.2;
+            heart.style.fontSize = size + 'rem';
+            heart.style.opacity = 0.15;
+            container.appendChild(heart);
+            setTimeout(() => { heart.remove(); }, duration * 1000);
+        }
+        setInterval(createHeart, 900);
+        for(let i=0; i<8; i++) { setTimeout(createHeart, Math.random() * 5000); }
+
+        // --- 3. WEB AUDIO STAMP SOUND SYNTHESIZER ---
+        function playStampSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(140, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, ctx.currentTime + 0.14);
+                gain.gain.setValueAtTime(0.45, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.14);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.14);
+            } catch(e) {}
+        }
+
+        // --- 4. COUPON DEFINITIONS & CATEGORIES ---
+        const couponNames = [
+            { name: "Masaj 💆‍♀️", cat: "romantic", desc: "Mami sana harika bir gevşeme masajı yapar." },
+            { name: "Film Seçimi 🎬", cat: "fun", desc: "Bu gecenin filmini tamamen sen seçiyorsun!" },
+            { name: "Çikolata 🍫", cat: "fun", desc: "Mami en sevdiğin çikolatayı hemen tedarik eder." },
+            { name: "Susma Hakkı 🤫", cat: "freedom", desc: "Mami tartışmada susma hakkını kullanır." },
+            { name: "Yemek Ismarla 🍔", cat: "service", desc: "Günün yemeği tamamen Mami'nin hesabından!" },
+            { name: "Temizlik Muaf 🧹", cat: "freedom", desc: "Bugünün tüm temizlik işlerinden muafsın." },
+            { name: "5dk Sarılma 🫂", cat: "romantic", desc: "Sımsıkı ve kesintisiz 5 dakika sevgi sarılması." },
+            { name: "Kahve Yap ☕", cat: "service", desc: "Mami senin için en lezzetli kahveyi demler." },
+            { name: "Oje Sür 💅", cat: "romantic", desc: "Mami senin ojelerini büyük bir özenle sürer." },
+            { name: "Şarkı Söyle 🎤", cat: "romantic", desc: "Mami sana özel en sevdiğin şarkıyı söyler." },
+            { name: "Oyun Gecesi 🎲", cat: "fun", desc: "İstediğin oyunu saatlerce oynamaya hak kazandın." },
+            { name: "Yatakta Kahvaltı 🥞", cat: "service", desc: "Sabah kahvaltın doğrudan yatağına servis edilir." },
+            { name: "Trip İzni 🤐", cat: "freedom", desc: "1 saat boyunca sorgusuz sualsiz trip atma hakkı." },
+            { name: "Doğa Yürüyüşü 🌳", cat: "romantic", desc: "El ele, kafa dinlendirici tatlı bir doğa yürüyüşü." },
+            { name: "10 Fotoğraf 🤳", cat: "fun", desc: "Mami seninle sorgusuz 10 adet tatlı selfie çekinir." },
+            { name: "Prenses Hisset 👸", desc: "Tüm gün boyunca Mami sana bir prenses gibi davranır." , cat: "romantic" },
+            { name: "JOKER 🃏", cat: "freedom", desc: "Dilediğin an dilediğin herhangi bir istek için kullan!" },
+            { name: "Şoförlük 🚗", cat: "service", desc: "Mami tüm gün senin özel şoförün olur." },
+            { name: "Alışveriş Eşlik 🛍️", cat: "fun", desc: "Mami seninle mağaza mağaza sabırla alışverişe çıkar." },
+            { name: "Dondurma 🍦", cat: "fun", desc: "Gece yarısı bile olsa Mami dondurmanı kapıp gelir." },
+            { name: "Kumanda Hakkı 📺", cat: "fun", desc: "Televizyonda ne izleneceğine tamamen sen karar ver." },
+            { name: "Ayak Masajı 🦶", cat: "romantic", desc: "Yorucu bir günün ardından rahatlatıcı ayak masajı." },
+            { name: "Saç Okşama 💆‍♂️", cat: "romantic", desc: "Mami sen uyuyana kadar saçlarını şefkatle okşar." },
+            { name: "Diyet Bozma 🍟", cat: "freedom", desc: "Vicdan azabı çekmeden diyet bozup kaçamak yapma hakkı." },
+            { name: "Bulaşık (Ben) 🧼", cat: "service", desc: "Bulaşıkları yıkama sırası bugün Mami'ye geçer." },
+            { name: "Uyku İzni 💤", cat: "freedom", desc: "Mami seni uyandırmadan deliksiz uyuma hakkı verir." },
+            { name: "Dans Et 💃", cat: "romantic", desc: "Mami seninle evde romantik bir dansa eşlik eder." },
+            { name: "Şiir Oku 📜", cat: "romantic", desc: "Mami gözlerinin içine bakarak sana şiir okur." },
+            { name: "Hayvan Videosu 🐶", cat: "fun", desc: "En tatlı hayvan videolarından oluşan komik derleme." },
+            { name: "Seni Seviyorum De ❤️", cat: "romantic", desc: "Mami her saat başı sana olan aşkını dile getirir." }
+        ];
+
+        let activeCategory = "all";
+        let usedData = {};
+
+        // --- 5. RENDER COUPONS WITH CATEGORY FILTER ---
+        function renderCoupons() {
+            const container = document.getElementById('coupon-list');
+            container.innerHTML = "";
+            let count = 0;
+
+            couponNames.forEach((coupon, index) => {
+                // Category Filter Check
+                if (activeCategory !== 'all' && coupon.cat !== activeCategory) return;
+                count++;
+
+                const isUsed = usedData[index] ? true : false;
+                
+                const card = document.createElement('div');
+                card.className = `coupon-card-v2 ${isUsed ? 'used' : ''}`;
+                
+                card.innerHTML = `
+                    <div class="coupon-left">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <div class="coupon-body">
+                        <h4>${coupon.name}</h4>
+                        <p>${coupon.desc}</p>
+                        <div class="stamp-overlay">Kullanıldı</div>
+                    </div>
+                `;
+                
+                card.onclick = () => {
+                    if(!isUsed) {
+                        if(confirm(`"${coupon.name}" kuponunu kullanmak istiyor musun tatlım?`)) {
+                            playStampSound();
+                            db.ref('coupons/' + index).set(true);
+                        }
+                    }
+                };
+                
+                container.appendChild(card);
+            });
+
+            if(count === 0) {
+                container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; padding: 20px; color:var(--text-muted)">Bu kategoride kupon bulunamadı.</p>`;
+            }
+        }
+
+        // Load data on Firebase value updates
+        couponsRef.on('value', snapshot => {
+            usedData = snapshot.val() || {};
+            renderCoupons();
+        });
+
+        // Category Filter Switch
+        function filterCategory(btn, category) {
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            activeCategory = category;
+            renderCoupons();
+        }
+
+        // Reset All Coupons
+        function resetCoupons() {
+            if(confirm("Tüm kuponları sıfırlamak ve yeniden kullanılabilir yapmak istediğine emin misin İrem? 🎁")) {
+                couponsRef.set(null).then(() => {
+                    alert("Kuponların sıfırlandı, hepsi yeniden aktif! 🔄");
+                });
+            }
+        }
+    </script>
+</body>
+</html>

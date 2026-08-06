@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sanat Terapisi 🎨</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .drawing-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 12px; }
+        .canvas-container { position: relative; width: 100%; height: 350px; border: 2px dashed var(--secondary); border-radius: 20px; overflow: hidden; background: white; cursor: crosshair; touch-action: none; box-shadow: var(--shadow-sm); }
+        canvas { display: block; width: 100%; height: 100%; }
+        .canvas-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <!-- Background Floating Hearts -->
+    <div class="hearts-bg" id="hearts-bg"></div>
+
+    <div class="container">
+        <!-- Back Navigation Header -->
+        <div class="back-header">
+            <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+            <h2 style="font-family:'Dancing Script', cursive; font-size: 2.2rem; color:var(--primary); margin:0;">Birlikte Çizim</h2>
+            <div style="width:42px;"></div> <!-- Spacer -->
+        </div>
+
+        <p class="subtitle">İçini dök, çiz ve aşk galerimize as! 🎨</p>
+
+        <!-- Interactive Canvas & Controls -->
+        <div class="box-style">
+            <div class="drawing-controls">
+                <!-- Color Picker -->
+                <input type="color" id="colorPicker" value="#ff6b6b" style="width:40px; height:40px; padding:0; border:none; background:none;">
+                
+                <!-- Brush Size Slider -->
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fas fa-paint-brush" style="font-size:0.85rem; color:var(--text-muted);"></i>
+                    <input type="range" id="brushSize" min="1" max="25" value="5" style="width:80px; margin-top:0;">
+                </div>
+
+                <!-- Pen & Eraser Tool Buttons -->
+                <button class="tool-btn active" id="penBtn" onclick="setTool('pen')" title="Kalem"><i class="fas fa-pen"></i></button>
+                <button class="tool-btn" id="eraserBtn" onclick="setTool('eraser')" title="Silgi"><i class="fas fa-eraser"></i></button>
+            </div>
+
+            <!-- Drawing Area Canvas -->
+            <div class="canvas-container" id="canvas-div">
+                <canvas id="drawCanvas"></canvas>
+            </div>
+
+            <!-- Canvas Operations -->
+            <div class="canvas-actions">
+                <button class="btn-main btn-secondary" onclick="clearCanvas()" style="margin-top:0;"><i class="fas fa-trash-alt"></i> Temizle</button>
+                <button class="btn-main" onclick="downloadLocal()" style="margin-top:0; background:#2ecc71; box-shadow:0 6px 15px rgba(46, 204, 113, 0.3);"><i class="fas fa-download"></i> İndir</button>
+            </div>
+
+            <div style="border-top:1px dashed #eee; margin-top:20px; padding-top:15px;">
+                <h4 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin-bottom:10px;"><i class="fas fa-image"></i> Aşk Galerimize Gönder</h4>
+                <input type="text" id="galleryTitle" placeholder="Resmine bir isim ver (Örn: Mami & İrem Sonsuz)">
+                <button class="btn-main" onclick="publishToGallery()" style="background:var(--primary);"><i class="fas fa-palette"></i> Galeri Duvarına As 🖼️</button>
+            </div>
+        </div>
+
+        <!-- Shared Art Gallery Wall -->
+        <h3 style="font-family:'Dancing Script', cursive; font-size:2.2rem; color:var(--primary); text-align:center; margin-top:30px;"><i class="fas fa-images"></i> Aşk Galerimiz</h3>
+        <p style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin-bottom:15px;">Birbirimize çizdiğimiz eşsiz şaheserler! 🖼️❤️</p>
+
+        <div id="gallery-wall" class="gallery-grid">
+            <p style="text-align:center; color:var(--text-muted); grid-column:1/-1;">Sanat eserleri sergileniyor... ⏳</p>
+        </div>
+    </div>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="navbar">
+        <a href="index.html" class="nav-link"><i class="fas fa-home"></i></a>
+        <a href="games.html" class="nav-link"><i class="fas fa-gamepad"></i></a>
+        <a href="diary.html" class="nav-link"><i class="fas fa-book"></i></a>
+    </div>
+
+    <!-- Running Ticker Banner -->
+    <div class="ticker-wrap">
+        <div class="ticker">Seni Çok Seviyorum ❤️ Bugün harika bir gün olacak ☀️ Dünyanın en tatlı gülüşüne sahipsin 😊 Yanındayım 💪 Seni seviyorum! ❤️</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
+    
+    <script>
+        // --- 1. FIREBASE START ---
+        firebase.initializeApp(window.APP_CONFIG.FIREBASE);
+        const db = firebase.database();
+        const galleryRef = db.ref('gallery');
+
+        // --- 2. FLOATING HEARTS GENERATOR ---
+        function createHeart() {
+            const container = document.getElementById('hearts-bg');
+            if(!container) return;
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = '❤️';
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = 8 + Math.random() * 8;
+            heart.style.animationDuration = duration + 's';
+            const size = 0.8 + Math.random() * 1.2;
+            heart.style.fontSize = size + 'rem';
+            heart.style.opacity = 0.15;
+            container.appendChild(heart);
+            setTimeout(() => { heart.remove(); }, duration * 1000);
+        }
+        setInterval(createHeart, 900);
+        for(let i=0; i<8; i++) { setTimeout(createHeart, Math.random() * 5000); }
+
+        // --- 3. HIGH PERFORMANCE LOCAL CANVAS DRAWING ---
+        const canvas = document.getElementById('drawCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-div');
+        let painting = false;
+        let isEraser = false;
+
+        function resizeCanvas() {
+            // Backup current drawing first
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // Resize canvas to container bounds
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+
+            // Fill canvas with white color (crucial for solid jpeg compressions)
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Restore backed-up drawing
+            ctx.drawImage(tempCanvas, 0, 0);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        // Initial setup timeout to let CSS layouts resolve widths first
+        setTimeout(resizeCanvas, 200);
+
+        const colorPicker = document.getElementById('colorPicker');
+        const brushSize = document.getElementById('brushSize');
+
+        function setTool(tool) {
+            isEraser = (tool === 'eraser');
+            document.getElementById('penBtn').classList.toggle('active', !isEraser);
+            document.getElementById('eraserBtn').classList.toggle('active', isEraser);
+        }
+
+        function startPosition(e) {
+            painting = true;
+            draw(e);
+        }
+
+        function endPosition() {
+            painting = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!painting) return;
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+            
+            // Handle touch vs mouse coordinates
+            if(e.type.includes('touch')) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            ctx.lineWidth = brushSize.value;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (isEraser) {
+                // silgi modu - beyaz fırça çizer
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = brushSize.value * 2.5; // Make eraser slightly bigger
+            } else {
+                ctx.strokeStyle = colorPicker.value;
+            }
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // Event Listeners
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+
+        canvas.addEventListener('touchstart', startPosition, {passive: false});
+        canvas.addEventListener('touchend', endPosition);
+        canvas.addEventListener('touchmove', draw, {passive: false});
+
+        function clearCanvas() {
+            if(confirm("Tüm çizimi silmek ve beyaz sayfadan başlamak istediğine emin misin?")) {
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.beginPath();
+            }
+        }
+
+        function downloadLocal() {
+            const link = document.createElement('a');
+            link.download = 'aşk-cizimim.jpeg';
+            link.href = canvas.toDataURL('image/jpeg', 0.95);
+            link.click();
+        }
+
+        // --- 4. FIREBASE REALTIME AŞK GALERİSİ WALL ---
+        function publishToGallery() {
+            const titleInput = document.getElementById('galleryTitle');
+            const title = titleInput.value.trim();
+            
+            if(!title) return alert("Tatlım, galerimize asmak için resmine güzel bir isim vermelisin! 🖼️❤️");
+            
+            // Compress image to JPEG with 0.65 quality factor
+            // This compresses the canvas drawing into a very small, lightweight Base64 string (~15KB)
+            // ensuring smooth performance and minimal Firebase storage usage.
+            const compressedImgBase64 = canvas.toDataURL('image/jpeg', 0.65);
+            
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('tr-TR') + ' ' + today.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'});
+
+            const publishBtn = document.querySelector('button[onclick="publishToGallery()"]');
+            publishBtn.disabled = true;
+            publishBtn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Galeriye Asılıyor...";
+
+            galleryRef.push({
+                title: title,
+                date: dateStr,
+                img: compressedImgBase64,
+                timestamp: Date.now()
+            }).then(() => {
+                titleInput.value = "";
+                publishBtn.disabled = false;
+                publishBtn.innerHTML = "<i class='fas fa-palette'></i> Galeri Duvarına As 🖼️";
+                alert("Resmin başarıyla aşk galerimize asıldı! Harika bir sanat eseri! 🖼️💖");
+                // Reset canvas
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }).catch(e => {
+                publishBtn.disabled = false;
+                publishBtn.innerHTML = "<i class='fas fa-palette'></i> Galeri Duvarına As 🖼️";
+                alert("Veritabanı bağlantı hatası oluştu tatlım. Lütfen kuralları kontrol et.");
+            });
+        }
+
+        galleryRef.on('value', s => {
+            const wall = document.getElementById('gallery-wall');
+            wall.innerHTML = "";
+            const val = s.val();
+
+            if (val) {
+                // Order from newest to oldest
+                const entries = Object.entries(val).sort((a,b) => b[1].timestamp - a[1].timestamp);
+
+                entries.forEach(([key, art]) => {
+                    const card = document.createElement('div');
+                    card.className = 'gallery-card';
+                    card.style.position = 'relative';
+
+                    card.innerHTML = `
+                        <div class="delete-btn" onclick="deleteArt('${key}')" style="position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.85); color:#e74c3c; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:0.75rem; box-shadow: var(--shadow-sm); z-index:10;"><i class="fas fa-trash-alt"></i></div>
+                        <img src="${art.img}" alt="${art.title}" onclick="downloadArt('${art.img}', '${art.title}')" style="cursor:pointer;" title="Büyüt / İndir">
+                        <div class="gallery-card-title">${art.title}</div>
+                        <div class="gallery-card-meta">${art.date}</div>
+                    `;
+                    wall.appendChild(card);
+                });
+            } else {
+                wall.innerHTML = `<div class="glass-card" style="grid-column: 1/-1; padding: 20px; color:var(--text-muted); text-align:center;">Galerimizde henüz hiç resim sergilenmiyor aşkım. İlk resmini çizip yukarıdan galerimize asabilirsin! 🎨🖼️</div>`;
+            }
+        });
+
+        function deleteArt(key) {
+            if(confirm("Bu sanat eserini galeri duvarımızdan kaldırmak istediğine emin misin? (Geri alınamaz!)")) {
+                db.ref('gallery/' + key).remove();
+            }
+        }
+
+        function downloadArt(base64Data, title) {
+            const link = document.createElement('a');
+            link.download = `${title.replace(/\s+/g, '-').toLowerCase()}-sanatimiz.jpeg`;
+            link.href = base64Data;
+            link.click();
+        }
+    </script>
+</body>
+</html>

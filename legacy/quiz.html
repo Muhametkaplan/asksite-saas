@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aşk Testi ❤️ Beni Ne Kadar Tanıyorsun?</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Quiz specific premium aesthetics */
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 5px;
+            margin: 15px 0 25px 0;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 5px;
+            transition: width 0.4s ease-out;
+        }
+
+        .question-badge {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 2px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 16px 20px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-main);
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: white;
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .option-btn:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        /* Success & Fail states */
+        .option-btn.correct {
+            background: rgba(46, 204, 113, 0.15) !important;
+            border-color: #2ecc71 !important;
+            color: #27ae60 !important;
+            font-weight: 600;
+            box-shadow: 0 0 15px rgba(46, 204, 113, 0.25);
+        }
+
+        .option-btn.incorrect {
+            background: rgba(231, 76, 60, 0.1) !important;
+            border-color: #e74c3c !important;
+            color: #c0392b !important;
+            opacity: 0.8;
+        }
+
+        .option-indicator {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .option-btn.correct .option-indicator {
+            border-color: #2ecc71;
+            background: #2ecc71;
+            color: white;
+        }
+
+        .option-btn.incorrect .option-indicator {
+            border-color: #e74c3c;
+            background: #e74c3c;
+            color: white;
+        }
+
+        /* Mode Selection Screen */
+        .mode-selection {
+            text-align: center;
+        }
+
+        .mode-card {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 22px;
+            margin: 18px 0;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-align: left;
+        }
+
+        .mode-card:hover {
+            transform: translateY(-5px);
+            background: white;
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary);
+        }
+
+        .mode-card:active {
+            transform: scale(0.97);
+        }
+
+        .mode-icon {
+            font-size: 2.5rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 18px;
+            background: var(--secondary-glow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .mode-info h4 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .mode-info p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Scoreboard Panel */
+        .leaderboard-box {
+            margin-top: 25px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 24px;
+            padding: 22px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .leaderboard-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .leaderboard-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .leaderboard-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: white;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 107, 129, 0.08);
+            font-size: 0.85rem;
+        }
+
+        .leaderboard-row.gold {
+            background: linear-gradient(135deg, rgba(255, 223, 0, 0.08) 0%, rgba(255, 223, 0, 0.02) 100%);
+            border-color: rgba(255, 223, 0, 0.4);
+            font-weight: 600;
+        }
+
+        .leaderboard-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+        }
+
+        .leaderboard-score {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Final Results Display */
+        .quiz-results-card {
+            text-align: center;
+            animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes bounceIn {
+            from { opacity: 0; transform: scale(0.85); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .results-crown {
+            font-size: 3.5rem;
+            margin-bottom: 12px;
+            animation: pulseCrown 1.5s infinite alternate;
+        }
+
+        @keyframes pulseCrown {
+            from { transform: scale(1); }
+            to { transform: scale(1.15); }
+        }
+
+        .results-percentage {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 10px 0;
+            text-shadow: 0 4px 10px var(--primary-glow);
+        }
+
+        .results-comment {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 15px 0 25px 0;
+            line-height: 1.5;
+            padding: 12px 18px;
+            background: var(--secondary-glow);
+            border-radius: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        /* Full-screen Confetti Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2500;
+        }
+    </style>
+</head>
+<body>
+    <!-- Confetti canvas for celebrating correct answers -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- Floating Background Hearts -->
+    <div class="hearts-bg" id="hearts-bg"></div>
+
+    <div class="container">
+        <!-- Header Title -->
+        <h1 onclick="window.location.href='index.html'" style="cursor: pointer;">Aşk Testi</h1>
+        <div class="subtitle">Beni Ne Kadar Tanıyorsun? ❤️</div>
+
+        <!-- 1. MODE SELECTION SCREEN -->
+        <div id="screen-selection" class="box-style">
+            <h3 style="color: var(--primary);"><i class="fas fa-heart"></i> Bir Test Seçin</h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 15px;">
+                Birbirinizi ne kadar tanıdığınızı ölçme zamanı! Doğru cevap vererek konfetileri patlatın!
+            </p>
+
+            <div class="mode-selection">
+                <!-- Mode: İrem solves about Mami -->
+                <div class="mode-card" onclick="startQuiz('irem_about_mami')">
+                    <div class="mode-icon">👱‍♀️</div>
+                    <div class="mode-info">
+                        <h4>Mami'yi Ne Kadar Tanıyorsun?</h4>
+                        <p>Sevgilin İrem bu testi çözerek seni ne kadar iyi tanıdığını ispatlayacak! 💖</p>
+                    </div>
+                </div>
+
+                <!-- Mode: Mami solves about İrem -->
+                <div class="mode-card" onclick="startQuiz('mami_about_irem')">
+                    <div class="mode-icon">👦</div>
+                    <div class="mode-info">
+                        <h4>İrem'i Ne Kadar Tanıyorsun?</h4>
+                        <p>Muhammet, İrem'i ne kadar iyi tanıdığını kanıtlama sırası sende! 💪</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leaderboard / High Scores widget inside selection screen -->
+            <div class="leaderboard-box">
+                <div class="leaderboard-title">
+                    <i class="fas fa-crown" style="color: var(--accent);"></i> En İyi Aşıklar Skorları
+                </div>
+                <div class="leaderboard-list" id="leaderboard-container">
+                    <!-- Highscores listed here dynamically -->
+                    <div style="font-size:0.8rem; color:var(--text-muted); padding: 10px;">Skorlar yükleniyor... 💖</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ACTIVE QUIZ PLAY SCREEN -->
+        <div id="screen-quiz" class="box-style" style="display: none;">
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar" id="quiz-progress"></div>
+            </div>
+
+            <div class="question-badge" id="question-index-label">SORU 1 / 8</div>
+            <div class="question-text" id="question-text-content">Soru Yükleniyor...</div>
+
+            <!-- Options lists -->
+            <div class="options-grid" id="options-container">
+                <!-- Dynamic options buttons -->
+            </div>
+        </div>
+
+        <!-- 3. FINAL RESULTS SCREEN -->
+        <div id="screen-results" class="box-style quiz-results-card" style="display: none;">
+            <div class="results-crown">👑</div>
+            <h3>Test Tamamlandı!</h3>
+            <div class="results-percentage" id="results-pct">80%</div>
+            <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-main);" id="results-fraction">8 Soru içerisinden 6 Doğru!</div>
+            <div class="results-comment" id="results-comment-text">Harikasın sevgilim, ruh ikizimsin benim! ❤️</div>
+
+            <button class="btn-main" onclick="saveScoreAndReset()">
+                <i class="fas fa-save"></i> Skorumu Kaydet ve Dön
+            </button>
+            <button class="btn-main btn-secondary" onclick="resetToSelection()">
+                <i class="fas fa-redo"></i> Yeniden Başla
+            </button>
+        </div>
+
+        <!-- Back Home Link -->
+        <a href="index.html" class="btn-main btn-secondary" style="margin-top:20px;">
+            <i class="fas fa-chevron-left"></i> Ana Sayfaya Dön
+        </a>
+    </div>
+
+    <!-- Floating bottom menu -->
+    <div class="navbar">
+        <a href="index.html" class="nav-link"><i class="fas fa-home"></i></a>
+        <a href="games.html" class="nav-link"><i class="fas fa-gamepad"></i></a>
+        <a href="diary.html" class="nav-link"><i class="fas fa-book"></i></a>
+    </div>
+
+    <!-- Firebase SDK compat & custom scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
+
+    <script>
+        // Initialize Firebase
+        firebase.initializeApp(window.APP_CONFIG.FIREBASE);
+        const db = firebase.database();
+
+        // 1. Floating Background Hearts
+        function createHeart() {
+            const container = document.getElementById('hearts-bg');
+            if(!container) return;
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = Math.random() > 0.5 ? '❤️' : '💖';
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = 6 + Math.random() * 8;
+            heart.style.animationDuration = duration + 's';
+            const size = 0.8 + Math.random() * 1.2;
+            heart.style.fontSize = size + 'rem';
+            heart.style.opacity = 0.1 + Math.random() * 0.25;
+            container.appendChild(heart);
+            setTimeout(() => { heart.remove(); }, duration * 1000);
+        }
+        setInterval(createHeart, 800);
+        for(let i=0; i<10; i++) { setTimeout(createHeart, Math.random() * 5000); }
+
+        // 2. Web Audio API sound synthesis
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playCorrectSound() {
+            initAudio();
+            if (!audioCtx) return;
+            // Upward bubbly C Major bip-bip
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            gain1.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc1.connect(gain1);
+            gain1.connect(audioCtx.destination);
+            osc1.start();
+            osc1.stop(audioCtx.currentTime + 0.1);
+            
+            setTimeout(() => {
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(659.25, audioCtx.currentTime); // E5
+                gain2.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+                osc2.start();
+                osc2.stop(audioCtx.currentTime + 0.18);
+            }, 75);
+        }
+
+        function playWrongSound() {
+            initAudio();
+            if (!audioCtx) return;
+            // Sad low pitch buzzer sound
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.25);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.26);
+        }
+
+        function playFanfare() {
+            initAudio();
+            if (!audioCtx) return;
+            const chords = [261.63, 329.63, 392.00, 523.25, 659.25];
+            chords.forEach((freq, idx) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.5);
+                }, idx * 80);
+            });
+        }
+
+        // 3. Canvas Pink Hearts Confetti Engine
+        const confCanvas = document.getElementById('confetti-canvas');
+        const confCtx = confCanvas.getContext('2d');
+        let particles = [];
+        let animId = null;
+
+        function resizeConfetti() {
+            confCanvas.width = window.innerWidth;
+            confCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeConfetti);
+        resizeConfetti();
+
+        class HeartParticle {
+            constructor() {
+                this.x = Math.random() * confCanvas.width;
+                this.y = confCanvas.height + Math.random() * 80;
+                this.size = 12 + Math.random() * 16;
+                this.speedX = -3 + Math.random() * 6;
+                this.speedY = -5 - Math.random() * 7;
+                this.opacity = 1;
+                this.color = `hsl(${340 + Math.random() * 30}, 95%, 72%)`; // Beautiful pastel rose/orchid HSLs
+                this.angle = Math.random() * Math.PI * 2;
+                this.rotationSpeed = -0.06 + Math.random() * 0.12;
+            }
+            
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.opacity -= 0.014;
+                this.angle += this.rotationSpeed;
+            }
+            
+            draw() {
+                confCtx.save();
+                confCtx.globalAlpha = this.opacity;
+                confCtx.translate(this.x, this.y);
+                confCtx.rotate(this.angle);
+                confCtx.fillStyle = this.color;
+                
+                // Draw path of heart shape
+                confCtx.beginPath();
+                confCtx.moveTo(0, 0);
+                confCtx.bezierCurveTo(-this.size/2, -this.size/2, -this.size, 0, 0, this.size);
+                confCtx.bezierCurveTo(this.size, 0, this.size/2, -this.size/2, 0, 0);
+                confCtx.closePath();
+                confCtx.fill();
+                confCtx.restore();
+            }
+        }
+
+        function startHeartsConfetti() {
+            particles = [];
+            for(let i = 0; i < 40; i++) {
+                particles.push(new HeartParticle());
+            }
+            if (animId) cancelAnimationFrame(animId);
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            confCtx.clearRect(0, 0, confCanvas.width, confCanvas.height);
+            let alive = false;
+            particles.forEach(p => {
+                p.update();
+                if (p.opacity > 0) {
+                    p.draw();
+                    alive = true;
+                }
+            });
+            if (alive) {
+                animId = requestAnimationFrame(animateConfetti);
+            }
+        }
+
+        // 4. Romantic preloaded questions
+        const questionsData = {
+            irem_about_mami: [
+                {
+                    q: "Mami sevgilisinde en çok neye aşık, en çok neyi sever?",
+                    a: ["Mislisiz kokusunu", "Büyülü gülüşünü", "Şefkatli bakışlarını", "İstisnasız her şeyini ve daha fazlasını! ❤️"],
+                    correct: 3
+                },
+                {
+                    q: "Mami'nin İrem ile birlikte en çok yapmak istediği ortak tatil aktivitesi nedir?",
+                    a: ["Yurt dışına el ele seyahat", "Doğada kamp ve sessiz yürüyüşler", "Şömine başında sıcacık film geceleri", "Hepsi birden! 🥰"],
+                    correct: 3
+                },
+                {
+                    q: "Mami İrem'i ilk gördüğü o büyülü an ne düşündü?",
+                    a: ["Böyle bir güzellik yeryüzünde olamaz!", "İşte hayatımın kadını, ruh eşim!", "Kalbim yerinden çıkacak gibi heyecanlandım", "İstisnasız hepsi birden birbirine girdi! 😍"],
+                    correct: 3
+                },
+                {
+                    q: "İlişkimizin resmi başlangıç tarihi nedir? (Sitemizin kalbindeki sayaç!)",
+                    a: ["15 Ekim 2025", "10 Eylül 2025", "20 Kasım 2025", "15 Ekim 2024"],
+                    correct: 0
+                },
+                {
+                    q: "Mami İrem'e en çok hangi sevgi kelimesiyle seslenmeyi sever?",
+                    a: ["Prensesim 👸", "Aşkım 💖", "Bebeğim 👶", "Birtanem 🌟"],
+                    correct: 0
+                },
+                {
+                    q: "İrem sevimli bir trip attığında Mami'nin gönlünü almak için ilk yaptığı şey nedir?",
+                    a: ["Sıkı sıkı sarılıp öpmek", "Çikolata ve tatlı ısmarlamak", "Tatlı kelimelerle saatlerce şımartmak", "Hepsi birden gönül alma operasyonu! 💆‍♀️"],
+                    correct: 3
+                },
+                {
+                    q: "Mami'nin hayata ve geleceğe dair en büyük hayali nedir?",
+                    a: ["Çok başarılı ve kariyerli olmak", "Dünyayı gezip görmek", "İrem ile sonsuza kadar aşk ve huzur dolu yaşamak! 💍", "Teknolojik aletler satın almak"],
+                    correct: 2
+                },
+                {
+                    q: "Mami'nin İrem'de en çok hayran olduğu, eridiği şey nedir?",
+                    a: ["Merhametli ve sevgi dolu kalbi", "Boncuk gözleri ve eşsiz gülüşü", "Zekası, eğlenceli neşesi", "İstisnasız her santimi ve her şeyi! 😘"],
+                    correct: 3
+                }
+            ],
+            mami_about_irem: [
+                {
+                    q: "İrem'in en çok sevdiği ve kokusuna bayıldığı çiçek hangisidir?",
+                    a: ["Kırmızı Gül 🌹", "Beyaz Papatya 🌼", "Zarif Lale 🌷", "Egzotik Orkide 🌸"],
+                    correct: 1
+                },
+                {
+                    q: "İrem'in en tahammül edemediği, modunu hemen düşüren yiyecek hangisidir?",
+                    a: ["Çikolatalı sufle ve tatlılar", "Peynir veya süt ürünleri", "Sıcak taze makarna", "Pizza veya fast food"],
+                    correct: 1
+                },
+                {
+                    q: "İrem'in en sevdiği dizi/film türü hangisidir?",
+                    a: ["Korku & Gerilim", "Romantik Komedi 💘", "Dram & Aile", "Aksiyon & Macera"],
+                    correct: 1
+                },
+                {
+                    q: "İrem sabah uyandığında ilk olarak ne yapmayı alışkanlık haline getirmiştir?",
+                    a: ["Mami'ye günaydın mesajı atmak / aramak 📱", "Kahve veya çay demlemek", "Kitap okumaya başlamak", "Yatakta dönüp durmak"],
+                    correct: 0
+                },
+                {
+                    q: "İrem'in bir ilişkide en tahammül edemediği, onu hemen kızdıran durum nedir?",
+                    a: ["Planlara geç kalınması", "İlgisizlik ve soğuk kelimeler 🤐", "Yalan söylenmesi", "Hepsi birden anında sinir bozar! 😤"],
+                    correct: 3
+                },
+                {
+                    q: "İrem'e göre hayalindeki en kusursuz randevu (Date) hangisidir?",
+                    a: ["Çok lüks ve pahalı bir restoranda yemek", "Evde beraber yemek pişirip battaniye altında sarılarak film izlemek 🍿", "Lunaparkta çılgınca eğlenmek", "Kalabalık konser kuyruklarında beklemek"],
+                    correct: 1
+                },
+                {
+                    q: "İrem'in Muhammet'ten beklediği en temel ve en tatlı sevgi gösterisi nedir?",
+                    a: ["Sonsuz sevgi, ilgi ve anında sarılmalar! 🫂", "Büyük maddi hediyeler", "Sessizce oturmak", "Bilgisayar oyunlarını azaltması"],
+                    correct: 0
+                },
+                {
+                    q: "İrem'in gardırobunda en çok tercih ettiği giysi stili nedir?",
+                    a: ["Oversize, rahat ve spor giysiler 👕", "Resmi takım elbiseler", "Çok süslü abiyeler", "Klasik gömlekler"],
+                    correct: 0
+                }
+            ]
+        };
+
+        // 5. Quiz State variables
+        let currentMode = ""; // 'irem_about_mami' or 'mami_about_irem'
+        let currentQuestions = [];
+        let questionIndex = 0;
+        let score = 0;
+        let hasAnswered = false;
+
+        // Load leaderboard scores on startup
+        const scoresRef = db.ref('quiz_scores');
+        
+        function loadLeaderboard() {
+            scoresRef.orderByChild('scoreValue').limitToLast(10).on('value', s => {
+                const container = document.getElementById("leaderboard-container");
+                container.innerHTML = "";
+                const val = s.val();
+
+                if(!val) {
+                    container.innerHTML = '<div style="font-size:0.8rem; color:var(--text-muted); padding: 10px;">Henüz aşk testi skoru yok sevgililer! İlk çözen siz olun! 🏆</div>';
+                    return;
+                }
+
+                // Sort scores descending
+                const sorted = Object.values(val).sort((a, b) => b.scoreValue - a.scoreValue);
+
+                sorted.forEach((item, idx) => {
+                    const row = document.createElement("div");
+                    row.className = "leaderboard-row" + (idx === 0 ? " gold" : "");
+                    
+                    const nameDiv = document.createElement("div");
+                    nameDiv.className = "leaderboard-name";
+                    
+                    // Crown or heart emoji based on rank
+                    let rankEmoji = "💖";
+                    if (idx === 0) rankEmoji = "👑";
+                    else if (idx === 1) rankEmoji = "🥈";
+                    else if (idx === 2) rankEmoji = "🥉";
+
+                    nameDiv.innerHTML = `<span>${rankEmoji}</span> <b>${item.name}</b> <span style="font-size:0.7rem; color:var(--text-muted);">(${item.quizType === 'mami' ? 'İrem Testi' : 'Mami Testi'})</span>`;
+
+                    const scoreSpan = document.createElement("span");
+                    scoreSpan.className = "leaderboard-score";
+                    scoreSpan.textContent = `%${item.scoreValue}`;
+
+                    row.appendChild(nameDiv);
+                    row.appendChild(scoreSpan);
+                    container.appendChild(row);
+                });
+            }, err => {
+                console.error("Firebase load err", err);
+            });
+        }
+
+        // Start Quiz
+        function startQuiz(mode) {
+            initAudio();
+            currentMode = mode;
+            currentQuestions = questionsData[mode];
+            questionIndex = 0;
+            score = 0;
+            hasAnswered = false;
+
+            document.getElementById("screen-selection").style.display = "none";
+            document.getElementById("screen-quiz").style.display = "block";
+            document.getElementById("screen-results").style.display = "none";
+
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            hasAnswered = false;
+            const qData = currentQuestions[questionIndex];
+            
+            // Progress Bar Animation
+            const pct = (questionIndex / currentQuestions.length) * 100;
+            document.getElementById("quiz-progress").style.width = `${pct}%`;
+
+            // Index labels
+            document.getElementById("question-index-label").innerText = `SORU ${questionIndex + 1} / ${currentQuestions.length}`;
+            document.getElementById("question-text-content").innerText = qData.q;
+
+            // Options mapping
+            const optionsContainer = document.getElementById("options-container");
+            optionsContainer.innerHTML = "";
+
+            qData.a.forEach((optionText, idx) => {
+                const btn = document.createElement("button");
+                btn.className = "option-btn";
+                
+                const textSpan = document.createElement("span");
+                textSpan.textContent = optionText;
+
+                const indicator = document.createElement("div");
+                indicator.className = "option-indicator";
+                indicator.textContent = String.fromCharCode(65 + idx); // A, B, C, D
+
+                btn.appendChild(textSpan);
+                btn.appendChild(indicator);
+
+                btn.onclick = () => {
+                    selectAnswer(btn, idx);
+                };
+
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function selectAnswer(selectedBtn, chosenIdx) {
+            if (hasAnswered) return;
+            hasAnswered = true;
+
+            const qData = currentQuestions[questionIndex];
+            const correctIdx = qData.correct;
+            const buttons = document.querySelectorAll(".option-btn");
+
+            // Disable all buttons
+            buttons.forEach(btn => btn.disabled = true);
+
+            if (chosenIdx === correctIdx) {
+                // Correct!
+                selectedBtn.classList.add("correct");
+                score++;
+                playCorrectSound();
+                startHeartsConfetti();
+            } else {
+                // Incorrect
+                selectedBtn.classList.add("incorrect");
+                buttons[correctIdx].classList.add("correct");
+                playWrongSound();
+            }
+
+            // Slide to next question or show results
+            setTimeout(() => {
+                questionIndex++;
+                if (questionIndex < currentQuestions.length) {
+                    renderQuestion();
+                } else {
+                    showResults();
+                }
+            }, 1800);
+        }
+
+        // Show Results screen
+        function showResults() {
+            document.getElementById("screen-quiz").style.display = "none";
+            document.getElementById("screen-results").style.display = "block";
+
+            const total = currentQuestions.length;
+            const pct = Math.round((score / total) * 100);
+
+            document.getElementById("results-pct").innerText = `%${pct}`;
+            document.getElementById("results-fraction").innerText = `${total} Soru içerisinden ${score} Doğru!`;
+
+            let comment = "";
+            if (pct === 100) {
+                comment = "Aman Allah'ım! Sen gerçek bir ruh ikizisin sevgilim, birbirimizi kusursuz tanıyoruz! Sonsuza kadar el ele! 👑❤️";
+                playFanfare();
+            } else if (pct >= 75) {
+                comment = "Muhteşem bir sonuç! Beni kalbinden çok iyi tanıyorsun sevgilim. Seni çok ama çok seviyorum! 💖✨";
+                playFanfare();
+            } else if (pct >= 50) {
+                comment = "Güzel bir skor sevgilim! Aramızda ufak tefek kaçan detaylar olmuş ama kalbimiz bir bizim! 🥰";
+            } else {
+                comment = "Seni çok seviyorum sevgilim ama birbirimize daha sıkı sarılmalı, birbirimizin dünyasına daha çok bakmalıyız! 😘";
+            }
+
+            document.getElementById("results-comment-text").innerText = comment;
+        }
+
+        // Save Score to Firebase and return
+        function saveScoreAndReset() {
+            const name = currentMode === "irem_about_mami" ? "İrem" : "Muhammet";
+            const quizType = currentMode === "irem_about_mami" ? "mami" : "irem"; // who is being queried
+            const pct = Math.round((score / currentQuestions.length) * 100);
+
+            // push to Firebase Realtime db
+            scoresRef.push({
+                name: name,
+                score: `${score}/${currentQuestions.length}`,
+                scoreValue: pct,
+                quizType: quizType,
+                timestamp: new Date().toISOString()
+            }).then(() => {
+                resetToSelection();
+            }).catch(e => {
+                console.error("Firebase save failed", e);
+                resetToSelection(); // gracefully fallback
+            });
+        }
+
+        function resetToSelection() {
+            document.getElementById("screen-selection").style.display = "block";
+            document.getElementById("screen-quiz").style.display = "none";
+            document.getElementById("screen-results").style.display = "none";
+            loadLeaderboard();
+        }
+
+        // Initialize leaderboard load
+        loadLeaderboard();
+    </script>
+</body>
+</html>

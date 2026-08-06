@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zaman Kapsülü ⏳</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .capsule-countdown { font-family: monospace; font-size: 1rem; font-weight: bold; color: var(--primary); display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+        .countdown-segment { background: rgba(255, 107, 129, 0.08); padding: 4px 8px; border-radius: 8px; border: 1px dashed var(--secondary); min-width: 42px; display: inline-block; text-align: center; }
+    </style>
+</head>
+<body>
+    <!-- Background Floating Hearts -->
+    <div class="hearts-bg" id="hearts-bg"></div>
+
+    <div class="container">
+        <!-- Back Navigation Header -->
+        <div class="back-header">
+            <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+            <h2 style="font-family:'Dancing Script', cursive; font-size: 2.2rem; color:var(--primary); margin:0;">Zaman Kapsülü</h2>
+            <div style="width:42px;"></div> <!-- Spacer -->
+        </div>
+
+        <p class="subtitle">Gelecekteki Bize Mesaj Bırak... ⏳</p>
+
+        <!-- New Capsule Form -->
+        <div class="box-style">
+            <h3 style="font-size:1.1rem; color:var(--text-main); margin-bottom:5px;"><i class="fas fa-paper-plane"></i> Yeni Kapsül Kilitle</h3>
+            <textarea id="cMsg" rows="3" placeholder="Gelecekteki sevgiline veya ortak geleceğimize ne yazmak istersin? 💌"></textarea>
+            
+            <label style="display:block; text-align:left; margin-top:15px; font-size:0.8rem; font-weight:600; color:var(--text-main);">Kapsül Ne Zaman Açılsın? 🗓️</label>
+            <input type="date" id="cDate">
+            
+            <button class="btn-main" onclick="addCapsule()" style="background:linear-gradient(135deg, #f39c12 0%, #d35400 100%); box-shadow: 0 8px 20px rgba(243, 156, 18, 0.35);"><i class="fas fa-lock"></i> Kapsülü Zamana Kilitle 🔒</button>
+        </div>
+
+        <!-- Capsules Listing Wall -->
+        <div id="capsule-list" style="margin-top: 25px;">
+            <p style="text-align:center; color:var(--text-muted);">Zaman kapsülleri yükleniyor... ⏳</p>
+        </div>
+    </div>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="navbar">
+        <a href="index.html" class="nav-link"><i class="fas fa-home"></i></a>
+        <a href="games.html" class="nav-link"><i class="fas fa-gamepad"></i></a>
+        <a href="diary.html" class="nav-link"><i class="fas fa-book"></i></a>
+    </div>
+
+    <!-- Running Ticker Banner -->
+    <div class="ticker-wrap">
+        <div class="ticker">Seni Çok Seviyorum ❤️ Bugün harika bir gün olacak ☀️ Dünyanın en tatlı gülüşüne sahipsin 😊 Yanındayım 💪 Seni seviyorum! ❤️</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
+    
+    <script>
+        // --- 1. FIREBASE START ---
+        firebase.initializeApp(window.APP_CONFIG.FIREBASE);
+        const db = firebase.database();
+        const capRef = db.ref('capsules');
+
+        // --- 2. FLOATING HEARTS GENERATOR ---
+        function createHeart() {
+            const container = document.getElementById('hearts-bg');
+            if(!container) return;
+            const heart = document.createElement('div');
+            heart.className = 'floating-heart';
+            heart.innerHTML = '❤️';
+            heart.style.left = Math.random() * 100 + 'vw';
+            const duration = 8 + Math.random() * 8;
+            heart.style.animationDuration = duration + 's';
+            const size = 0.8 + Math.random() * 1.2;
+            heart.style.fontSize = size + 'rem';
+            heart.style.opacity = 0.15;
+            container.appendChild(heart);
+            setTimeout(() => { heart.remove(); }, duration * 1000);
+        }
+        setInterval(createHeart, 900);
+        for(let i=0; i<8; i++) { setTimeout(createHeart, Math.random() * 5000); }
+
+        // --- 3. ADD TIME CAPSULE ---
+        function addCapsule() {
+            const msgInput = document.getElementById('cMsg');
+            const dateInput = document.getElementById('cDate');
+            const msg = msgInput.value.trim();
+            const date = dateInput.value;
+            
+            if(!msg || !date) return alert("Tatlım, kapsül için hem mesaj hem de açılış tarihi girmelisin! 🔒");
+            
+            const today = new Date().toISOString().split('T')[0];
+            if(date <= today) return alert("Kapsül tarihi gelecekteki bir gün olmalıdır aşkım! 📅");
+
+            capRef.push({ 
+                msg: msg, 
+                date: date,
+                timestamp: Date.now()
+            }).then(() => {
+                msgInput.value = "";
+                dateInput.value = "";
+                alert("Mesajın zaman kapsülüne kilitlendi! Zamanı gelince İrem'e açılacak. ⏳🔒");
+            });
+        }
+
+        // Global interval tracker list to clear old ones
+        let countdownIntervals = [];
+
+        // --- 4. RENDER CAPSULES & TICKING COUNTDOWNS ---
+        capRef.on('value', s => {
+            // Clear existing ticking intervals
+            countdownIntervals.forEach(clearInterval);
+            countdownIntervals = [];
+
+            const list = document.getElementById('capsule-list');
+            list.innerHTML = "";
+            const val = s.val();
+
+            if(val) {
+                // Order by locked date
+                const entries = Object.entries(val).sort((a,b) => a[1].date.localeCompare(b[1].date));
+
+                entries.forEach(([key, capsule]) => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const isLocked = capsule.date > todayStr;
+                    
+                    const card = document.createElement('div');
+                    card.className = `capsule-box ${isLocked ? 'locked' : ''}`;
+                    card.style.position = 'relative';
+
+                    if (isLocked) {
+                        // Generate a unique ID for the dynamic countdown ticking text
+                        const countdownId = `cnt-${key}`;
+                        
+                        card.innerHTML = `
+                            <div class="delete-btn" onclick="del('${key}')" style="position:absolute; top:12px; right:15px; color:#e74c3c; cursor:pointer; font-size:0.85rem;"><i class="fas fa-times"></i></div>
+                            <div class="capsule-chest-icon">🔒</div>
+                            <h4 style="font-weight:700; color:var(--text-main); font-size:0.95rem;">Gelecekte Bir Anı Kapsülü</h4>
+                            <p style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Açılış Tarihi: ${new Date(capsule.date).toLocaleDateString('tr-TR')}</p>
+                            <div class="capsule-countdown" id="${countdownId}">Hesaplanıyor...</div>
+                        `;
+
+                        // Start countdown ticking loop
+                        const targetTime = new Date(capsule.date + 'T00:00:00').getTime();
+                        
+                        const interval = setInterval(() => {
+                            const now = new Date().getTime();
+                            const diff = targetTime - now;
+                            const element = document.getElementById(countdownId);
+                            
+                            if (!element) return;
+                            
+                            if (diff <= 0) {
+                                element.innerHTML = "🔓 Açılmaya Hazır! Sayfayı yenileyin.";
+                                clearInterval(interval);
+                            } else {
+                                const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                                const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                                const m = Math.floor((diff / (1000 * 60)) % 60);
+                                const s = Math.floor((diff / 1000) % 60);
+                                
+                                element.innerHTML = `
+                                    <div class="countdown-segment">${d}<span>g</span></div> : 
+                                    <div class="countdown-segment">${h}<span>s</span></div> : 
+                                    <div class="countdown-segment">${m}<span>d</span></div> : 
+                                    <div class="countdown-segment">${s}<span>sn</span></div>
+                                `;
+                            }
+                        }, 1000);
+                        
+                        countdownIntervals.push(interval);
+                        
+                    } else {
+                        // Unlocked - beautiful unfolding letter envelope look
+                        card.innerHTML = `
+                            <div class="delete-btn" onclick="del('${key}')" style="position:absolute; top:12px; right:15px; color:#e74c3c; cursor:pointer; font-size:0.85rem; z-index:10;"><i class="fas fa-times"></i></div>
+                            <div class="capsule-unlocked-letter">
+                                <div style="font-size: 0.75rem; border-bottom:1px solid #ebdcb2; padding-bottom:5px; margin-bottom:8px; display:flex; justify-content:space-between; font-family:'Poppins',sans-serif; color:var(--text-muted); font-weight:600;">
+                                    <span>🔓 KAPSÜL AÇILDI</span>
+                                    <span>Tarih: ${new Date(capsule.date).toLocaleDateString('tr-TR')}</span>
+                                </div>
+                                <div style="white-space: pre-wrap; line-height: 1.5;">${capsule.msg}</div>
+                            </div>
+                        `;
+                    }
+                    list.appendChild(card);
+                });
+            } else {
+                list.innerHTML = `<div class="glass-card" style="padding: 20px; color:var(--text-muted);">Ortalıkta hiç kilitli zaman kapsülü yok aşkım. İlk mesajını yukarıdan kilitleyebilirsin! ⏳🔒</div>`;
+            }
+        });
+
+        function del(key) { 
+            if(confirm("Bu zaman kapsülünü yok etmek istediğine emin misin? (İçindeki mesaj tamamen silinir!)")) {
+                db.ref('capsules/' + key).remove(); 
+            }
+        }
+    </script>
+</body>
+</html>
