@@ -7,18 +7,21 @@ import {
   Palette,
   BookOpen,
   Hourglass,
-  Film,
   Disc,
   Brain,
-  Sparkles,
   Heart,
-  CheckCircle2,
+  Calendar,
+  Sparkles,
+  Award,
   Lock,
   Play,
   RotateCcw,
-  Gift
+  Gift,
+  Film,
+  Star,
+  ExternalLink
 } from 'lucide-react';
-import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry, CapsuleItem } from '@/types/couple';
+import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry, CapsuleItem, MovieItem } from '@/types/couple';
 import {
   useCoupon,
   sendCanvasStroke,
@@ -27,6 +30,9 @@ import {
   saveCoupleConfig,
   addDiaryEntry,
   addTimeCapsule,
+  addMovie,
+  updateMovie,
+  deleteMovie,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -123,7 +129,7 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
   }
 
   if (module === 'cinema') {
-    return <CinemaWidget partner1={partner1} partner2={partner2} />;
+    return <CinemaWidget couple={couple} />;
   }
 
   if (module === 'therapy') {
@@ -891,25 +897,351 @@ function CapsuleWidget({ couple }: { couple: CoupleConfig }) {
   );
 }
 
-/* ================= 7. CINEMA MODULE ================= */
-function CinemaWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
+/* ================= 7. CINEMA MODULE (SİNEMA & İZLEME LİSTESİ) ================= */
+function CinemaWidget({ couple }: { couple: CoupleConfig }) {
+  const [movies, setMovies] = useState<MovieItem[]>(couple?.movies || []);
+  const [activeTab, setActiveTab] = useState<'watched' | 'watchlist'>('watched');
+  const [title, setTitle] = useState('');
+  const [genre, setGenre] = useState('');
+  const [posterUrl, setPosterUrl] = useState('');
+  const [watchUrl, setWatchUrl] = useState('');
+  const [rating, setRating] = useState(5);
+  const [note, setNote] = useState('');
+  const [status, setStatus] = useState<'watched' | 'watchlist'>('watched');
+  const [adding, setAdding] = useState(false);
+
+  // Transition Modal State for "İzledik 🍿"
+  const [selectedMovieForMarking, setSelectedMovieForMarking] = useState<MovieItem | null>(null);
+  const [markRating, setMarkRating] = useState(5);
+  const [markNote, setMarkNote] = useState('');
+
+  const authState = React.useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('asksite_auth_' + couple.slug);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const role = parsed.role as 'partner1' | 'partner2' | 'guest';
+          const author = role === 'partner1' ? couple.partner1_name : role === 'partner2' ? couple.partner2_name : 'Misafir';
+          return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
+        } catch (e) {}
+      }
+    }
+    return { role: 'guest', author: 'Misafir', isPartner: false };
+  }, [couple]);
+
+  const handleAddMovie = async () => {
+    if (!title.trim()) return;
+    if (!authState.isPartner) return;
+
+    setAdding(true);
+    const newMovieData = {
+      title: title.trim(),
+      genre: genre.trim() || 'Genel',
+      poster_url: posterUrl.trim() || 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop',
+      watch_url: watchUrl.trim(),
+      rating: status === 'watched' ? rating : 0,
+      note: note.trim(),
+      status,
+      added_by: authState.author,
+    };
+
+    const success = await addMovie(couple.slug, newMovieData);
+    if (success) {
+      setMovies((prev) => [
+        {
+          id: `m-${Date.now()}`,
+          created_at: new Date().toISOString(),
+          ...newMovieData,
+        },
+        ...prev,
+      ]);
+      setTitle('');
+      setGenre('');
+      setPosterUrl('');
+      setWatchUrl('');
+      setNote('');
+      triggerConfetti({ particleCount: 50, spread: 60 });
+    }
+    setAdding(false);
+  };
+
+  const handleConfirmMarkAsWatched = async () => {
+    if (!selectedMovieForMarking) return;
+
+    const updated: MovieItem = {
+      ...selectedMovieForMarking,
+      status: 'watched',
+      rating: markRating,
+      note: markNote.trim() || selectedMovieForMarking.note || '',
+    };
+
+    const success = await updateMovie(couple.slug, updated);
+    if (success) {
+      setMovies((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setSelectedMovieForMarking(null);
+      setMarkNote('');
+      triggerConfetti({ particleCount: 80, spread: 70 });
+    }
+  };
+
+  const watchedMovies = movies.filter((m) => m.status === 'watched');
+  const watchlistMovies = movies.filter((m) => m.status === 'watchlist');
+
   return (
-    <div className="space-y-3">
-      <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100 flex items-center justify-between">
-        <div>
-          <h4 className="text-xs font-bold text-gray-900">🎬 La La Land (Aşıklar Şehri)</h4>
-          <span className="text-[10px] text-gray-500">Birlikte İzleme Tarihi: 2024</span>
-        </div>
-        <span className="text-xs font-bold text-amber-500">⭐⭐⭐⭐⭐</span>
+    <div className="space-y-6">
+      {/* Tab Switcher */}
+      <div className="flex rounded-2xl bg-gray-100 p-1.5 shadow-inner">
+        <button
+          onClick={() => setActiveTab('watched')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+            activeTab === 'watched'
+              ? 'bg-rose-500 text-white shadow-md'
+              : 'text-gray-600 hover:text-rose-500'
+          }`}
+        >
+          🍿 Birlikte İzlediklerimiz ({watchedMovies.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('watchlist')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+            activeTab === 'watchlist'
+              ? 'bg-rose-500 text-white shadow-md'
+              : 'text-gray-600 hover:text-rose-500'
+          }`}
+        >
+          🎬 İzlenecekler Listesi ({watchlistMovies.length})
+        </button>
       </div>
 
-      <div className="rounded-2xl bg-white p-4 shadow-sm border border-gray-100 flex items-center justify-between">
-        <div>
-          <h4 className="text-xs font-bold text-gray-900">🍿 About Time (Zamanda Aşk)</h4>
-          <span className="text-[10px] text-gray-500">İstek Listesinde</span>
+      {/* New Movie Form */}
+      {authState.isPartner ? (
+        <div className="rounded-3xl bg-slate-900 text-white p-5 shadow-xl border border-slate-800 space-y-3">
+          <h4 className="text-xs font-extrabold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+            <Film className="h-4 w-4" /> Yeni Film / Dizi Ekle ({authState.author})
+          </h4>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <input
+              type="text"
+              placeholder="Film veya Dizi Adı *"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+            />
+            <input
+              type="text"
+              placeholder="Tür (Ör: Romantik Komedi, Bilim Kurgu)"
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+              className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <input
+              type="url"
+              placeholder="Afiş Görsel URL (İsteğe Bağlı)"
+              value={posterUrl}
+              onChange={(e) => setPosterUrl(e.target.value)}
+              className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+            />
+            <input
+              type="url"
+              placeholder="İzleme / Fragman Linki (Watch URL)"
+              value={watchUrl}
+              onChange={(e) => setWatchUrl(e.target.value)}
+              className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-center">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 mb-1">Durum</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as 'watched' | 'watchlist')}
+                className="w-full rounded-xl bg-slate-800 border border-slate-700 p-2 text-xs text-white outline-none focus:border-rose-500"
+              >
+                <option value="watched">🍿 İzledik</option>
+                <option value="watchlist">🎬 İzleyeceğiz</option>
+              </select>
+            </div>
+
+            {status === 'watched' && (
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 mb-1">Puan</label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      type="button"
+                      key={star}
+                      onClick={() => setRating(star)}
+                      className={`text-sm ${star <= rating ? 'text-amber-400 scale-110' : 'text-gray-600'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleAddMovie}
+              disabled={adding || !title.trim()}
+              className="w-full h-9 mt-auto rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 px-4 text-xs font-bold text-white shadow-md hover:scale-102 transition disabled:opacity-50"
+            >
+              Listeye Ekle 🍿
+            </button>
+          </div>
+
+          <input
+            type="text"
+            placeholder="Çift Notu (Ör: Harika bir geceydi, sonuna kadar nefesimizi tuttuk!)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="w-full rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+          />
         </div>
-        <span className="text-xs font-bold text-rose-500">Sıradaki Film 🎥</span>
+      ) : (
+        <div className="rounded-3xl bg-slate-900 p-4 text-center text-xs font-bold text-rose-300 shadow-md border border-slate-800">
+          🔒 Ziyaretçiler film listesini sadece görüntüleyebilir.
+        </div>
+      )}
+
+      {/* Movies List */}
+      <div className="space-y-4">
+        {(activeTab === 'watched' ? watchedMovies : watchlistMovies).length === 0 ? (
+          <div className="rounded-3xl bg-white p-8 text-center text-xs text-gray-500 shadow-md">
+            {activeTab === 'watched'
+              ? 'Henüz birlikte izlediğiniz bir film kaydedilmemiş. 🍿'
+              : 'İzlenecekler listeniz şu an boş. Yeni film fikri ekleyin! 🎬'}
+          </div>
+        ) : (
+          (activeTab === 'watched' ? watchedMovies : watchlistMovies).map((movie) => (
+            <div
+              key={movie.id}
+              className="relative overflow-hidden rounded-3xl bg-white p-4 shadow-lg border border-dashed border-rose-200 flex flex-col sm:flex-row gap-4 items-center transition hover:shadow-xl"
+            >
+              {/* Ticket Notches */}
+              <div className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-50 border-r border-rose-200" />
+              <div className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-50 border-l border-rose-200" />
+
+              {/* Poster */}
+              <img
+                src={movie.poster_url || 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop'}
+                alt={movie.title}
+                className="h-32 w-24 rounded-2xl object-cover shadow-md shrink-0 border border-gray-100"
+              />
+
+              {/* Movie Details */}
+              <div className="flex-1 space-y-1.5 text-left w-full pl-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-extrabold text-sm text-gray-900 leading-snug">{movie.title}</h4>
+                  <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600 border border-rose-100 shrink-0">
+                    {movie.genre || 'Film'}
+                  </span>
+                </div>
+
+                {movie.status === 'watched' && (
+                  <div className="flex items-center gap-1 text-amber-400 text-xs font-bold">
+                    {'★'.repeat(movie.rating || 5)}
+                    {'☆'.repeat(5 - (movie.rating || 5))}
+                    <span className="text-[10px] text-gray-500 font-mono ml-1">({movie.rating || 5}/5)</span>
+                  </div>
+                )}
+
+                {movie.note && (
+                  <p className="text-xs text-gray-700 italic font-serif leading-relaxed bg-rose-50/50 p-2 rounded-xl border border-rose-100">
+                    "{movie.note}"
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between pt-1 gap-2">
+                  <span className="text-[10px] text-gray-400 font-mono">Ekleyen: {movie.added_by || 'Partner'}</span>
+
+                  <div className="flex items-center gap-2">
+                    {movie.watch_url && (
+                      <a
+                        href={movie.watch_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-bold text-white shadow-xs hover:bg-slate-800 transition flex items-center gap-1"
+                      >
+                        İzle 🍿 <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+
+                    {movie.status === 'watchlist' && authState.isPartner && (
+                      <button
+                        onClick={() => setSelectedMovieForMarking(movie)}
+                        className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-1.5 text-[10px] font-bold text-white shadow-md hover:scale-102 active:scale-95 transition flex items-center gap-1"
+                      >
+                        İzledik 🍿
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
+
+      {/* Mark As Watched Modal */}
+      {selectedMovieForMarking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl space-y-4 text-left border border-rose-100">
+            <h4 className="font-extrabold text-sm text-gray-900">
+              🍿 "{selectedMovieForMarking.title}" Filmini İzlediniz Mi?
+            </h4>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Filme Puanınız:</label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    type="button"
+                    key={star}
+                    onClick={() => setMarkRating(star)}
+                    className={`text-2xl transition-transform ${
+                      star <= markRating ? 'text-amber-400 scale-110' : 'text-gray-300'
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Çift Yorumunuz & Notunuz:</label>
+              <textarea
+                rows={3}
+                placeholder="Harika bir akşam filmiydi! Sahnesi beni benden aldı..."
+                value={markNote}
+                onChange={(e) => setMarkNote(e.target.value)}
+                className="w-full rounded-2xl border border-gray-200 p-3 text-xs text-gray-800 outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setSelectedMovieForMarking(null)}
+                className="flex-1 rounded-xl bg-gray-100 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-200 transition"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleConfirmMarkAsWatched}
+                className="flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 py-2.5 text-xs font-bold text-white shadow-md hover:scale-102 transition"
+              >
+                İzlenenlere Aktar 🍿
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

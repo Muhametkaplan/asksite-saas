@@ -56,6 +56,19 @@ export interface CapsuleItem {
   is_opened?: boolean;
 }
 
+export interface MovieItem {
+  id: string;
+  title: string;
+  genre?: string;
+  poster_url?: string;
+  watch_url?: string;
+  rating?: number;
+  note?: string;
+  status: 'watched' | 'watchlist';
+  added_by?: string;
+  created_at?: string;
+}
+
 export interface FeatureToggles {
   spotify?: boolean;
   memory?: boolean;
@@ -69,6 +82,7 @@ export interface FeatureToggles {
   coupons?: boolean;
   diary?: boolean;
   capsule?: boolean;
+  cinema?: boolean;
 }
 
 export interface CoupleConfig {
@@ -92,6 +106,7 @@ export interface CoupleConfig {
   coupons?: CouponItem[];
   diary_entries?: DiaryEntry[];
   time_capsules?: CapsuleItem[];
+  movies?: MovieItem[];
   upcoming_event?: UpcomingEvent;
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;

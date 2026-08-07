@@ -1,4 +1,4 @@
-import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem } from '@/types/couple';
 import { db, isFirebaseConfigured } from './firebase';
 import {
   doc,
@@ -171,6 +171,44 @@ export const DEMO_COUPLE: CoupleConfig = {
       is_opened: true,
     },
   ],
+  movies: [
+    {
+      id: 'm1',
+      title: 'Interstellar (Yıldızlararası) 🚀',
+      genre: 'Bilim Kurgu / Drama',
+      poster_url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop',
+      watch_url: 'https://www.netflix.com',
+      rating: 5,
+      note: 'Birlikte izlediğimiz en büyüleyici ve duygusal filmlerden biriydi!',
+      status: 'watched',
+      added_by: 'Muhammet',
+      created_at: '2023-02-14T00:00:00.000Z',
+    },
+    {
+      id: 'm2',
+      title: 'La La Land (Aşıklar Şehri) 💃',
+      genre: 'Romantik / Müzikal',
+      poster_url: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop',
+      watch_url: 'https://www.primevideo.com',
+      rating: 5,
+      note: 'Müzikleri ve atmosferi harikaydı, son sahnesinde sarıldık.',
+      status: 'watched',
+      added_by: 'İrem',
+      created_at: '2023-05-20T00:00:00.000Z',
+    },
+    {
+      id: 'm3',
+      title: 'About Time (Zamanda Aşk) ⏳',
+      genre: 'Romantik Komedi',
+      poster_url: 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=600&auto=format&fit=crop',
+      watch_url: 'https://www.netflix.com',
+      rating: 0,
+      note: 'Yağmurlu bir pazar gecesi patlamış mısır eşliğinde izleyeceğiz!',
+      status: 'watchlist',
+      added_by: 'İrem',
+      created_at: '2024-01-10T00:00:00.000Z',
+    },
+  ],
   upcoming_event: {
     title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈',
     date: '2026-09-15T00:00:00.000Z',
@@ -235,6 +273,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           coupons: data.coupons || DEMO_COUPLE.coupons,
           diary_entries: data.diary_entries || DEMO_COUPLE.diary_entries,
           time_capsules: data.time_capsules || DEMO_COUPLE.time_capsules,
+          movies: data.movies || DEMO_COUPLE.movies,
           upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
@@ -306,6 +345,7 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         coupons: config.coupons || [],
         diary_entries: config.diary_entries || [],
         time_capsules: config.time_capsules || [],
+        movies: config.movies || [],
         upcoming_event: config.upcoming_event || null,
         allowed_users: config.allowed_users || {
           partner1_email: 'irem@asksite.com',
@@ -616,6 +656,55 @@ export async function deleteTimeCapsule(slug: string, capsuleId: string): Promis
   const updated = await saveCoupleConfig({
     ...couple,
     time_capsules: updatedCapsules,
+  });
+
+  return !!updated;
+}
+
+// ================= CINEMA SERVICES =================
+export async function addMovie(slug: string, movie: Omit<MovieItem, 'id' | 'created_at'>): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const newMovie: MovieItem = {
+    ...movie,
+    id: `m-${Date.now()}`,
+    created_at: new Date().toISOString(),
+  };
+
+  const updatedMovies = [newMovie, ...(couple.movies || [])];
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    movies: updatedMovies,
+  });
+
+  return !!updated;
+}
+
+export async function updateMovie(slug: string, updatedMovie: MovieItem): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const updatedMovies = (couple.movies || []).map((m) => (m.id === updatedMovie.id ? updatedMovie : m));
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    movies: updatedMovies,
+  });
+
+  return !!updated;
+}
+
+export async function deleteMovie(slug: string, movieId: string): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const updatedMovies = (couple.movies || []).filter((m) => m.id !== movieId);
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    movies: updatedMovies,
   });
 
   return !!updated;

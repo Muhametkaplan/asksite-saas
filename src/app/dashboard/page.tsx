@@ -18,10 +18,11 @@ import {
   Ticket,
   RefreshCw,
   BookOpen,
-  Hourglass
+  Hourglass,
+  Film
 } from 'lucide-react';
 
-import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
@@ -32,7 +33,7 @@ function DashboardContent() {
   const slugFromUrl = searchParams.get('slug') || 'irem-muhammet';
   const isNewAccount = searchParams.get('new') === 'true';
 
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'map' | 'qr'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'map' | 'qr'>('info');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -344,6 +345,56 @@ function DashboardContent() {
     }));
   };
 
+  // Movie State & Handlers
+  const [newMovieTitle, setNewMovieTitle] = useState('');
+  const [newMovieGenre, setNewMovieGenre] = useState('');
+  const [newMoviePosterUrl, setNewMoviePosterUrl] = useState('');
+  const [newMovieWatchUrl, setNewMovieWatchUrl] = useState('');
+  const [newMovieRating, setNewMovieRating] = useState(5);
+  const [newMovieNote, setNewMovieNote] = useState('');
+  const [newMovieStatus, setNewMovieStatus] = useState<'watched' | 'watchlist'>('watched');
+
+  const handleAddMovieDashboard = () => {
+    if (!newMovieTitle.trim()) return;
+    const movie: MovieItem = {
+      id: `m-${Date.now()}`,
+      title: newMovieTitle.trim(),
+      genre: newMovieGenre.trim() || 'Film',
+      poster_url: newMoviePosterUrl.trim() || 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop',
+      watch_url: newMovieWatchUrl.trim(),
+      rating: newMovieStatus === 'watched' ? newMovieRating : 0,
+      note: newMovieNote.trim(),
+      status: newMovieStatus,
+      added_by: config.partner1_name || 'Partner',
+      created_at: new Date().toISOString(),
+    };
+    setConfig((prev) => ({
+      ...prev,
+      movies: [movie, ...(prev.movies || [])],
+    }));
+    setNewMovieTitle('');
+    setNewMovieGenre('');
+    setNewMoviePosterUrl('');
+    setNewMovieWatchUrl('');
+    setNewMovieNote('');
+  };
+
+  const handleToggleMovieStatus = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      movies: (prev.movies || []).map((m) =>
+        m.id === id ? { ...m, status: m.status === 'watched' ? 'watchlist' : 'watched', rating: m.rating || 5 } : m
+      ),
+    }));
+  };
+
+  const handleDeleteMovieDashboard = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      movies: (prev.movies || []).filter((m) => m.id !== id),
+    }));
+  };
+
   const handleClearMap = async () => {
     if (confirm('Tüm harita anılarını silmek istediğine emin misin?')) {
       await clearMapMarkers(config.id || config.slug);
@@ -468,6 +519,16 @@ function DashboardContent() {
               <Hourglass className="h-3.5 w-3.5" /> 6. Zaman Kapsülü
             </button>
             <button
+              onClick={() => setActiveTab('cinema')}
+              className={`flex-1 min-w-[115px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'cinema'
+                  ? 'bg-rose-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-rose-500'
+              }`}
+            >
+              <Film className="h-3.5 w-3.5" /> 7. Sinema & Film
+            </button>
+            <button
               onClick={() => setActiveTab('map')}
               className={`flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
                 activeTab === 'map'
@@ -475,7 +536,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <MapPin className="h-3.5 w-3.5" /> 7. Harita
+              <MapPin className="h-3.5 w-3.5" /> 8. Harita
             </button>
             <button
               onClick={() => setActiveTab('qr')}
@@ -485,7 +546,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <QrCode className="h-3.5 w-3.5" /> 8. QR & NFC
+              <QrCode className="h-3.5 w-3.5" /> 9. QR & NFC
             </button>
           </div>
 
@@ -1267,7 +1328,166 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* TAB 7: HARİTA NOKTALARI */}
+          {/* TAB 7: SİNEMA & FİLM */}
+          {activeTab === 'cinema' && (
+            <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-6">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <Film className="h-5 w-5 text-rose-500" /> Sinema & Film Yönetimi
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Birlikte izlediğiniz ve izlemeyi planladığınız tüm film/dizileri yönetin.
+                  </p>
+                </div>
+              </div>
+
+              {/* Add New Movie Form */}
+              <div className="bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" /> Yeni Film / Dizi Kaydı Ekle
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Film/Dizi Adı *"
+                    value={newMovieTitle}
+                    onChange={(e) => setNewMovieTitle(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Tür (Ör: Romantik Komedi)"
+                    value={newMovieGenre}
+                    onChange={(e) => setNewMovieGenre(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="url"
+                    placeholder="Afiş Görsel URL (Poster)"
+                    value={newMoviePosterUrl}
+                    onChange={(e) => setNewMoviePosterUrl(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                  <input
+                    type="url"
+                    placeholder="İzleme / Fragman Linki (Watch URL)"
+                    value={newMovieWatchUrl}
+                    onChange={(e) => setNewMovieWatchUrl(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                  <select
+                    value={newMovieStatus}
+                    onChange={(e) => setNewMovieStatus(e.target.value as 'watched' | 'watchlist')}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2 text-xs text-white outline-none focus:border-rose-500"
+                  >
+                    <option value="watched">🍿 Birlikte İzledik</option>
+                    <option value="watchlist">🎬 İzlenecekler Listesinde</option>
+                  </select>
+
+                  {newMovieStatus === 'watched' && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-gray-400">Puan:</span>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          type="button"
+                          key={star}
+                          onClick={() => setNewMovieRating(star)}
+                          className={`text-sm ${star <= newMovieRating ? 'text-amber-400 font-bold' : 'text-gray-600'}`}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleAddMovieDashboard}
+                    disabled={!newMovieTitle.trim()}
+                    className="rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:scale-102 transition disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" /> Filmi Kaydet 🍿
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Çift Notu (Ör: İnanılmaz tatlı bir sonu vardı!)"
+                  value={newMovieNote}
+                  onChange={(e) => setNewMovieNote(e.target.value)}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                />
+              </div>
+
+              {/* Movies List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
+                  Kayıtlı Filmler ({config.movies?.length || 0})
+                </h4>
+
+                {(!config.movies || config.movies.length === 0) ? (
+                  <p className="text-xs text-gray-500 italic p-4 text-center bg-gray-50 rounded-2xl">
+                    Henüz eklenmiş bir film bulunmuyor.
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    {config.movies.map((movie) => (
+                      <div
+                        key={movie.id}
+                        className="flex items-center justify-between rounded-2xl bg-white p-3.5 border border-rose-100 text-xs shadow-2xs"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={movie.poster_url || 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=600&auto=format&fit=crop'}
+                            alt={movie.title}
+                            className="h-12 w-9 rounded-lg object-cover border shrink-0"
+                          />
+                          <div>
+                            <div className="font-bold text-gray-900 flex items-center gap-2">
+                              <span>{movie.title}</span>
+                              <span className="text-[10px] text-gray-500 font-normal">({movie.genre || 'Film'})</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {movie.status === 'watched' ? (
+                                <button
+                                  onClick={() => handleToggleMovieStatus(movie.id)}
+                                  className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase hover:bg-amber-100 hover:text-amber-800 transition"
+                                  title="İzleneceklere Al"
+                                >
+                                  İzledik 🍿 ({movie.rating || 5}/5 ★)
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleToggleMovieStatus(movie.id)}
+                                  className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase hover:bg-emerald-100 hover:text-emerald-700 transition"
+                                  title="İzlenenlere Aktar"
+                                >
+                                  İzlenecek 🎬 (İzledik Olarak İşaretle 🍿)
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteMovieDashboard(movie.id)}
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition shrink-0 ml-2"
+                          title="Filmi Sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 8: HARİTA NOKTALARI */}
           {activeTab === 'map' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-4">
               <h3 className="text-base font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
