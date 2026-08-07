@@ -36,6 +36,15 @@ export interface CouponItem {
   used_at?: string;
 }
 
+export interface DiaryEntry {
+  id: string;
+  author: string;
+  role: 'partner1' | 'partner2' | 'guest';
+  date: string;
+  content: string;
+  mood?: string;
+}
+
 export interface FeatureToggles {
   spotify?: boolean;
   memory?: boolean;
@@ -47,6 +56,7 @@ export interface FeatureToggles {
   love_jar?: boolean;
   map?: boolean;
   coupons?: boolean;
+  diary?: boolean;
 }
 
 export interface CoupleConfig {
@@ -68,6 +78,7 @@ export interface CoupleConfig {
   memories?: MemoryItem[];
   bucket_list?: BucketListItem[];
   coupons?: CouponItem[];
+  diary_entries?: DiaryEntry[];
   upcoming_event?: UpcomingEvent;
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;

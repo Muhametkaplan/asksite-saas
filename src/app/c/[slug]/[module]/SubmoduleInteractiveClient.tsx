@@ -18,13 +18,14 @@ import {
   RotateCcw,
   Gift
 } from 'lucide-react';
-import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem } from '@/types/couple';
+import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry } from '@/types/couple';
 import {
   useCoupon,
   sendCanvasStroke,
   subscribeToLiveCanvas,
   clearLiveCanvas,
   saveCoupleConfig,
+  addDiaryEntry,
   CanvasStrokeData,
 } from '@/lib/couples';
 
@@ -112,7 +113,7 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
   }
 
   if (module === 'diary') {
-    return <DiaryWidget partner1={partner1} partner2={partner2} />;
+    return <DiaryWidget couple={couple} />;
   }
 
   if (module === 'capsule') {
@@ -481,28 +482,157 @@ function QuizWidget({ partner1, partner2 }: { partner1: string; partner2: string
   );
 }
 
-/* ================= 5. DIARY MODULE ================= */
-function DiaryWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-3xl bg-white p-5 shadow-md border border-gray-100 text-left">
-        <div className="flex items-center justify-between text-xs text-rose-500 font-semibold mb-2">
-          <span>📅 İlk Tanıştığımız Gün</span>
-          <span>❤️</span>
-        </div>
-        <p className="text-xs text-gray-700 leading-relaxed">
-          Gözlerinin içine ilk baktığım an, hayatımın dönüm noktasıydı. Gülüşünle dünyamı aydınlattın.
-        </p>
-      </div>
+/* ================= 5. DIARY MODULE (ANI DEFTERİ) ================= */
+const MOOD_EMOJIS = ['❤️', '😊', '☕', '🍷', '🌅', '🌟', '🎉', '🥺', '🕊️'];
 
-      <div className="rounded-3xl bg-white p-5 shadow-md border border-gray-100 text-left">
-        <div className="flex items-center justify-between text-xs text-rose-500 font-semibold mb-2">
-          <span>🌊 Birlikte İlk Tatilimiz</span>
-          <span>🏖️</span>
+function DiaryWidget({ couple }: { couple: CoupleConfig }) {
+  const [entries, setEntries] = useState<DiaryEntry[]>(couple?.diary_entries || []);
+  const [noteContent, setNoteContent] = useState('');
+  const [selectedMood, setSelectedMood] = useState('❤️');
+  const [adding, setAdding] = useState(false);
+
+  // Authenticated Role Check
+  const authState = React.useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('asksite_auth_' + couple.slug);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const role = parsed.role as 'partner1' | 'partner2' | 'guest';
+          const author = role === 'partner1' ? couple.partner1_name : role === 'partner2' ? couple.partner2_name : 'Misafir';
+          return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
+        } catch (e) {}
+      }
+    }
+    return { role: 'guest', author: 'Misafir', isPartner: false };
+  }, [couple]);
+
+  const handleAddNote = async () => {
+    if (!noteContent.trim()) return;
+    if (!authState.isPartner) return; // Client-side Guest protection
+
+    setAdding(true);
+    const newEntryData: Omit<DiaryEntry, 'id'> = {
+      author: authState.author,
+      role: authState.role,
+      date: new Date().toISOString().split('T')[0],
+      content: noteContent.trim(),
+      mood: selectedMood,
+    };
+
+    const success = await addDiaryEntry(couple.slug, newEntryData);
+    if (success) {
+      setEntries((prev) => [
+        {
+          id: `d-${Date.now()}`,
+          ...newEntryData,
+        },
+        ...prev,
+      ]);
+      setNoteContent('');
+      triggerConfetti({ particleCount: 50, spread: 60 });
+    }
+    setAdding(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Form or Guest Warning Banner */}
+      {authState.isPartner ? (
+        <div className="rounded-3xl bg-amber-50/90 backdrop-blur-md p-5 shadow-xl border border-amber-200 space-y-3 relative overflow-hidden">
+          {/* Spiral Margin Decoration */}
+          <div className="absolute left-0 top-0 bottom-0 w-3 bg-amber-200/50 flex flex-col justify-around py-2 border-r border-amber-300/40">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-2 w-2 rounded-full bg-amber-700/30 mx-auto shadow-inner" />
+            ))}
+          </div>
+
+          <div className="pl-3">
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="text-xs font-extrabold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                📖 Yeni Anı / Not Yaz ({authState.author})
+              </h4>
+              <span className="text-xs text-amber-700 font-serif">📅 {new Date().toLocaleDateString('tr-TR')}</span>
+            </div>
+
+            <textarea
+              rows={3}
+              placeholder="Aşkınıza dair bugün hissettiklerinizi yazın..."
+              value={noteContent}
+              onChange={(e) => setNoteContent(e.target.value)}
+              className="w-full rounded-2xl border border-amber-300/80 bg-white/90 p-3 text-xs text-gray-800 outline-none focus:border-amber-500 font-serif leading-relaxed placeholder:font-sans"
+            />
+
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <div className="flex items-center gap-1 overflow-x-auto py-1">
+                <span className="text-[10px] font-bold text-amber-800 mr-1">Ruh Hali:</span>
+                {MOOD_EMOJIS.map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setSelectedMood(m)}
+                    className={`h-7 w-7 rounded-xl text-sm transition-transform ${
+                      selectedMood === m ? 'scale-125 bg-amber-200 shadow-xs' : 'hover:scale-110 opacity-80'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handleAddNote}
+                disabled={adding || !noteContent.trim()}
+                className="rounded-xl bg-gradient-to-r from-amber-600 to-rose-500 px-4 py-2 text-xs font-extrabold text-white shadow-md hover:scale-102 active:scale-95 transition disabled:opacity-50 flex items-center gap-1 shrink-0"
+              >
+                Anı Defterine Ekle 🖋️
+              </button>
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-gray-700 leading-relaxed">
-          Deniz kokusu, gün batımı ve el ele yürüyüşümüz... Unutulmaz anılarımızın en tatlısı.
-        </p>
+      ) : (
+        <div className="rounded-3xl bg-amber-50/80 p-4 text-center shadow-md border border-amber-200 flex items-center justify-center gap-2 text-xs font-bold text-amber-900">
+          🔒 Ziyaretçiler anı defterini sadece okuyabilir.
+        </div>
+      )}
+
+      {/* Diary Entries List */}
+      <div className="space-y-4">
+        {entries.length === 0 ? (
+          <div className="rounded-3xl bg-white p-8 text-center text-xs text-gray-500 shadow-md">
+            Henüz yazılmış bir anı bulunmuyor. İlk notu siz düşün! ❤️
+          </div>
+        ) : (
+          entries.map((entry) => (
+            <div
+              key={entry.id}
+              className="relative overflow-hidden rounded-3xl bg-white p-5 shadow-lg border border-amber-100/80 pl-8 transition hover:shadow-xl"
+            >
+              {/* Left Spiral Rings Effect */}
+              <div className="absolute left-0 top-0 bottom-0 w-4 bg-slate-100 flex flex-col justify-around py-3 border-r border-slate-200">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-2.5 w-2.5 rounded-full bg-slate-400/50 mx-auto shadow-inner" />
+                ))}
+              </div>
+
+              {/* Top Meta info */}
+              <div className="flex items-center justify-between border-b border-rose-100 pb-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{entry.mood || '❤️'}</span>
+                  <span className="font-serif text-sm font-extrabold text-gray-900">{entry.author}</span>
+                  <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-500 border border-rose-100">
+                    {entry.role === 'partner1' ? couple.partner1_name : entry.role === 'partner2' ? couple.partner2_name : 'Partner'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-gray-400 font-mono">📅 {entry.date}</span>
+              </div>
+
+              {/* Content with notebook lines pattern */}
+              <p className="font-serif text-xs text-gray-800 leading-6 bg-[linear-gradient(#f1f5f9_1px,transparent_1px)] bg-[size:100%_24px] pt-1">
+                "{entry.content}"
+              </p>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

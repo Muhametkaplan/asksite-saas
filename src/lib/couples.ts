@@ -1,4 +1,4 @@
-import { CoupleConfig, MapMarker, CouponItem } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry } from '@/types/couple';
 import { db, isFirebaseConfigured } from './firebase';
 import {
   doc,
@@ -125,6 +125,32 @@ export const DEMO_COUPLE: CoupleConfig = {
       used_at: '2026-02-14T21:30:00.000Z',
     },
   ],
+  diary_entries: [
+    {
+      id: 'd1',
+      author: 'Muhammet',
+      role: 'partner2',
+      date: '2023-01-01',
+      content: 'Gözlerinin içine ilk baktığım an dünyadaki tüm gürültüler sustu. İyi ki geldin hayatıma sevgilim.',
+      mood: '❤️',
+    },
+    {
+      id: 'd2',
+      author: 'İrem',
+      role: 'partner1',
+      date: '2023-07-15',
+      content: 'Deniz kenarında gün batımını izlerken elimi tuttuğun o anı hiç unutmayacağım.',
+      mood: '🌅',
+    },
+    {
+      id: 'd3',
+      author: 'Muhammet',
+      role: 'partner2',
+      date: '2024-02-14',
+      content: 'Yağmurlu bir akşamda kahvelerimizi yudumlarken geleceğe dair hayaller kurmak harikaydı.',
+      mood: '☕',
+    },
+  ],
   upcoming_event: {
     title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈',
     date: '2026-09-15T00:00:00.000Z',
@@ -187,6 +213,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           memories: memories.length > 0 ? memories : data.memories || DEMO_COUPLE.memories,
           bucket_list: bucketList.length > 0 ? bucketList : data.bucket_list || DEMO_COUPLE.bucket_list,
           coupons: data.coupons || DEMO_COUPLE.coupons,
+          diary_entries: data.diary_entries || DEMO_COUPLE.diary_entries,
           upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
@@ -256,6 +283,7 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         memories: config.memories || [],
         bucket_list: config.bucket_list || [],
         coupons: config.coupons || [],
+        diary_entries: config.diary_entries || [],
         upcoming_event: config.upcoming_event || null,
         allowed_users: config.allowed_users || {
           partner1_email: 'irem@asksite.com',
@@ -496,6 +524,40 @@ export async function resetAllCoupons(slug: string): Promise<boolean> {
   const updated = await saveCoupleConfig({
     ...couple,
     coupons: resetCoupons,
+  });
+
+  return !!updated;
+}
+
+// ================= DIARY SERVICES =================
+export async function addDiaryEntry(slug: string, entry: Omit<DiaryEntry, 'id'>): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const newEntry: DiaryEntry = {
+    ...entry,
+    id: `d-${Date.now()}`,
+  };
+
+  const updatedEntries = [newEntry, ...(couple.diary_entries || [])];
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    diary_entries: updatedEntries,
+  });
+
+  return !!updated;
+}
+
+export async function deleteDiaryEntry(slug: string, entryId: string): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const updatedEntries = (couple.diary_entries || []).filter((e) => e.id !== entryId);
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    diary_entries: updatedEntries,
   });
 
   return !!updated;

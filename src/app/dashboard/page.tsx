@@ -16,10 +16,11 @@ import {
   Music,
   FileText,
   Ticket,
-  RefreshCw
+  RefreshCw,
+  BookOpen
 } from 'lucide-react';
 
-import { CoupleConfig, MapMarker, CouponItem } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, resetAllCoupons } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
@@ -30,7 +31,7 @@ function DashboardContent() {
   const slugFromUrl = searchParams.get('slug') || 'irem-muhammet';
   const isNewAccount = searchParams.get('new') === 'true';
 
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'map' | 'qr'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'map' | 'qr'>('info');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -303,6 +304,13 @@ function DashboardContent() {
     }
   };
 
+  const handleDeleteDiaryEntry = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      diary_entries: (prev.diary_entries || []).filter((e) => e.id !== id),
+    }));
+  };
+
   const handleClearMap = async () => {
     if (confirm('Tüm harita anılarını silmek istediğine emin misin?')) {
       await clearMapMarkers(config.id || config.slug);
@@ -407,6 +415,16 @@ function DashboardContent() {
               <Ticket className="h-3.5 w-3.5" /> 4. Kuponlar
             </button>
             <button
+              onClick={() => setActiveTab('diary')}
+              className={`flex-1 min-w-[105px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'diary'
+                  ? 'bg-rose-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-rose-500'
+              }`}
+            >
+              <BookOpen className="h-3.5 w-3.5" /> 5. Anı Defteri
+            </button>
+            <button
               onClick={() => setActiveTab('map')}
               className={`flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
                 activeTab === 'map'
@@ -414,7 +432,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <MapPin className="h-3.5 w-3.5" /> 5. Harita
+              <MapPin className="h-3.5 w-3.5" /> 6. Harita
             </button>
             <button
               onClick={() => setActiveTab('qr')}
@@ -424,7 +442,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <QrCode className="h-3.5 w-3.5" /> 6. QR & NFC
+              <QrCode className="h-3.5 w-3.5" /> 7. QR & NFC
             </button>
           </div>
 
@@ -1046,7 +1064,63 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* TAB 5: HARİTA NOKTALARI */}
+          {/* TAB 5: ANI DEFTERİ */}
+          {activeTab === 'diary' && (
+            <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-6">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-rose-500" /> Anı Defteri Yönetimi
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Çiftin anı defterine yazdığı özel notları ve duygusal günlük kayıtlarını görüntüleyin.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
+                  Kayıtlı Anı Notları ({config.diary_entries?.length || 0})
+                </h4>
+
+                {(!config.diary_entries || config.diary_entries.length === 0) ? (
+                  <p className="text-xs text-gray-500 italic p-4 text-center bg-gray-50 rounded-2xl">
+                    Henüz eklenmiş bir anı notu bulunmuyor.
+                  </p>
+                ) : (
+                  <div className="space-y-3.5 max-h-96 overflow-y-auto pr-1">
+                    {config.diary_entries.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-start justify-between rounded-2xl bg-amber-50/70 p-4 border border-amber-200/80 text-xs shadow-2xs"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{entry.mood || '❤️'}</span>
+                            <span className="font-extrabold text-amber-950 font-serif">{entry.author}</span>
+                            <span className="rounded-full bg-amber-200/60 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                              {entry.date}
+                            </span>
+                          </div>
+                          <p className="font-serif text-gray-800 leading-relaxed pl-1">"{entry.content}"</p>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteDiaryEntry(entry.id)}
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-rose-100 hover:text-rose-600 transition shrink-0 ml-2"
+                          title="Notu Sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: HARİTA NOKTALARI */}
           {activeTab === 'map' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-4">
               <h3 className="text-base font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
