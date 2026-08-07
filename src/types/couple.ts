@@ -26,6 +26,16 @@ export interface AllowedUsers {
   visitor_pin?: string;
 }
 
+export interface CouponItem {
+  id: string;
+  title: string;
+  description: string;
+  category: 'massage' | 'date' | 'food' | 'forgive' | 'movie' | 'custom';
+  icon?: string;
+  is_used: boolean;
+  used_at?: string;
+}
+
 export interface FeatureToggles {
   spotify?: boolean;
   memory?: boolean;
@@ -36,6 +46,7 @@ export interface FeatureToggles {
   canvas?: boolean;
   love_jar?: boolean;
   map?: boolean;
+  coupons?: boolean;
 }
 
 export interface CoupleConfig {
@@ -56,6 +67,7 @@ export interface CoupleConfig {
   love_reasons: string[];
   memories?: MemoryItem[];
   bucket_list?: BucketListItem[];
+  coupons?: CouponItem[];
   upcoming_event?: UpcomingEvent;
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;

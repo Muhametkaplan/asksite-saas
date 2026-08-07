@@ -19,7 +19,8 @@ import {
   Gift
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { CoupleConfig } from '@/types/couple';
+import { CoupleConfig, CouponItem as LibCouponItem } from '@/types/couple';
+import { useCoupon } from '@/lib/couples';
 
 interface SubmoduleClientProps {
   module: string;
@@ -34,8 +35,144 @@ export default function SubmoduleInteractiveClient({ module, couple }: Submodule
 
   // --- 2. COUPONS MODULE ---
   if (module === 'coupons') {
-    return <CouponsWidget partner1={couple.partner1_name} partner2={couple.partner2_name} />;
+    return <CouponsWidget couple={couple} />;
   }
+
+/* ================= 2. COUPONS MODULE ================= */
+const CATEGORY_STYLES: Record<string, { bg: string; badge: string; border: string }> = {
+  massage: { bg: 'from-pink-500 via-rose-500 to-red-500', badge: 'bg-pink-100 text-pink-700', border: 'border-pink-300' },
+  forgive: { bg: 'from-emerald-500 via-teal-500 to-cyan-500', badge: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-300' },
+  movie: { bg: 'from-blue-500 via-indigo-500 to-purple-500', badge: 'bg-blue-100 text-blue-700', border: 'border-blue-300' },
+  food: { bg: 'from-amber-500 via-orange-500 to-red-500', badge: 'bg-amber-100 text-amber-700', border: 'border-amber-300' },
+  date: { bg: 'from-purple-500 via-fuchsia-500 to-pink-500', badge: 'bg-purple-100 text-purple-700', border: 'border-purple-300' },
+  custom: { bg: 'from-rose-500 via-purple-500 to-indigo-500', badge: 'bg-rose-100 text-rose-700', border: 'border-rose-300' },
+};
+
+function CouponsWidget({ couple }: { couple: CoupleConfig }) {
+  const [couponsList, setCouponsList] = useState<LibCouponItem[]>(couple.coupons || []);
+  const [selectedCoupon, setSelectedCoupon] = useState<LibCouponItem | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
+
+  const handleOpenModal = (coupon: LibCouponItem) => {
+    if (coupon.is_used) return;
+    setSelectedCoupon(coupon);
+  };
+
+  const handleConfirmRedeem = async () => {
+    if (!selectedCoupon) return;
+    setRedeeming(true);
+
+    const success = await useCoupon(couple.slug, selectedCoupon.id);
+
+    setCouponsList((prev) =>
+      prev.map((c) => (c.id === selectedCoupon.id ? { ...c, is_used: true, used_at: new Date().toISOString() } : c))
+    );
+
+    confetti({ particleCount: 80, spread: 90, origin: { y: 0.5 } });
+    setRedeeming(false);
+    setSelectedCoupon(null);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center mb-2">
+        <p className="text-xs text-gray-500 font-medium">
+          Sevdiğinize özel dijital aşk kuponları. Kullanmak için üzerine tıklayın! ❤️
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {couponsList.map((c) => {
+          const style = CATEGORY_STYLES[c.category] || CATEGORY_STYLES.custom;
+          return (
+            <div
+              key={c.id}
+              onClick={() => handleOpenModal(c)}
+              className={`relative overflow-hidden rounded-3xl p-5 shadow-lg transition-all duration-300 ${
+                c.is_used
+                  ? 'bg-gray-100 border-2 border-gray-200 opacity-65 cursor-not-allowed grayscale-[40%]'
+                  : `bg-gradient-to-r ${style.bg} text-white hover:scale-[1.02] cursor-pointer shadow-rose-500/20 active:scale-98`
+              }`}
+            >
+              {/* Used Stamp Badge */}
+              {c.is_used && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] z-10">
+                  <div className="rotate-[-12deg] rounded-2xl border-4 border-red-500 bg-white/95 px-6 py-2 shadow-2xl text-center">
+                    <span className="text-lg font-black tracking-widest text-red-600 uppercase drop-shadow-xs">
+                      ❌ KULLANILDI
+                    </span>
+                    <div className="text-[10px] text-gray-500 font-bold">
+                      {c.used_at ? new Date(c.used_at).toLocaleDateString('tr-TR') : 'Tamamlandı'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-2xl">{c.icon || '🎟️'}</span>
+                    <h4 className={`text-base font-extrabold ${c.is_used ? 'text-gray-800' : 'text-white'}`}>
+                      {c.title}
+                    </h4>
+                  </div>
+                  <p className={`text-xs leading-relaxed ${c.is_used ? 'text-gray-500' : 'text-white/90'}`}>
+                    {c.description}
+                  </p>
+                </div>
+
+                {!c.is_used && (
+                  <span className="rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs border border-white/30">
+                    Kullan 🎟️
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Redemption Confirmation Modal */}
+      {selectedCoupon && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl border border-gray-100">
+            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 text-3xl shadow-xs">
+              {selectedCoupon.icon || '🎟️'}
+            </div>
+
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">
+              {selectedCoupon.title}
+            </h3>
+
+            <p className="text-xs text-gray-600 mb-5 leading-relaxed">
+              {selectedCoupon.description}
+            </p>
+
+            <div className="rounded-2xl bg-rose-50 p-3 text-xs text-rose-700 font-semibold mb-5 border border-rose-100">
+              Bu kuponu şimdi kullanmak istediğinize emin misiniz? ❤️
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedCoupon(null)}
+                className="flex-1 rounded-xl bg-gray-100 py-3 text-xs font-bold text-gray-600 hover:bg-gray-200 transition"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={handleConfirmRedeem}
+                disabled={redeeming}
+                className="flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 py-3 text-xs font-bold text-white shadow-md hover:scale-102 active:scale-95 transition disabled:opacity-50"
+              >
+                {redeeming ? 'İşleniyor...' : 'Evet, Kullan! 🎉'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
   // --- 3. WHEEL MODULE ---
   if (module === 'wheel') {

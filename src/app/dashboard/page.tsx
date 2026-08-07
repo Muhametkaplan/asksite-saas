@@ -14,11 +14,13 @@ import {
   CheckCircle,
   Sparkles,
   Music,
-  FileText
+  FileText,
+  Ticket,
+  RefreshCw
 } from 'lucide-react';
 
-import { CoupleConfig, MapMarker } from '@/types/couple';
-import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers } from '@/lib/couples';
+import { CoupleConfig, MapMarker, CouponItem } from '@/types/couple';
+import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, resetAllCoupons } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
@@ -28,7 +30,7 @@ function DashboardContent() {
   const slugFromUrl = searchParams.get('slug') || 'irem-muhammet';
   const isNewAccount = searchParams.get('new') === 'true';
 
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'map' | 'qr'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'map' | 'qr'>('info');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -55,6 +57,7 @@ function DashboardContent() {
     love_reasons: ['Gülüşünle dünyamı aydınlatıyorsun.'],
     memories: [],
     bucket_list: [],
+    coupons: [],
     upcoming_event: { title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈', date: '2026-09-15' },
     feature_toggles: {
       spotify: true,
@@ -66,6 +69,7 @@ function DashboardContent() {
       canvas: true,
       love_jar: true,
       map: true,
+      coupons: true,
     },
   });
 
@@ -80,6 +84,12 @@ function DashboardContent() {
 
   const [newBucketTitle, setNewBucketTitle] = useState('');
   const [newBucketCategory, setNewBucketCategory] = useState<'city' | 'movie' | 'activity'>('city');
+
+  // Coupon State
+  const [newCouponTitle, setNewCouponTitle] = useState('');
+  const [newCouponDesc, setNewCouponDesc] = useState('');
+  const [newCouponCategory, setNewCouponCategory] = useState<'massage' | 'date' | 'food' | 'forgive' | 'movie' | 'custom'>('massage');
+  const [newCouponIcon, setNewCouponIcon] = useState('💆‍♂️');
 
   // Map state
   const [markers, setMarkers] = useState<MapMarker[]>([]);
@@ -257,6 +267,42 @@ function DashboardContent() {
     }
   };
 
+  const handleAddCoupon = () => {
+    if (!newCouponTitle.trim()) return;
+    const coupon: CouponItem = {
+      id: `c-${Date.now()}`,
+      title: newCouponTitle.trim(),
+      description: newCouponDesc.trim() || 'Özel aşk kuponu',
+      category: newCouponCategory,
+      icon: newCouponIcon || '🎟️',
+      is_used: false,
+    };
+    setConfig((prev) => ({
+      ...prev,
+      coupons: [...(prev.coupons || []), coupon],
+    }));
+    setNewCouponTitle('');
+    setNewCouponDesc('');
+  };
+
+  const handleDeleteCoupon = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      coupons: (prev.coupons || []).filter((c) => c.id !== id),
+    }));
+  };
+
+  const handleResetAllCoupons = async () => {
+    if (confirm('Tüm kuponları yeniden aktif hale getirmek istiyor musunuz?')) {
+      await resetAllCoupons(config.slug);
+      setConfig((prev) => ({
+        ...prev,
+        coupons: (prev.coupons || []).map((c) => ({ ...c, is_used: false, used_at: undefined })),
+      }));
+      setPreviewRefreshKey((prev) => prev + 1);
+    }
+  };
+
   const handleClearMap = async () => {
     if (confirm('Tüm harita anılarını silmek istediğine emin misin?')) {
       await clearMapMarkers(config.id || config.slug);
@@ -348,7 +394,17 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <Sparkles className="h-3.5 w-3.5" /> 3. Modüller & Toggles
+              <Sparkles className="h-3.5 w-3.5" /> 3. Modüller
+            </button>
+            <button
+              onClick={() => setActiveTab('coupons')}
+              className={`flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'coupons'
+                  ? 'bg-rose-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-rose-500'
+              }`}
+            >
+              <Ticket className="h-3.5 w-3.5" /> 4. Kuponlar
             </button>
             <button
               onClick={() => setActiveTab('map')}
@@ -358,7 +414,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <MapPin className="h-3.5 w-3.5" /> 4. Harita
+              <MapPin className="h-3.5 w-3.5" /> 5. Harita
             </button>
             <button
               onClick={() => setActiveTab('qr')}
@@ -368,7 +424,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <QrCode className="h-3.5 w-3.5" /> 5. QR & NFC
+              <QrCode className="h-3.5 w-3.5" /> 6. QR & NFC
             </button>
           </div>
 
@@ -860,7 +916,137 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* TAB 3: HARİTA NOKTALARI */}
+          {/* TAB 4: AŞK KUPONLARI */}
+          {activeTab === 'coupons' && (
+            <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <Ticket className="h-5 w-5 text-rose-500" /> Aşk Kuponları Yönetimi
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Sevdiğinize özel dijital kuponlar oluşturun, silin veya tümünü tek tıkla sıfırlayın.
+                  </p>
+                </div>
+                <button
+                  onClick={handleResetAllCoupons}
+                  className="flex items-center gap-1.5 rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 transition active:scale-95 shadow-2xs self-start sm:self-auto"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 text-amber-600" /> Tüm Kuponları Yeniden Aktif Et / Sıfırla
+                </button>
+              </div>
+
+              {/* Yeni Kupon Ekleme Formu */}
+              <div className="bg-rose-50/60 p-4 rounded-2xl border border-rose-100 space-y-3">
+                <h4 className="text-xs font-extrabold text-rose-600 uppercase tracking-wider">
+                  ✨ Sınırsız Yeni Kupon Ekle
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Kupon Başlığı</label>
+                    <input
+                      type="text"
+                      placeholder="Örn: 1 Saat Omuz Masajı 💆‍♂️"
+                      value={newCouponTitle}
+                      onChange={(e) => setNewCouponTitle(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Kategori / Tema</label>
+                    <select
+                      value={newCouponCategory}
+                      onChange={(e) => {
+                        const cat = e.target.value as any;
+                        setNewCouponCategory(cat);
+                        const icons: Record<string, string> = {
+                          massage: '💆‍♂️',
+                          forgive: '🕊️',
+                          movie: '🍿',
+                          food: '🍕',
+                          date: '🍷',
+                          custom: '✨',
+                        };
+                        setNewCouponIcon(icons[cat] || '🎟️');
+                      }}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none focus:border-rose-500 font-semibold"
+                    >
+                      <option value="massage">💆‍♂️ Masaj & Rahatlama</option>
+                      <option value="forgive">🕊️ Barışma & Sarılma</option>
+                      <option value="movie">🍿 Sinema & Dizi</option>
+                      <option value="food">🍕 Yemek & Tatlı</option>
+                      <option value="date">🍷 Romantik Randevu</option>
+                      <option value="custom">✨ Özel Sürpriz</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Kupon Açıklaması</label>
+                  <input
+                    type="text"
+                    placeholder="Örn: Yorgunluğunu alacak sıcacık bir masaj hakkı."
+                    value={newCouponDesc}
+                    onChange={(e) => setNewCouponDesc(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <button
+                  onClick={handleAddCoupon}
+                  className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:scale-102 active:scale-95 transition"
+                >
+                  <Plus className="h-4 w-4" /> Kuponu Listeye Ekle
+                </button>
+              </div>
+
+              {/* Mevcut Kuponlar Listesi */}
+              <div>
+                <h4 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider mb-3">
+                  Mevcut Kuponlar ({config.coupons?.length || 0})
+                </h4>
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {(config.coupons || []).map((coupon) => (
+                    <div
+                      key={coupon.id}
+                      className={`flex items-center justify-between rounded-2xl p-3 border text-xs transition ${
+                        coupon.is_used ? 'bg-gray-100 border-gray-200 opacity-60' : 'bg-white border-rose-100 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{coupon.icon || '🎟️'}</span>
+                        <div>
+                          <div className="font-bold text-gray-900 flex items-center gap-2">
+                            <span>{coupon.title}</span>
+                            {coupon.is_used ? (
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600 uppercase">
+                                KULLANILDI ❌
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase">
+                                Aktif ✅
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-0.5">{coupon.description}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleDeleteCoupon(coupon.id)}
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                        title="Kuponu Sil"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: HARİTA NOKTALARI */}
           {activeTab === 'map' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-4">
               <h3 className="text-base font-bold text-gray-900 border-b pb-2 flex items-center gap-2">

@@ -1,4 +1,4 @@
-import { CoupleConfig, MapMarker } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem } from '@/types/couple';
 import { db, isFirebaseConfigured } from './firebase';
 import {
   doc,
@@ -82,6 +82,49 @@ export const DEMO_COUPLE: CoupleConfig = {
     { id: 'b4', title: 'Paris’te Eyfel Altında Kahve ☕', category: 'city', completed: false },
     { id: 'b5', title: 'Kuzey Işıkları (Aurora) Kampı 🌌', category: 'activity', completed: false },
   ],
+  coupons: [
+    {
+      id: 'c1',
+      title: '1 Saat Kesintisiz Sırt & Omuz Masajı 💆‍♂️',
+      description: 'Yorgunluğunu unutturacak yumuşacık ve son derece rahatlatıcı masaj hakkı.',
+      category: 'massage',
+      icon: '💆‍♂️',
+      is_used: false,
+    },
+    {
+      id: 'c2',
+      title: 'Soru Sormadan Affedilme & Barışma Kartı 🕊️',
+      description: 'Ufak anlaşmazlıklarda koşulsuz şartsız barışma ve sarılma jokeri.',
+      category: 'forgive',
+      icon: '🕊️',
+      is_used: false,
+    },
+    {
+      id: 'c3',
+      title: 'İstediğin Filmi & Diziyi Seçme Hakkı 🍿',
+      description: 'Bu gece kumanda tamamen sende! Dilediğin yapımı mısır eşliğinde izliyoruz.',
+      category: 'movie',
+      icon: '🍿',
+      is_used: false,
+    },
+    {
+      id: 'c4',
+      title: 'En Sevdiğin Restoranda Akşam Yemeği 🍕',
+      description: 'Senin seçtiğin mekanda baş başa lezzetli akşam yemeği kaçamağı.',
+      category: 'food',
+      icon: '🍕',
+      is_used: false,
+    },
+    {
+      id: 'c5',
+      title: 'Gece Yarısı Dondurma & Tatlı Kaçamağı 🍦',
+      description: 'Saat kaç olursa olsun en yakın tatlıcıya gitme sözü.',
+      category: 'custom',
+      icon: '🍦',
+      is_used: true,
+      used_at: '2026-02-14T21:30:00.000Z',
+    },
+  ],
   upcoming_event: {
     title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈',
     date: '2026-09-15T00:00:00.000Z',
@@ -101,6 +144,7 @@ export const DEMO_COUPLE: CoupleConfig = {
     countdown: true,
     custom_audio: true,
     canvas: true,
+    coupons: true,
   },
 };
 
@@ -142,6 +186,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           love_reasons: data.love_reasons || DEMO_COUPLE.love_reasons,
           memories: memories.length > 0 ? memories : data.memories || DEMO_COUPLE.memories,
           bucket_list: bucketList.length > 0 ? bucketList : data.bucket_list || DEMO_COUPLE.bucket_list,
+          coupons: data.coupons || DEMO_COUPLE.coupons,
           upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
@@ -210,6 +255,7 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         love_reasons: config.love_reasons || [],
         memories: config.memories || [],
         bucket_list: config.bucket_list || [],
+        coupons: config.coupons || [],
         upcoming_event: config.upcoming_event || null,
         allowed_users: config.allowed_users || {
           partner1_email: 'irem@asksite.com',
@@ -418,4 +464,39 @@ export async function clearLiveCanvas(slug: string): Promise<void> {
       console.error('Error clearing live canvas in Firestore:', e);
     }
   }
+}
+
+// ================= COUPON SERVICES =================
+export async function useCoupon(slug: string, couponId: string): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const updatedCoupons = (couple.coupons || []).map((c) =>
+    c.id === couponId ? { ...c, is_used: true, used_at: new Date().toISOString() } : c
+  );
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    coupons: updatedCoupons,
+  });
+
+  return !!updated;
+}
+
+export async function resetAllCoupons(slug: string): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const resetCoupons = (couple.coupons || []).map((c) => ({
+    ...c,
+    is_used: false,
+    used_at: undefined,
+  }));
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    coupons: resetCoupons,
+  });
+
+  return !!updated;
 }
