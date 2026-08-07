@@ -6,6 +6,33 @@ interface RelationshipTimerProps {
   startDateISO: string;
 }
 
+export function parseLocalStartDate(startDateString: string): Date {
+  if (!startDateString) return new Date();
+
+  let datePart = startDateString;
+  if (datePart.includes('T')) {
+    datePart = datePart.split('T')[0];
+  }
+
+  if (datePart.includes('.')) {
+    const parts = datePart.split('.');
+    if (parts.length === 3) {
+      const [d, m, y] = parts.map(Number);
+      return new Date(y, m - 1, d, 0, 0, 0);
+    }
+  }
+
+  if (datePart.includes('-')) {
+    const parts = datePart.split('-');
+    if (parts.length === 3) {
+      const [y, m, d] = parts.map(Number);
+      return new Date(y, m - 1, d, 0, 0, 0);
+    }
+  }
+
+  return new Date(`${datePart}T00:00:00`);
+}
+
 export default function RelationshipTimer({ startDateISO }: RelationshipTimerProps) {
   const [timeDiff, setTimeDiff] = useState({
     days: 0,
@@ -15,7 +42,7 @@ export default function RelationshipTimer({ startDateISO }: RelationshipTimerPro
   });
 
   useEffect(() => {
-    const startDate = new Date(startDateISO).getTime();
+    const startDate = parseLocalStartDate(startDateISO).getTime();
 
     const updateTimer = () => {
       const now = new Date().getTime();

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CalendarHeart, MapPin, Sparkles } from 'lucide-react';
 import { UpcomingEvent } from '@/types/couple';
+import { parseLocalStartDate } from './RelationshipTimer';
 
 interface EventCountdownProps {
   event?: UpcomingEvent;
@@ -23,7 +24,7 @@ export default function EventCountdown({ event }: EventCountdownProps) {
   });
 
   useEffect(() => {
-    const targetDate = new Date(targetEvent.date).getTime();
+    const targetDate = parseLocalStartDate(targetEvent.date).getTime();
 
     const updateCountdown = () => {
       const now = new Date().getTime();
