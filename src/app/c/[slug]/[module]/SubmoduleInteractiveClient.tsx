@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { Component, ReactNode, useState } from 'react';
 import {
   Gamepad2,
   Ticket,
@@ -18,25 +18,198 @@ import {
   RotateCcw,
   Gift
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import { CoupleConfig, CouponItem as LibCouponItem } from '@/types/couple';
 import { useCoupon } from '@/lib/couples';
+
+// Helper for dynamic window/DOM confetti execution without SSR hydration crash
+const triggerConfetti = async (options?: any) => {
+  if (typeof window !== 'undefined') {
+    try {
+      const confetti = (await import('canvas-confetti')).default;
+      confetti(options || { particleCount: 60, spread: 80 });
+    } catch (e) {
+      console.error('Confetti execution failed:', e);
+    }
+  }
+};
+
+// React Error Boundary for Submodules
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ModuleErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Submodule render error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-3xl bg-white/90 backdrop-blur-md p-8 text-center shadow-xl border border-rose-100">
+          <div className="text-4xl mb-3">💖</div>
+          <h3 className="text-lg font-bold text-gray-900 mb-1">Modül Yükleniyor</h3>
+          <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+            İçerik yüklenirken küçük bir aksaklık oluştu. Lütfen sayfayı yenileyin.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:scale-105 active:scale-95 transition"
+          >
+            Sayfayı Yenile 🔄
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 interface SubmoduleClientProps {
   module: string;
   couple: CoupleConfig;
 }
 
-export default function SubmoduleInteractiveClient({ module, couple }: SubmoduleClientProps) {
-  // --- 1. GAMES MODULE ---
+function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
+  const partner1 = couple?.partner1_name || 'Partner 1';
+  const partner2 = couple?.partner2_name || 'Partner 2';
+
   if (module === 'games') {
-    return <GamesWidget partner1={couple.partner1_name} partner2={couple.partner2_name} />;
+    return <GamesWidget partner1={partner1} partner2={partner2} />;
   }
 
-  // --- 2. COUPONS MODULE ---
   if (module === 'coupons') {
     return <CouponsWidget couple={couple} />;
   }
+
+  if (module === 'wheel') {
+    return <WheelWidget partner1={partner1} partner2={partner2} />;
+  }
+
+  if (module === 'quiz') {
+    return <QuizWidget partner1={partner1} partner2={partner2} />;
+  }
+
+  if (module === 'diary') {
+    return <DiaryWidget partner1={partner1} partner2={partner2} />;
+  }
+
+  if (module === 'capsule') {
+    return <CapsuleWidget partner1={partner1} partner2={partner2} />;
+  }
+
+  if (module === 'cinema') {
+    return <CinemaWidget partner1={partner1} partner2={partner2} />;
+  }
+
+  if (module === 'therapy') {
+    return <TherapyWidget partner1={partner1} partner2={partner2} />;
+  }
+
+  return (
+    <div className="rounded-3xl bg-white p-6 text-center text-gray-500 shadow-md">
+      Bu modül şu an aktif.
+    </div>
+  );
+}
+
+export default function SubmoduleInteractiveClient(props: SubmoduleClientProps) {
+  return (
+    <ModuleErrorBoundary>
+      <SubmoduleContent {...props} />
+    </ModuleErrorBoundary>
+  );
+}
+
+/* ================= 1. GAMES MODULE ================= */
+function GamesWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
+  const [board, setBoard] = useState<Array<string | null>>(Array(9).fill(null));
+  const [turn, setTurn] = useState<'❤️' | '💖'>('❤️');
+  const [winner, setWinner] = useState<string | null>(null);
+
+  const handleCellClick = (idx: number) => {
+    if (board[idx] || winner) return;
+    const newBoard = [...board];
+    newBoard[idx] = turn;
+    setBoard(newBoard);
+
+    // Check winner
+    const winningCombos = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+
+    for (const [a, b, c] of winningCombos) {
+      if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
+        setWinner(newBoard[a]);
+        triggerConfetti({ particleCount: 40, spread: 60 });
+        return;
+      }
+    }
+
+    if (newBoard.every((cell) => cell !== null)) {
+      setWinner('Berabere');
+      return;
+    }
+
+    setTurn(turn === '❤️' ? '💖' : '❤️');
+  };
+
+  const resetGame = () => {
+    setBoard(Array(9).fill(null));
+    setTurn('❤️');
+    setWinner(null);
+  };
+
+  return (
+    <div className="rounded-3xl bg-white/80 backdrop-blur-md p-6 shadow-xl border border-white text-center">
+      <h3 className="text-lg font-bold text-gray-900 mb-1">Neon XOX Aşk Oyunu</h3>
+      <p className="text-xs text-gray-500 mb-4">
+        {partner1} (❤️) vs {partner2} (💖)
+      </p>
+
+      <div className="mx-auto grid grid-cols-3 gap-3 max-w-[260px] mb-6">
+        {board.map((cell, i) => (
+          <button
+            key={i}
+            onClick={() => handleCellClick(i)}
+            className="flex h-20 items-center justify-center rounded-2xl bg-rose-50 border-2 border-rose-100 text-3xl font-bold shadow-sm transition hover:bg-rose-100 active:scale-95"
+          >
+            {cell}
+          </button>
+        ))}
+      </div>
+
+      {winner && (
+        <div className="mb-4 text-base font-extrabold text-rose-600 animate-bounce">
+          {winner === 'Berabere' ? '🤝 Oyun Berabere Bitti!' : `🎉 Kazanan taraf: ${winner}!`}
+        </div>
+      )}
+
+      <button
+        onClick={resetGame}
+        className="flex items-center justify-center gap-2 mx-auto rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-6 py-2.5 text-xs font-bold text-white shadow-md transition hover:scale-105 active:scale-95"
+      >
+        <RotateCcw className="h-4 w-4" /> Yeniden Başla
+      </button>
+    </div>
+  );
+}
 
 /* ================= 2. COUPONS MODULE ================= */
 const CATEGORY_STYLES: Record<string, { bg: string; badge: string; border: string }> = {
@@ -49,7 +222,7 @@ const CATEGORY_STYLES: Record<string, { bg: string; badge: string; border: strin
 };
 
 function CouponsWidget({ couple }: { couple: CoupleConfig }) {
-  const [couponsList, setCouponsList] = useState<LibCouponItem[]>(couple.coupons || []);
+  const [couponsList, setCouponsList] = useState<LibCouponItem[]>(couple?.coupons || []);
   const [selectedCoupon, setSelectedCoupon] = useState<LibCouponItem | null>(null);
   const [redeeming, setRedeeming] = useState(false);
 
@@ -59,19 +232,21 @@ function CouponsWidget({ couple }: { couple: CoupleConfig }) {
   };
 
   const handleConfirmRedeem = async () => {
-    if (!selectedCoupon) return;
+    if (!selectedCoupon || !couple?.slug) return;
     setRedeeming(true);
 
-    const success = await useCoupon(couple.slug, selectedCoupon.id);
+    await useCoupon(couple.slug, selectedCoupon.id);
 
     setCouponsList((prev) =>
-      prev.map((c) => (c.id === selectedCoupon.id ? { ...c, is_used: true, used_at: new Date().toISOString() } : c))
+      (prev || []).map((c) => (c.id === selectedCoupon.id ? { ...c, is_used: true, used_at: new Date().toISOString() } : c))
     );
 
-    confetti({ particleCount: 80, spread: 90, origin: { y: 0.5 } });
+    triggerConfetti({ particleCount: 80, spread: 90, origin: { y: 0.5 } });
     setRedeeming(false);
     setSelectedCoupon(null);
   };
+
+  const safeCoupons = couponsList || [];
 
   return (
     <div className="space-y-4">
@@ -82,7 +257,7 @@ function CouponsWidget({ couple }: { couple: CoupleConfig }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {couponsList.map((c) => {
+        {safeCoupons.map((c) => {
           const style = CATEGORY_STYLES[c.category] || CATEGORY_STYLES.custom;
           return (
             <div
@@ -174,170 +349,6 @@ function CouponsWidget({ couple }: { couple: CoupleConfig }) {
   );
 }
 
-  // --- 3. WHEEL MODULE ---
-  if (module === 'wheel') {
-    return <WheelWidget partner1={couple.partner1_name} partner2={couple.partner2_name} />;
-  }
-
-  // --- 4. QUIZ MODULE ---
-  if (module === 'quiz') {
-    return <QuizWidget partner1={couple.partner1_name} partner2={couple.partner2_name} />;
-  }
-
-  // --- 5. DIARY MODULE ---
-  if (module === 'diary') {
-    return <DiaryWidget partner1={couple.partner1_name} partner2={couple.partner2_name} />;
-  }
-
-  // --- 6. CAPSULE MODULE ---
-  if (module === 'capsule') {
-    return <CapsuleWidget partner1={couple.partner1_name} partner2={couple.partner2_name} />;
-  }
-
-  // --- 7. CINEMA MODULE ---
-  if (module === 'cinema') {
-    return <CinemaWidget partner1={couple.partner1_name} partner2={couple.partner2_name} />;
-  }
-
-  // --- 8. THERAPY MODULE ---
-  if (module === 'therapy') {
-    return <TherapyWidget partner1={couple.partner1_name} partner2={couple.partner2_name} />;
-  }
-
-  return (
-    <div className="rounded-3xl bg-white p-6 text-center text-gray-500 shadow-md">
-      Bu modül şu an aktif.
-    </div>
-  );
-}
-
-/* ================= 1. GAMES MODULE ================= */
-function GamesWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
-  const [board, setBoard] = useState<Array<string | null>>(Array(9).fill(null));
-  const [turn, setTurn] = useState<'❤️' | '💖'>('❤️');
-  const [winner, setWinner] = useState<string | null>(null);
-
-  const handleCellClick = (idx: number) => {
-    if (board[idx] || winner) return;
-    const newBoard = [...board];
-    newBoard[idx] = turn;
-    setBoard(newBoard);
-
-    // Check winner
-    const winningCombos = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8],
-      [0, 3, 6], [1, 4, 7], [2, 5, 8],
-      [0, 4, 8], [2, 4, 6]
-    ];
-
-    for (const [a, b, c] of winningCombos) {
-      if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
-        setWinner(newBoard[a]);
-        confetti({ particleCount: 40, spread: 60 });
-        return;
-      }
-    }
-
-    if (newBoard.every((cell) => cell !== null)) {
-      setWinner('Berabere');
-      return;
-    }
-
-    setTurn(turn === '❤️' ? '💖' : '❤️');
-  };
-
-  const resetGame = () => {
-    setBoard(Array(9).fill(null));
-    setTurn('❤️');
-    setWinner(null);
-  };
-
-  return (
-    <div className="rounded-3xl bg-white/80 backdrop-blur-md p-6 shadow-xl border border-white text-center">
-      <h3 className="text-lg font-bold text-gray-900 mb-1">Neon XOX Aşk Oyunu</h3>
-      <p className="text-xs text-gray-500 mb-4">
-        {partner1} (❤️) vs {partner2} (💖)
-      </p>
-
-      <div className="mx-auto grid grid-cols-3 gap-3 max-w-[260px] mb-6">
-        {board.map((cell, i) => (
-          <button
-            key={i}
-            onClick={() => handleCellClick(i)}
-            className="flex h-20 items-center justify-center rounded-2xl bg-rose-50 border-2 border-rose-100 text-3xl font-bold shadow-sm transition hover:bg-rose-100 active:scale-95"
-          >
-            {cell}
-          </button>
-        ))}
-      </div>
-
-      {winner && (
-        <div className="mb-4 text-base font-extrabold text-rose-600 animate-bounce">
-          {winner === 'Berabere' ? '🤝 Oyun Berabere Bitti!' : `🎉 Kazan taraf: ${winner}!`}
-        </div>
-      )}
-
-      <button
-        onClick={resetGame}
-        className="flex items-center justify-center gap-2 mx-auto rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-6 py-2.5 text-xs font-bold text-white shadow-md transition hover:scale-105 active:scale-95"
-      >
-        <RotateCcw className="h-4 w-4" /> Yeniden Başla
-      </button>
-    </div>
-  );
-}
-
-/* ================= 2. COUPONS MODULE ================= */
-function CouponsWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
-  const [coupons, setCoupons] = useState([
-    { title: '💆‍♂️ 20 Dakika Omuz & Sırt Masajı', code: 'MASAJ-2026', used: false },
-    { title: '🍿 İstediğin Filmi Seçme Hakkı', code: 'SİNEMA-PASS', used: false },
-    { title: '🍕 En Sevdiğin Yemeği Ismarlama', code: 'YEMEK-VIP', used: false },
-    { title: '🕊️ Sınırsız Barışma & Sarılma Kartı', code: 'SARILMA-CARD', used: false },
-  ]);
-
-  const redeemCoupon = (idx: number) => {
-    const updated = [...coupons];
-    updated[idx].used = true;
-    setCoupons(updated);
-    confetti({ particleCount: 50, spread: 70 });
-  };
-
-  return (
-    <div className="space-y-4">
-      {coupons.map((c, i) => (
-        <div
-          key={i}
-          className={`rounded-3xl p-5 border shadow-md transition ${
-            c.used
-              ? 'bg-gray-100 border-gray-200 opacity-60'
-              : 'bg-gradient-to-r from-rose-50 to-pink-50 border-rose-200 hover:shadow-lg'
-          }`}
-        >
-          <div className="flex justify-between items-center">
-            <div>
-              <h4 className="text-base font-bold text-gray-900">{c.title}</h4>
-              <p className="text-xs text-rose-500 font-mono mt-1">Kod: {c.code}</p>
-            </div>
-            {c.used ? (
-              <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Kullanıldı
-              </span>
-            ) : (
-              <button
-                onClick={() => redeemCoupon(i)}
-                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-600 active:scale-95"
-              >
-                Kullan ✨
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ================= 3. WHEEL MODULE ================= */
 function WheelWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
   const rewards = [
@@ -361,7 +372,7 @@ function WheelWidget({ partner1, partner2 }: { partner1: string; partner2: strin
       const randomReward = rewards[Math.floor(Math.random() * rewards.length)];
       setSelectedReward(randomReward);
       setSpinning(false);
-      confetti({ particleCount: 60, spread: 90 });
+      triggerConfetti({ particleCount: 60, spread: 90 });
     }, 2000);
   };
 
@@ -422,7 +433,7 @@ function QuizWidget({ partner1, partner2 }: { partner1: string; partner2: string
       setCurrentQ(currentQ + 1);
     } else {
       setCompleted(true);
-      confetti({ particleCount: 70, spread: 100 });
+      triggerConfetti({ particleCount: 70, spread: 100 });
     }
   };
 
