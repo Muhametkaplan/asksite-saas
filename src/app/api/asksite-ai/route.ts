@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     const prompt = `Sevgililer ${partnerName || 'İrem ve Muhammet'} için romantik sinema gecesine özel EN AZ 3, EN FAZLA 4 adet kaliteli film veya dizi öner. 
 Tür: ${genre}. 
