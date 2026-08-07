@@ -85,12 +85,15 @@ export async function POST(req: NextRequest) {
 
     await saveCoupleConfig(newCouple);
 
-    return NextResponse.json({
-      success: true,
-      slug,
-      package_type,
-      redirect_url: `/dashboard?slug=${slug}&new=true`
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        slug,
+        package_type,
+        redirect_url: `/dashboard?slug=${slug}&new=true`
+      },
+      { status: 201 }
+    );
   } catch (err: any) {
     console.error('Checkout error:', err);
     return NextResponse.json({ error: 'Ödeme işlemi sırasında bir hata oluştu.' }, { status: 500 });
