@@ -18,8 +18,15 @@ import {
   RotateCcw,
   Gift
 } from 'lucide-react';
-import { CoupleConfig, CouponItem as LibCouponItem } from '@/types/couple';
-import { useCoupon } from '@/lib/couples';
+import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem } from '@/types/couple';
+import {
+  useCoupon,
+  sendCanvasStroke,
+  subscribeToLiveCanvas,
+  clearLiveCanvas,
+  saveCoupleConfig,
+  CanvasStrokeData,
+} from '@/lib/couples';
 
 // Helper for dynamic window/DOM confetti execution without SSR hydration crash
 const triggerConfetti = async (options?: any) => {
@@ -117,7 +124,7 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
   }
 
   if (module === 'therapy') {
-    return <TherapyWidget partner1={partner1} partner2={partner2} />;
+    return <TherapyWidget couple={couple} />;
   }
 
   return (
@@ -542,15 +549,386 @@ function CinemaWidget({ partner1, partner2 }: { partner1: string; partner2: stri
   );
 }
 
-/* ================= 8. THERAPY MODULE ================= */
-function TherapyWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
+/* ================= 8. THERAPY MODULE (SANAT TERAPİSİ & BOYAMA) ================= */
+const PALETTE_COLORS = [
+  { name: 'Gül Pembesi', hex: '#ff4d6d' },
+  { name: 'Tatlı Pembe', hex: '#ff758f' },
+  { name: 'Aşk Moru', hex: '#9c88ff' },
+  { name: 'Gökyüzü Mavi', hex: '#48dbfb' },
+  { name: 'Nane Yeşil', hex: '#1dd1a1' },
+  { name: 'Güneş Sarı', hex: '#feca57' },
+  { name: 'Şeker Pembe', hex: '#ff9ff3' },
+  { name: 'Gece Siyahı', hex: '#2f3542' },
+  { name: 'Silgi (Beyaz)', hex: '#ffffff' },
+];
+
+const TEMPLATES: Record<string, { title: string; icon: string; svg: string }> = {
+  heart: {
+    title: 'Büyük Kalp 💖',
+    icon: '💖',
+    svg: `<path d="M180 300 C70 200, 20 120, 90 50 C140 0, 180 70, 180 70 C180 70, 220 0, 270 50 C340 120, 290 200, 180 300 Z" fill="none" stroke="#ff4d6d" stroke-width="4" stroke-dasharray="6,4"/>`,
+  },
+  hug: {
+    title: 'Sarılan Çift 👩‍❤️‍👨',
+    icon: '👩‍❤️‍👨',
+    svg: `<path d="M100 120 C100 70 140 70 140 120 C140 160 100 160 100 120 Z M220 120 C220 70 260 70 260 120 C260 160 220 160 220 120 Z M80 280 C80 200 120 170 180 170 C240 170 280 200 280 280 M120 220 C140 200 220 200 240 220" fill="none" stroke="#9c88ff" stroke-width="4" stroke-dasharray="5,5"/>`,
+  },
+  moon: {
+    title: 'Yıldızlar & Ay 🌙',
+    icon: '🌙',
+    svg: `<path d="M160 50 A100 100 0 1 0 270 230 A120 120 0 1 1 160 50 Z" fill="none" stroke="#feca57" stroke-width="4" stroke-dasharray="6,4"/><path d="M70 70 L75 85 L90 90 L75 95 L70 110 L65 95 L50 90 L65 85 Z M280 100 L283 110 L293 113 L283 116 L280 126 L277 116 L267 113 L277 110 Z M220 280 L223 290 L233 293 L223 296 L220 306 L217 296 L207 293 L217 290 Z" fill="none" stroke="#feca57" stroke-width="2"/>`,
+  },
+  tree: {
+    title: 'Aşk Ağacı 🌳',
+    icon: '🌳',
+    svg: `<path d="M180 340 L180 220 M180 280 L140 240 M180 260 L220 220 M180 230 L130 190 M180 210 L230 170" stroke="#2f3542" stroke-width="5"/><path d="M180 180 C110 180 90 100 150 70 C160 20 220 20 230 70 C280 100 250 180 180 180 Z" fill="none" stroke="#1dd1a1" stroke-width="4" stroke-dasharray="5,4"/><path d="M130 100 A10 10 0 0 1 150 100 A10 10 0 0 1 130 100 Z M210 120 A10 10 0 0 1 230 120 A10 10 0 0 1 210 120 Z M170 80 A10 10 0 0 1 190 80 A10 10 0 0 1 170 80 Z" fill="none" stroke="#ff4d6d" stroke-width="3"/>`,
+  },
+};
+
+function TherapyWidget({ couple }: { couple: CoupleConfig }) {
+  const [tab, setTab] = useState<'free' | 'template'>('free');
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('heart');
+  const [selectedColor, setSelectedColor] = useState<string>('#ff4d6d');
+  const [strokeWidth, setStrokeWidth] = useState<number>(7);
+  const [savingMemory, setSavingMemory] = useState<boolean>(false);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const isDrawingRef = React.useRef<boolean>(false);
+  const currentPointsRef = React.useRef<Array<{ x: number; y: number }>>([]);
+
+  const userRole: 'partner1' | 'partner2' | 'guest' = React.useMemo(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('asksite_auth_' + couple.slug);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.role) return parsed.role;
+        } catch (e) {}
+      }
+    }
+    return 'partner1';
+  }, [couple.slug]);
+
+  // Subscribe to live strokes from Firestore
+  React.useEffect(() => {
+    const unsubscribe = subscribeToLiveCanvas(couple.slug, (strokes) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Redraw canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      strokes.forEach((s) => {
+        if (!s.points || s.points.length < 2) return;
+        ctx.beginPath();
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.strokeWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.moveTo(s.points[0].x, s.points[0].y);
+        for (let i = 1; i < s.points.length; i++) {
+          ctx.lineTo(s.points[i].x, s.points[i].y);
+        }
+        ctx.stroke();
+      });
+    });
+
+    return () => unsubscribe();
+  }, [couple.slug]);
+
+  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    let clientX = 0;
+    let clientY = 0;
+
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  };
+
+  const handleStartDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    isDrawingRef.current = true;
+    const p = getCanvasCoords(e);
+    currentPointsRef.current = [p];
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.beginPath();
+    ctx.strokeStyle = selectedColor;
+    ctx.lineWidth = strokeWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(p.x, p.y);
+  };
+
+  const handleDraw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current) return;
+    const p = getCanvasCoords(e);
+    currentPointsRef.current.push(p);
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+
+  const handleEndDraw = async () => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+
+    if (currentPointsRef.current.length > 1) {
+      const strokeData: CanvasStrokeData = {
+        points: currentPointsRef.current,
+        color: selectedColor,
+        strokeWidth: strokeWidth,
+        role: userRole,
+      };
+      await sendCanvasStroke(couple.slug, strokeData);
+    }
+    currentPointsRef.current = [];
+  };
+
+  const handleClear = async () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    await clearLiveCanvas(couple.slug);
+  };
+
+  const handleSaveToGallery = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    setSavingMemory(true);
+    try {
+      // Create offscreen canvas to composite background template + strokes
+      const offscreen = document.createElement('canvas');
+      offscreen.width = canvas.width;
+      offscreen.height = canvas.height;
+      const offCtx = offscreen.getContext('2d');
+
+      if (offCtx) {
+        // Fill white background
+        offCtx.fillStyle = '#ffffff';
+        offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+
+        // Draw active template SVG if in template mode
+        if (tab === 'template' && TEMPLATES[selectedTemplateKey]) {
+          const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360">${TEMPLATES[selectedTemplateKey].svg}</svg>`;
+          const img = new Image();
+          await new Promise((resolve) => {
+            img.onload = resolve;
+            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+          });
+          offCtx.drawImage(img, 0, 0);
+        }
+
+        // Draw canvas strokes on top
+        offCtx.drawImage(canvas, 0, 0);
+
+        const dataUrl = offscreen.toDataURL('image/png');
+
+        const newMemory: MemoryItem = {
+          id: `m-${Date.now()}`,
+          photo_url: dataUrl,
+          date: new Date().toISOString().split('T')[0],
+          title: tab === 'template' ? `🎨 Sanat Terapisi: ${TEMPLATES[selectedTemplateKey]?.title || 'Boyama'}` : '🎨 Bizim Sanat Terapisi Çizimimiz',
+          note: `${couple.partner1_name} & ${couple.partner2_name} ortak tuval çalışması ❤️`,
+        };
+
+        const updatedMemories = [newMemory, ...(couple.memories || [])];
+        await saveCoupleConfig({
+          ...couple,
+          memories: updatedMemories,
+        });
+
+        triggerConfetti({ particleCount: 70, spread: 80 });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 4000);
+      }
+    } catch (err) {
+      console.error('Error saving therapy image to gallery:', err);
+    }
+    setSavingMemory(false);
+  };
+
+  const activeSvg = tab === 'template' ? TEMPLATES[selectedTemplateKey]?.svg : null;
+
   return (
-    <div className="rounded-3xl bg-white p-6 shadow-xl border border-gray-100 text-center">
-      <Palette className="h-10 w-10 text-purple-500 mx-auto mb-3" />
-      <h3 className="text-base font-bold text-gray-900 mb-2">Çift Sanat & Terapi Köşesi</h3>
-      <p className="text-xs text-gray-600 leading-relaxed">
-        Birlikte tuvale dokunarak renklerle duygularınızı ifade edin. Sanat ve sevgi ruhunuzu dinlendirir!
-      </p>
+    <div className="space-y-4">
+      {/* Tab Switcher */}
+      <div className="flex rounded-2xl bg-white p-1.5 shadow-md border border-gray-100 gap-1 max-w-sm mx-auto">
+        <button
+          onClick={() => setTab('free')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+            tab === 'free'
+              ? 'bg-rose-500 text-white shadow-sm'
+              : 'text-gray-600 hover:text-rose-500'
+          }`}
+        >
+          🎨 Serbest Çizim
+        </button>
+        <button
+          onClick={() => setTab('template')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+            tab === 'template'
+              ? 'bg-rose-500 text-white shadow-sm'
+              : 'text-gray-600 hover:text-rose-500'
+          }`}
+        >
+          🖼️ Hazır Şablon Çizim / Boyama
+        </button>
+      </div>
+
+      {/* Template Selector Bar (If in template mode) */}
+      {tab === 'template' && (
+        <div className="flex items-center justify-center gap-2 overflow-x-auto py-1">
+          {Object.entries(TEMPLATES).map(([key, t]) => (
+            <button
+              key={key}
+              onClick={() => setSelectedTemplateKey(key)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                selectedTemplateKey === key
+                  ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-rose-50/50'
+              }`}
+            >
+              <span>{t.icon}</span>
+              <span>{t.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Main Canvas & SVG Overlay Wrapper */}
+      <div className="relative mx-auto w-[340px] sm:w-[360px] h-[340px] sm:h-[360px] rounded-3xl bg-white shadow-2xl border-4 border-rose-100 overflow-hidden touch-none select-none">
+        {/* SVG Background Layer for Templates */}
+        {activeSvg && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none p-4 opacity-75"
+            viewBox="0 0 360 360"
+            dangerouslySetInnerHTML={{ __html: activeSvg }}
+          />
+        )}
+
+        {/* Interactive Drawing Canvas */}
+        <canvas
+          ref={canvasRef}
+          width={360}
+          height={360}
+          onMouseDown={handleStartDraw}
+          onMouseMove={handleDraw}
+          onMouseUp={handleEndDraw}
+          onMouseLeave={handleEndDraw}
+          onTouchStart={handleStartDraw}
+          onTouchMove={handleDraw}
+          onTouchEnd={handleEndDraw}
+          className="absolute inset-0 w-full h-full cursor-crosshair z-10"
+        />
+      </div>
+
+      {/* Drawing Toolbar */}
+      <div className="rounded-3xl bg-white/90 backdrop-blur-md p-4 shadow-lg border border-gray-100 space-y-3">
+        {/* Color Palette */}
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 text-center">
+            Fırça Renkleri 🎨
+          </div>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            {PALETTE_COLORS.map((c) => (
+              <button
+                key={c.hex}
+                onClick={() => setSelectedColor(c.hex)}
+                title={c.name}
+                className={`h-7 w-7 rounded-full border-2 transition-transform ${
+                  selectedColor === c.hex
+                    ? 'scale-125 border-gray-900 shadow-md'
+                    : 'border-white hover:scale-110 shadow-2xs'
+                }`}
+                style={{ backgroundColor: c.hex }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Stroke Thickness & Control Actions */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
+            <button
+              onClick={() => setStrokeWidth(3)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
+                strokeWidth === 3 ? 'bg-rose-500 text-white' : 'text-gray-600'
+              }`}
+            >
+              İnce (3px)
+            </button>
+            <button
+              onClick={() => setStrokeWidth(7)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
+                strokeWidth === 7 ? 'bg-rose-500 text-white' : 'text-gray-600'
+              }`}
+            >
+              Orta (7px)
+            </button>
+            <button
+              onClick={() => setStrokeWidth(14)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
+                strokeWidth === 14 ? 'bg-rose-500 text-white' : 'text-gray-600'
+              }`}
+            >
+              Kalın (14px)
+            </button>
+          </div>
+
+          <button
+            onClick={handleClear}
+            className="flex items-center gap-1 rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-200 transition"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Temizle 🗑️
+          </button>
+        </div>
+
+        {/* Save to Memory Gallery Button */}
+        <button
+          onClick={handleSaveToGallery}
+          disabled={savingMemory}
+          className="w-full rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 py-3 text-xs font-extrabold text-white shadow-md hover:scale-[1.01] active:scale-98 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+        >
+          <Gift className="h-4 w-4" /> {savingMemory ? 'Anı Galerisine Kaydediliyor...' : 'Anı Galerisine Kaydet 📸'}
+        </button>
+
+        {saveSuccess && (
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-center text-xs font-bold text-emerald-700 animate-in fade-in">
+            ✨ Çiziminiz Anı Galerisine başarıyla eklendi!
+          </div>
+        )}
+      </div>
     </div>
   );
 }
