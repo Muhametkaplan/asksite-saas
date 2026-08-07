@@ -18,7 +18,7 @@ import {
   RotateCcw,
   Gift
 } from 'lucide-react';
-import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry } from '@/types/couple';
+import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry, CapsuleItem } from '@/types/couple';
 import {
   useCoupon,
   sendCanvasStroke,
@@ -26,6 +26,7 @@ import {
   clearLiveCanvas,
   saveCoupleConfig,
   addDiaryEntry,
+  addTimeCapsule,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -118,7 +119,7 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
   }
 
   if (module === 'capsule') {
-    return <CapsuleWidget partner1={partner1} partner2={partner2} />;
+    return <CapsuleWidget couple={couple} />;
   }
 
   if (module === 'cinema') {
@@ -639,19 +640,252 @@ function DiaryWidget({ couple }: { couple: CoupleConfig }) {
   );
 }
 
-/* ================= 6. CAPSULE MODULE ================= */
-function CapsuleWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
+/* ================= 6. CAPSULE MODULE (ZAMAN KAPSÜLÜ) ================= */
+function CapsuleCountdown({ targetDate }: { targetDate: string }) {
+  const [timeLeft, setTimeLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
+
+  React.useEffect(() => {
+    const calculateTime = () => {
+      const diff = new Date(targetDate).getTime() - new Date().getTime();
+      if (diff <= 0) {
+        setTimeLeft(null);
+        return;
+      }
+
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diff / (1000 * 60)) % 60);
+      const s = Math.floor((diff / 1000) % 60);
+
+      setTimeLeft({ d, h, m, s });
+    };
+
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  if (!timeLeft) return <span className="text-emerald-400 font-bold">Kilit Açıldı! 🔓</span>;
+
   return (
-    <div className="rounded-3xl bg-white p-6 shadow-xl border border-gray-100 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 mb-4">
-        <Lock className="h-8 w-8" />
+    <div className="grid grid-cols-4 gap-2 text-center my-3">
+      <div className="rounded-xl bg-slate-800/80 p-2 border border-slate-700">
+        <span className="block text-lg font-black text-amber-400">{timeLeft.d}</span>
+        <span className="text-[10px] text-slate-400 uppercase font-bold">Gün</span>
       </div>
-      <h3 className="text-lg font-bold text-gray-900 mb-1">Zaman Kapsülü ⏳</h3>
-      <p className="text-xs text-gray-500 mb-4">
-        Bu mektup <span className="font-bold text-amber-600">1 Yıl Sonra</span> otomatik olarak kilitli kasadan açılacak!
-      </p>
-      <div className="rounded-2xl bg-amber-50 p-4 text-xs text-amber-900 border border-amber-200 text-left italic">
-        "Gelecekteki bize not: Umarım yine böyle sarılarak, gülerek ve aşkla birbirimizin gözlerine bakıyoruzdur."
+      <div className="rounded-xl bg-slate-800/80 p-2 border border-slate-700">
+        <span className="block text-lg font-black text-amber-400">{timeLeft.h}</span>
+        <span className="text-[10px] text-slate-400 uppercase font-bold">Saat</span>
+      </div>
+      <div className="rounded-xl bg-slate-800/80 p-2 border border-slate-700">
+        <span className="block text-lg font-black text-amber-400">{timeLeft.m}</span>
+        <span className="text-[10px] text-slate-400 uppercase font-bold">Dak</span>
+      </div>
+      <div className="rounded-xl bg-slate-800/80 p-2 border border-slate-700">
+        <span className="block text-lg font-black text-amber-400">{timeLeft.s}</span>
+        <span className="text-[10px] text-slate-400 uppercase font-bold">San</span>
+      </div>
+    </div>
+  );
+}
+
+function CapsuleWidget({ couple }: { couple: CoupleConfig }) {
+  const [capsules, setCapsules] = useState<CapsuleItem[]>(couple?.time_capsules || []);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [openDate, setOpenDate] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [unlockedMap, setUnlockedMap] = useState<Record<string, boolean>>({});
+
+  const authState = React.useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('asksite_auth_' + couple.slug);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const role = parsed.role as 'partner1' | 'partner2' | 'guest';
+          const author = role === 'partner1' ? couple.partner1_name : role === 'partner2' ? couple.partner2_name : 'Misafir';
+          return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
+        } catch (e) {}
+      }
+    }
+    return { role: 'guest', author: 'Misafir', isPartner: false };
+  }, [couple]);
+
+  const handleSealCapsule = async () => {
+    if (!title.trim() || !content.trim() || !openDate) return;
+    if (!authState.isPartner) return;
+
+    setAdding(true);
+    const newCapsuleData = {
+      title: title.trim(),
+      content: content.trim(),
+      open_date: new Date(openDate).toISOString(),
+      creator: authState.author,
+    };
+
+    const success = await addTimeCapsule(couple.slug, newCapsuleData);
+    if (success) {
+      setCapsules((prev) => [
+        {
+          id: `tc-${Date.now()}`,
+          created_at: new Date().toISOString(),
+          is_opened: false,
+          ...newCapsuleData,
+        },
+        ...prev,
+      ]);
+      setTitle('');
+      setContent('');
+      setOpenDate('');
+      triggerConfetti({ particleCount: 60, spread: 70 });
+    }
+    setAdding(false);
+  };
+
+  const handleOpenCapsule = (id: string) => {
+    setUnlockedMap((prev) => ({ ...prev, [id]: true }));
+    triggerConfetti({ particleCount: 90, spread: 80 });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* New Capsule Seal Form */}
+      {authState.isPartner ? (
+        <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shadow-2xl border border-indigo-500/30 space-y-4 relative overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-indigo-800/60 pb-3">
+            <Lock className="h-5 w-5 text-amber-400 animate-pulse" />
+            <h4 className="text-sm font-extrabold tracking-wide uppercase text-amber-300">
+              Geleceğe Zaman Kapsülü Mühürle 🔒
+            </h4>
+          </div>
+
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Kapsül Başlığı (Ör: 1. Yıl Dönümümüz 🎁)"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-2xl bg-slate-800/90 border border-slate-700 p-3 text-xs text-white outline-none focus:border-amber-400 placeholder:text-slate-400"
+            />
+
+            <textarea
+              rows={3}
+              placeholder="Gelecekte açılacak gizli aşk mesajınız..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full rounded-2xl bg-slate-800/90 border border-slate-700 p-3 text-xs text-white outline-none focus:border-amber-400 placeholder:text-slate-400 leading-relaxed font-serif"
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+              <div>
+                <label className="block text-[10px] font-bold text-amber-300 mb-1 uppercase tracking-wider">
+                  Kapsül Açılış Tarihi (openDate)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={openDate}
+                  onChange={(e) => setOpenDate(e.target.value)}
+                  className="w-full rounded-xl bg-slate-800/90 border border-slate-700 p-2 text-xs text-white outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <button
+                onClick={handleSealCapsule}
+                disabled={adding || !title.trim() || !content.trim() || !openDate}
+                className="w-full h-10 mt-auto rounded-xl bg-gradient-to-r from-amber-500 via-rose-500 to-amber-600 font-extrabold text-xs text-white shadow-lg hover:scale-102 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                Kapsülü Mühürle & Kilitle 🔒
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-3xl bg-slate-900 p-4 text-center text-xs font-bold text-amber-400 shadow-lg border border-slate-800">
+          🔒 Ziyaretçiler sadece kapsül kilit sürelerini görebilir.
+        </div>
+      )}
+
+      {/* Capsules List */}
+      <div className="space-y-5">
+        {capsules.length === 0 ? (
+          <div className="rounded-3xl bg-white p-8 text-center text-xs text-gray-500 shadow-md">
+            Henüz mühürlenmiş bir zaman kapsülü bulunmuyor. Geleceğinize ilk notu siz bırakın! ⏳
+          </div>
+        ) : (
+          capsules.map((capsule) => {
+            const isTimeReached = new Date(capsule.open_date).getTime() <= new Date().getTime();
+            const isRevealed = capsule.is_opened || unlockedMap[capsule.id];
+
+            return (
+              <div
+                key={capsule.id}
+                className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-6 text-white shadow-xl border border-indigo-500/20 relative overflow-hidden transition hover:border-amber-400/40"
+              >
+                {/* Top Badge */}
+                <div className="flex items-center justify-between border-b border-slate-700/80 pb-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    {isTimeReached ? (
+                      <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                        🔓 Kilidi Açılabilir
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                        <Lock className="h-3 w-3" /> Kilitli Kapsül
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-400 font-mono">Yazar: {capsule.creator}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Açılış: {formatDiaryDate(capsule.open_date)}
+                  </span>
+                </div>
+
+                <h4 className="text-base font-extrabold text-amber-300 mb-1">{capsule.title}</h4>
+
+                {!isTimeReached ? (
+                  /* Locked View */
+                  <div className="text-center py-2">
+                    <p className="text-xs text-slate-300 font-medium">
+                      🔒 Bu kapsül kilitlidir. Açılmasına kalan süre:
+                    </p>
+                    <CapsuleCountdown targetDate={capsule.open_date} />
+                    <div className="rounded-2xl bg-slate-950/60 p-3 border border-slate-800 text-[11px] text-slate-400 italic">
+                      "Kapsül içeriği açılış zamanına kadar kilitli kasada güvenle saklanmaktadır."
+                    </div>
+                  </div>
+                ) : isRevealed ? (
+                  /* Unlocked & Opened View */
+                  <div className="space-y-3 pt-2">
+                    <div className="rounded-2xl bg-gradient-to-r from-amber-950/60 to-rose-950/60 p-4 border border-amber-500/40 text-xs text-amber-100 font-serif leading-relaxed shadow-inner">
+                      "{capsule.content}"
+                    </div>
+                    {capsule.photo_url && (
+                      <img
+                        src={capsule.photo_url}
+                        alt={capsule.title}
+                        className="rounded-2xl w-full h-48 object-cover border border-amber-400/30 shadow-md"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  /* Unlocked but Needs Click */
+                  <div className="text-center py-4 space-y-3">
+                    <p className="text-xs text-emerald-300 font-bold animate-bounce">
+                      🎉 Kilit tarihi doldu! Kapsülünüz açılmaya hazır.
+                    </p>
+                    <button
+                      onClick={() => handleOpenCapsule(capsule.id)}
+                      className="mx-auto rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 px-6 py-2.5 text-xs font-extrabold text-white shadow-xl hover:scale-105 active:scale-95 transition flex items-center gap-2"
+                    >
+                      Kapsülü Aç & Mesajı Oku 🔓✨
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

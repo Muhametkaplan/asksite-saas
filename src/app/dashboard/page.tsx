@@ -17,10 +17,11 @@ import {
   FileText,
   Ticket,
   RefreshCw,
-  BookOpen
+  BookOpen,
+  Hourglass
 } from 'lucide-react';
 
-import { CoupleConfig, MapMarker, CouponItem, DiaryEntry } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
@@ -31,7 +32,7 @@ function DashboardContent() {
   const slugFromUrl = searchParams.get('slug') || 'irem-muhammet';
   const isNewAccount = searchParams.get('new') === 'true';
 
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'map' | 'qr'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'map' | 'qr'>('info');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -311,6 +312,38 @@ function DashboardContent() {
     }));
   };
 
+  // Time Capsule State & Handlers
+  const [newCapsuleTitle, setNewCapsuleTitle] = useState('');
+  const [newCapsuleContent, setNewCapsuleContent] = useState('');
+  const [newCapsuleOpenDate, setNewCapsuleOpenDate] = useState('');
+
+  const handleAddCapsule = () => {
+    if (!newCapsuleTitle.trim() || !newCapsuleContent.trim() || !newCapsuleOpenDate) return;
+    const capsule: CapsuleItem = {
+      id: `tc-${Date.now()}`,
+      title: newCapsuleTitle.trim(),
+      content: newCapsuleContent.trim(),
+      open_date: new Date(newCapsuleOpenDate).toISOString(),
+      created_at: new Date().toISOString(),
+      creator: config.partner1_name || 'Partner',
+      is_opened: false,
+    };
+    setConfig((prev) => ({
+      ...prev,
+      time_capsules: [capsule, ...(prev.time_capsules || [])],
+    }));
+    setNewCapsuleTitle('');
+    setNewCapsuleContent('');
+    setNewCapsuleOpenDate('');
+  };
+
+  const handleDeleteCapsule = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      time_capsules: (prev.time_capsules || []).filter((c) => c.id !== id),
+    }));
+  };
+
   const handleClearMap = async () => {
     if (confirm('Tüm harita anılarını silmek istediğine emin misin?')) {
       await clearMapMarkers(config.id || config.slug);
@@ -425,6 +458,16 @@ function DashboardContent() {
               <BookOpen className="h-3.5 w-3.5" /> 5. Anı Defteri
             </button>
             <button
+              onClick={() => setActiveTab('capsule')}
+              className={`flex-1 min-w-[125px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'capsule'
+                  ? 'bg-rose-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-rose-500'
+              }`}
+            >
+              <Hourglass className="h-3.5 w-3.5" /> 6. Zaman Kapsülü
+            </button>
+            <button
               onClick={() => setActiveTab('map')}
               className={`flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
                 activeTab === 'map'
@@ -432,7 +475,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <MapPin className="h-3.5 w-3.5" /> 6. Harita
+              <MapPin className="h-3.5 w-3.5" /> 7. Harita
             </button>
             <button
               onClick={() => setActiveTab('qr')}
@@ -442,7 +485,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <QrCode className="h-3.5 w-3.5" /> 7. QR & NFC
+              <QrCode className="h-3.5 w-3.5" /> 8. QR & NFC
             </button>
           </div>
 
@@ -1120,7 +1163,111 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* TAB 6: HARİTA NOKTALARI */}
+          {/* TAB 6: ZAMAN KAPSÜLÜ */}
+          {activeTab === 'capsule' && (
+            <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-6">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <Hourglass className="h-5 w-5 text-rose-500" /> Zaman Kapsülü Yönetimi
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Geleceğe mühürlenmiş gizli aşk mektuplarını ve kilit açılış tarihlerini yönetin.
+                  </p>
+                </div>
+              </div>
+
+              {/* Add New Time Capsule Form */}
+              <div className="bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" /> Yeni Zaman Kapsülü Oluştur
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Kapsül Başlığı (Ör: 1. Yıl Mektubumuz ⏳)"
+                    value={newCapsuleTitle}
+                    onChange={(e) => setNewCapsuleTitle(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-amber-400"
+                  />
+                  <input
+                    type="datetime-local"
+                    value={newCapsuleOpenDate}
+                    onChange={(e) => setNewCapsuleOpenDate(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-amber-400"
+                  />
+                </div>
+                <textarea
+                  rows={2}
+                  placeholder="Gelecekte kilit açıldığında görünecek gizli mesaj..."
+                  value={newCapsuleContent}
+                  onChange={(e) => setNewCapsuleContent(e.target.value)}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-amber-400"
+                />
+                <button
+                  onClick={handleAddCapsule}
+                  disabled={!newCapsuleTitle.trim() || !newCapsuleContent.trim() || !newCapsuleOpenDate}
+                  className="rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:scale-102 transition disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Plus className="h-4 w-4" /> Kapsülü Kilitle & Kaydet 🔒
+                </button>
+              </div>
+
+              {/* Capsule List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
+                  Kayıtlı Zaman Kapsülleri ({config.time_capsules?.length || 0})
+                </h4>
+
+                {(!config.time_capsules || config.time_capsules.length === 0) ? (
+                  <p className="text-xs text-gray-500 italic p-4 text-center bg-gray-50 rounded-2xl">
+                    Henüz oluşturulmuş bir zaman kapsülü bulunmuyor.
+                  </p>
+                ) : (
+                  <div className="space-y-3.5 max-h-96 overflow-y-auto pr-1">
+                    {config.time_capsules.map((capsule) => {
+                      const isLocked = new Date(capsule.open_date).getTime() > new Date().getTime();
+                      return (
+                        <div
+                          key={capsule.id}
+                          className="flex items-start justify-between rounded-2xl bg-slate-900 text-white p-4 border border-slate-800 text-xs shadow-md"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-amber-300">{capsule.title}</span>
+                              {isLocked ? (
+                                <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30">
+                                  KİLİTLİ 🔒
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                                  AÇILABİLİR 🔓
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-300 italic font-serif">"{capsule.content}"</p>
+                            <p className="text-[10px] text-slate-400 font-mono">
+                              Açılış Tarihi: {formatDiaryDate(capsule.open_date)} | Yazar: {capsule.creator}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => handleDeleteCapsule(capsule.id)}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-900/60 hover:text-rose-400 transition shrink-0 ml-2"
+                            title="Kapsülü Sil"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 7: HARİTA NOKTALARI */}
           {activeTab === 'map' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-4">
               <h3 className="text-base font-bold text-gray-900 border-b pb-2 flex items-center gap-2">

@@ -45,6 +45,17 @@ export interface DiaryEntry {
   mood?: string;
 }
 
+export interface CapsuleItem {
+  id: string;
+  title: string;
+  content: string;
+  open_date: string; // ISO date string
+  created_at: string;
+  creator: string;
+  photo_url?: string;
+  is_opened?: boolean;
+}
+
 export interface FeatureToggles {
   spotify?: boolean;
   memory?: boolean;
@@ -57,6 +68,7 @@ export interface FeatureToggles {
   map?: boolean;
   coupons?: boolean;
   diary?: boolean;
+  capsule?: boolean;
 }
 
 export interface CoupleConfig {
@@ -79,6 +91,7 @@ export interface CoupleConfig {
   bucket_list?: BucketListItem[];
   coupons?: CouponItem[];
   diary_entries?: DiaryEntry[];
+  time_capsules?: CapsuleItem[];
   upcoming_event?: UpcomingEvent;
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;

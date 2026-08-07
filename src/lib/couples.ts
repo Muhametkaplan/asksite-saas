@@ -1,4 +1,4 @@
-import { CoupleConfig, MapMarker, CouponItem, DiaryEntry } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem } from '@/types/couple';
 import { db, isFirebaseConfigured } from './firebase';
 import {
   doc,
@@ -151,6 +151,26 @@ export const DEMO_COUPLE: CoupleConfig = {
       mood: '☕',
     },
   ],
+  time_capsules: [
+    {
+      id: 'tc1',
+      title: '1. Yıl Dönümü Gelecek Mektubumuz ⏳',
+      content: 'Gelecekteki bize not: Umarım yine böyle sarılarak, gülerek ve aşkla birbirimizin gözlerine bakıyoruzdur. Seni çok seviyorum!',
+      open_date: '2026-12-31T00:00:00.000Z',
+      created_at: '2023-01-01T00:00:00.000Z',
+      creator: 'Muhammet',
+      is_opened: false,
+    },
+    {
+      id: 'tc2',
+      title: 'İlk Tatil Sürpriz Notu 🏖️',
+      content: 'Deniz kenarında tuttuğumuz o ilk dilek gerçekleşti! Birlikte nice tatillere ve güzel anılara.',
+      open_date: '2024-01-01T00:00:00.000Z',
+      created_at: '2023-07-15T00:00:00.000Z',
+      creator: 'İrem',
+      is_opened: true,
+    },
+  ],
   upcoming_event: {
     title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈',
     date: '2026-09-15T00:00:00.000Z',
@@ -214,6 +234,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           bucket_list: bucketList.length > 0 ? bucketList : data.bucket_list || DEMO_COUPLE.bucket_list,
           coupons: data.coupons || DEMO_COUPLE.coupons,
           diary_entries: data.diary_entries || DEMO_COUPLE.diary_entries,
+          time_capsules: data.time_capsules || DEMO_COUPLE.time_capsules,
           upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
@@ -284,6 +305,7 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         bucket_list: config.bucket_list || [],
         coupons: config.coupons || [],
         diary_entries: config.diary_entries || [],
+        time_capsules: config.time_capsules || [],
         upcoming_event: config.upcoming_event || null,
         allowed_users: config.allowed_users || {
           partner1_email: 'irem@asksite.com',
@@ -558,6 +580,42 @@ export async function deleteDiaryEntry(slug: string, entryId: string): Promise<b
   const updated = await saveCoupleConfig({
     ...couple,
     diary_entries: updatedEntries,
+  });
+
+  return !!updated;
+}
+
+// ================= TIME CAPSULE SERVICES =================
+export async function addTimeCapsule(slug: string, capsule: Omit<CapsuleItem, 'id' | 'created_at'>): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const newCapsule: CapsuleItem = {
+    ...capsule,
+    id: `tc-${Date.now()}`,
+    created_at: new Date().toISOString(),
+    is_opened: false,
+  };
+
+  const updatedCapsules = [newCapsule, ...(couple.time_capsules || [])];
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    time_capsules: updatedCapsules,
+  });
+
+  return !!updated;
+}
+
+export async function deleteTimeCapsule(slug: string, capsuleId: string): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const updatedCapsules = (couple.time_capsules || []).filter((c) => c.id !== capsuleId);
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    time_capsules: updatedCapsules,
   });
 
   return !!updated;
