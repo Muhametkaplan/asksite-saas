@@ -84,19 +84,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const isAQKey = apiKey.startsWith('AQ.');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'x-goog-api-key': apiKey,
     };
 
-    let url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-
-    if (isAQKey) {
-      headers['Authorization'] = `Bearer ${apiKey}`;
-    } else {
-      headers['x-goog-api-key'] = apiKey;
-      url += `?key=${encodeURIComponent(apiKey)}`;
-    }
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
     const prompt = `Sevgililer ${partnerName || 'İrem ve Muhammet'} için romantik sinema gecesine özel EN AZ 3, EN FAZLA 4 adet kaliteli film veya dizi öner. 
 Tür: ${genre}. 
@@ -124,8 +118,7 @@ Yalnızca aşağıdaki JSON array formatında yanıt ver, başka hiçbir açıkl
     });
 
     if (!apiRes.ok) {
-      const errorText = await apiRes.text();
-      console.error('Gemini API Error:', `Status ${apiRes.status} ${apiRes.statusText} - ${errorText}`);
+      console.error('Gemini API Error Detail:', await apiRes.text());
       return NextResponse.json({
         movies: FALLBACK_MOVIES,
         remaining,
