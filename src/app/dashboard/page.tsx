@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry } from '@/types/couple';
-import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, resetAllCoupons } from '@/lib/couples';
+import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
@@ -1099,7 +1099,7 @@ function DashboardContent() {
                             <span className="text-lg">{entry.mood || '❤️'}</span>
                             <span className="font-extrabold text-amber-950 font-serif">{entry.author}</span>
                             <span className="rounded-full bg-amber-200/60 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                              {entry.date}
+                              {formatDiaryDate(entry.date)}
                             </span>
                           </div>
                           <p className="font-serif text-gray-800 leading-relaxed pl-1">"{entry.content}"</p>

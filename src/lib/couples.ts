@@ -130,7 +130,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       id: 'd1',
       author: 'Muhammet',
       role: 'partner2',
-      date: '2023-01-01',
+      date: '2023-01-01T14:30:00.000Z',
       content: 'Gözlerinin içine ilk baktığım an dünyadaki tüm gürültüler sustu. İyi ki geldin hayatıma sevgilim.',
       mood: '❤️',
     },
@@ -138,7 +138,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       id: 'd2',
       author: 'İrem',
       role: 'partner1',
-      date: '2023-07-15',
+      date: '2023-07-15T19:45:00.000Z',
       content: 'Deniz kenarında gün batımını izlerken elimi tuttuğun o anı hiç unutmayacağım.',
       mood: '🌅',
     },
@@ -146,7 +146,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       id: 'd3',
       author: 'Muhammet',
       role: 'partner2',
-      date: '2024-02-14',
+      date: '2024-02-14T21:15:00.000Z',
       content: 'Yağmurlu bir akşamda kahvelerimizi yudumlarken geleceğe dair hayaller kurmak harikaydı.',
       mood: '☕',
     },
@@ -561,4 +561,20 @@ export async function deleteDiaryEntry(slug: string, entryId: string): Promise<b
   });
 
   return !!updated;
+}
+
+export function formatDiaryDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${day}.${month}.${year} - ${hours}:${minutes}`;
+  } catch (e) {
+    return dateStr;
+  }
 }

@@ -26,6 +26,7 @@ import {
   clearLiveCanvas,
   saveCoupleConfig,
   addDiaryEntry,
+  formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
 
@@ -515,7 +516,7 @@ function DiaryWidget({ couple }: { couple: CoupleConfig }) {
     const newEntryData: Omit<DiaryEntry, 'id'> = {
       author: authState.author,
       role: authState.role,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString(),
       content: noteContent.trim(),
       mood: selectedMood,
     };
@@ -623,7 +624,7 @@ function DiaryWidget({ couple }: { couple: CoupleConfig }) {
                     {entry.role === 'partner1' ? couple.partner1_name : entry.role === 'partner2' ? couple.partner2_name : 'Partner'}
                   </span>
                 </div>
-                <span className="text-[11px] text-gray-400 font-mono">📅 {entry.date}</span>
+                <span className="text-[11px] text-gray-400 font-mono">📅 {formatDiaryDate(entry.date)}</span>
               </div>
 
               {/* Content with notebook lines pattern */}
