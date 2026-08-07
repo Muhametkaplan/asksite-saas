@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Rate Limiter Memory Store
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -77,19 +76,27 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY || '';
 
-    if (!apiKey || !apiKey.startsWith('AIzaSy')) {
-      console.warn('[AskSite-AI Warning] GEMINI_API_KEY is missing or does not start with "AIzaSy". Serving fallback recommendations.');
-    }
-
     if (!apiKey) {
+      console.warn('[AskSite-AI Warning] GEMINI_API_KEY is not defined. Serving fallback recommendations.');
       return NextResponse.json({
         movies: FALLBACK_MOVIES,
         remaining,
       });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const isAQKey = apiKey.startsWith('AQ.');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    let url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+
+    if (isAQKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    } else {
+      headers['x-goog-api-key'] = apiKey;
+      url += `?key=${encodeURIComponent(apiKey)}`;
+    }
 
     const prompt = `Sevgililer ${partnerName || 'İrem ve Muhammet'} için romantik sinema gecesine özel EN AZ 3, EN FAZLA 4 adet kaliteli film veya dizi öner. 
 Tür: ${genre}. 
@@ -104,11 +111,31 @@ Yalnızca aşağıdaki JSON array formatında yanıt ver, başka hiçbir açıkl
   }
 ]`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const apiRes = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+      }),
+    });
+
+    if (!apiRes.ok) {
+      const errorText = await apiRes.text();
+      console.error('Gemini API Error:', `Status ${apiRes.status} ${apiRes.statusText} - ${errorText}`);
+      return NextResponse.json({
+        movies: FALLBACK_MOVIES,
+        remaining,
+      });
+    }
+
+    const data = await apiRes.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     try {
-      // Clean JSON string if wrapped in markdown code blocks
       const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
       const parsedMovies = JSON.parse(cleanJson);
 
