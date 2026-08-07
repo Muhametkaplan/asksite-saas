@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Lütfen bir film türü seçin.', movies: FALLBACK_MOVIES }, { status: 400 });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_KEY || '';
+    const apiKey = process.env.GEMINI_API_KEY || '';
 
     if (!apiKey) {
       return NextResponse.json({
