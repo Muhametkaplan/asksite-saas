@@ -40,6 +40,7 @@ import {
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
+import RomanticMap from '@/components/RomanticMap';
 
 // Helper for dynamic window/DOM confetti execution without SSR hydration crash
 const triggerConfetti = async (options?: any) => {
@@ -138,6 +139,10 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
 
   if (module === 'therapy') {
     return <TherapyWidget couple={couple} />;
+  }
+
+  if (module === 'map') {
+    return <RomanticMap coupleId={couple.id || couple.slug} />;
   }
 
   return (

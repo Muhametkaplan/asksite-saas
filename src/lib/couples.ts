@@ -496,6 +496,20 @@ export async function clearMapMarkers(coupleId: string): Promise<boolean> {
   return true;
 }
 
+export async function deleteMapMarker(coupleId: string, markerId: string): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const markerRef = doc(db, `couples/${coupleId}/modules_map_markers`, markerId);
+      await deleteDoc(markerRef);
+      return true;
+    } catch (e) {
+      console.error('Error deleting map marker in Firestore:', e);
+      return false;
+    }
+  }
+  return true;
+}
+
 // Seed Demo Couple function
 export async function seedDemoCoupleToFirebase(): Promise<boolean> {
   if (isFirebaseConfigured && db) {

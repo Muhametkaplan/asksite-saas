@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
-import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
+import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
@@ -464,6 +464,12 @@ function DashboardContent() {
       await clearMapMarkers(config.id || config.slug);
       setMarkers([]);
     }
+  };
+
+  const handleDeleteSingleMarker = async (markerId?: string) => {
+    if (!markerId) return;
+    await deleteMapMarker(config.id || config.slug, markerId);
+    setMarkers((prev) => prev.filter((m) => m.id !== markerId));
   };
 
   const [baseUrl, setBaseUrl] = useState('');
@@ -1891,11 +1897,24 @@ function DashboardContent() {
 
               {/* Marker List */}
               <div className="space-y-2 pt-2">
-                {markers.map((m, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                    <span>❤️ {m.title || 'Aşk Noktası'} ({m.lat.toFixed(2)}, {m.lng.toFixed(2)})</span>
-                  </div>
-                ))}
+                {markers.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic p-3 text-center bg-gray-50 rounded-xl">
+                    Henüz haritaya eklenmiş bir kalp noktası bulunmuyor.
+                  </p>
+                ) : (
+                  markers.map((m, i) => (
+                    <div key={m.id || i} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                      <span>❤️ {m.title || 'Aşk Noktası'} ({m.lat.toFixed(2)}, {m.lng.toFixed(2)})</span>
+                      <button
+                        onClick={() => handleDeleteSingleMarker(m.id)}
+                        className="rounded-lg p-1 text-gray-400 hover:bg-rose-100 hover:text-rose-600 transition shrink-0 ml-2"
+                        title="Kalbi Sil"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
