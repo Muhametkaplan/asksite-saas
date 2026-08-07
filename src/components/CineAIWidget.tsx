@@ -60,9 +60,13 @@ export default function AskSiteAIWidget({ partnerName, slug = 'irem-muhammet' }:
         body: JSON.stringify({ genre: selectedGenre, mood, partnerName }),
       });
 
-      const data: AskSiteAIResponse = await res.json();
-      if (!res.ok && !data.movies) {
-        setErrorMsg(data.error || 'Bir hata oluştu.');
+      const data: AskSiteAIResponse = await res.json().catch(() => ({} as AskSiteAIResponse));
+
+      if (!res.ok) {
+        setErrorMsg(data.error || 'Yapay zeka önerileri alınırken bir sorun oluştu.');
+        if (data.movies && data.movies.length > 0) {
+          setResult(data);
+        }
       } else {
         setResult(data);
         if (data.error) {
@@ -70,7 +74,7 @@ export default function AskSiteAIWidget({ partnerName, slug = 'irem-muhammet' }:
         }
       }
     } catch (e) {
-      setErrorMsg('Bağlantı hatası oluştu, sizin için hazır tavsiyeler hazırlanıyor.');
+      setErrorMsg('Bağlantı hatası oluştu, lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
     }
@@ -181,7 +185,7 @@ export default function AskSiteAIWidget({ partnerName, slug = 'irem-muhammet' }:
           </>
         ) : (
           <>
-            <Sparkles className="h-4 w-4 text-amber-300" /> AskSite-AI İle Öneri Al 🎬
+            <Sparkles className="h-4 w-4 text-amber-300" /> AskSite-AI İle Öneri Al 🍿
           </>
         )}
       </button>
