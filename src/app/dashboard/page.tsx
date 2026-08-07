@@ -19,7 +19,8 @@ import {
   RefreshCw,
   BookOpen,
   Hourglass,
-  Film
+  Film,
+  Disc
 } from 'lucide-react';
 
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem } from '@/types/couple';
@@ -33,7 +34,7 @@ function DashboardContent() {
   const slugFromUrl = searchParams.get('slug') || 'irem-muhammet';
   const isNewAccount = searchParams.get('new') === 'true';
 
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'map' | 'qr'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'map' | 'qr'>('info');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -395,6 +396,26 @@ function DashboardContent() {
     }));
   };
 
+  // Wheel State & Handlers
+  const [newWheelItem, setNewWheelItem] = useState('');
+
+  const handleAddWheelItemDashboard = (customText?: string) => {
+    const textToAdd = (customText || newWheelItem).trim();
+    if (!textToAdd) return;
+    setConfig((prev) => ({
+      ...prev,
+      wheel_items: [...(prev.wheel_items || []), textToAdd],
+    }));
+    setNewWheelItem('');
+  };
+
+  const handleDeleteWheelItemDashboard = (index: number) => {
+    setConfig((prev) => ({
+      ...prev,
+      wheel_items: (prev.wheel_items || []).filter((_, idx) => idx !== index),
+    }));
+  };
+
   const handleClearMap = async () => {
     if (confirm('Tüm harita anılarını silmek istediğine emin misin?')) {
       await clearMapMarkers(config.id || config.slug);
@@ -529,6 +550,16 @@ function DashboardContent() {
               <Film className="h-3.5 w-3.5" /> 7. Sinema & Film
             </button>
             <button
+              onClick={() => setActiveTab('wheel')}
+              className={`flex-1 min-w-[105px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'wheel'
+                  ? 'bg-rose-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-rose-500'
+              }`}
+            >
+              <Disc className="h-3.5 w-3.5" /> 8. Aşk Çarkı
+            </button>
+            <button
               onClick={() => setActiveTab('map')}
               className={`flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
                 activeTab === 'map'
@@ -536,7 +567,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <MapPin className="h-3.5 w-3.5" /> 8. Harita
+              <MapPin className="h-3.5 w-3.5" /> 9. Harita
             </button>
             <button
               onClick={() => setActiveTab('qr')}
@@ -546,7 +577,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <QrCode className="h-3.5 w-3.5" /> 9. QR & NFC
+              <QrCode className="h-3.5 w-3.5" /> 10. QR & NFC
             </button>
           </div>
 
@@ -1487,7 +1518,114 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* TAB 8: HARİTA NOKTALARI */}
+          {/* TAB 8: AŞK ÇARKI */}
+          {activeTab === 'wheel' && (
+            <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-6">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <Disc className="h-5 w-5 text-rose-500" /> Aşk Çarkıfeleği Yönetimi
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Çarkta yer alacak romantik görev ve sürpriz seçeneklerini düzenleyin.
+                  </p>
+                </div>
+              </div>
+
+              {/* Add New Wheel Task Form */}
+              <div className="bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" /> Yeni Çark Dilimi / Görevi Ekle
+                </h4>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ör: Romantik Masaj Yap 💆‍♂️ veya Akşam Yemeği Ismarla 🍕"
+                    value={newWheelItem}
+                    onChange={(e) => setNewWheelItem(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddWheelItemDashboard();
+                    }}
+                    className="flex-1 rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                  <button
+                    onClick={() => handleAddWheelItemDashboard()}
+                    disabled={!newWheelItem.trim()}
+                    className="rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:scale-102 transition disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" /> Dilim Ekle
+                  </button>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                    Hızlı Hazır Görev Önerileri (Tıkla ve Ekle):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      '10 Saniye Sımsıkı Sarıl 🫂',
+                      'İstediğin Bir Şeyi Yaptır 👑',
+                      'Akşam Yemeği Ismarla 🍕',
+                      'Sinema Biletleri Benden 🍿',
+                      'Masaj Yap 💆‍♂️',
+                      'Romantik Bir Öpücük 💋',
+                      'Kahve Demle & Yatakta Sun ☕',
+                      'Soru Sormadan Affet 🕊️',
+                    ].map((preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() => handleAddWheelItemDashboard(preset)}
+                        className="rounded-lg bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-950 hover:text-white border border-slate-700 transition"
+                      >
+                        + {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Wheel Tasks List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
+                  Çarktaki Aktif Görevler ({config.wheel_items?.length || 0})
+                </h4>
+
+                {(!config.wheel_items || config.wheel_items.length === 0) ? (
+                  <p className="text-xs text-gray-500 italic p-4 text-center bg-gray-50 rounded-2xl">
+                    Henüz çark dilimi eklenmemiş. Yukarıdaki hazır önerilerden ekleyebilirsiniz!
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {config.wheel_items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between rounded-2xl bg-white p-3 border border-rose-100 text-xs shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-50 font-bold text-rose-600 text-[11px]">
+                            #{idx + 1}
+                          </span>
+                          <span className="font-bold text-gray-800">{item}</span>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteWheelItemDashboard(idx)}
+                          className="rounded-lg p-1 text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition shrink-0"
+                          title="Dilimi Sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 9: HARİTA NOKTALARI */}
           {activeTab === 'map' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-4">
               <h3 className="text-base font-bold text-gray-900 border-b pb-2 flex items-center gap-2">

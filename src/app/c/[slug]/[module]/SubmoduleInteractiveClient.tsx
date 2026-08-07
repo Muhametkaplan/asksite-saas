@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Component, ReactNode, useState } from 'react';
+import React, { Component, ReactNode, useState, useEffect } from 'react';
 import {
   Gamepad2,
   Ticket,
@@ -33,6 +33,8 @@ import {
   addMovie,
   updateMovie,
   deleteMovie,
+  addWheelItem,
+  deleteWheelItem,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -113,7 +115,7 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
   }
 
   if (module === 'wheel') {
-    return <WheelWidget partner1={partner1} partner2={partner2} />;
+    return <WheelWidget couple={couple} />;
   }
 
   if (module === 'quiz') {
@@ -366,62 +368,248 @@ function CouponsWidget({ couple }: { couple: CoupleConfig }) {
 }
 
 /* ================= 3. WHEEL MODULE ================= */
-function WheelWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
-  const rewards = [
-    '☕ Yatağa Kahve Servisi',
-    '🎬 Dilediğin Filmi Aç',
-    '💋 10 Saniye Öpücük',
-    '🍰 Tatlı Kaçamağı',
-    '🎲 Masaj Yapma Sırası',
-    '🎁 Küçük Bir Sürpriz Hediye',
-  ];
+/* ================= 3. WHEEL MODULE (AŞK ÇARKI) ================= */
+const DEFAULT_WHEEL_TASKS = [
+  '10 Saniye Sımsıkı Sarıl 🫂',
+  'İstediğin Bir Şeyi Yaptır 👑',
+  'Akşam Yemeği Ismarla 🍕',
+  'Sinema Biletleri Benden 🍿',
+  'Masaj Yap 💆‍♂️',
+  'Romantik Bir Öpücük 💋',
+  'Kahve Demle & Yatakta Sun ☕',
+  'Soru Sormadan Affet 🕊️',
+];
 
+const WHEEL_COLORS = [
+  '#ff4d6d', '#ff758f', '#ff8fa3', '#9c88ff',
+  '#48dbfb', '#1dd1a1', '#feca57', '#ff9ff3',
+  '#ff6b6b', '#482ff7', '#6c5ce7', '#00d2d3'
+];
+
+function WheelWidget({ couple }: { couple: CoupleConfig }) {
+  const items = couple?.wheel_items && couple.wheel_items.length > 0 ? couple.wheel_items : DEFAULT_WHEEL_TASKS;
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  
+  const [rotationAngle, setRotationAngle] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [selectedReward, setSelectedReward] = useState<string | null>(null);
+  const [winnerItem, setWinnerItem] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
-  const spinWheel = () => {
-    if (spinning) return;
+  // Draw Canvas Wheel
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const numSlices = items.length;
+    const sliceAngle = (2 * Math.PI) / numSlices;
+    const radius = canvas.width / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(radius, radius);
+    ctx.rotate(rotationAngle);
+
+    for (let i = 0; i < numSlices; i++) {
+      const startA = i * sliceAngle;
+      const endA = startA + sliceAngle;
+      const color = WHEEL_COLORS[i % WHEEL_COLORS.length];
+
+      // Draw Slice
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius - 8, startA, endA);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      // Draw Text
+      ctx.save();
+      ctx.rotate(startA + sliceAngle / 2);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 4;
+      
+      const label = items[i].length > 20 ? items[i].substring(0, 18) + '...' : items[i];
+      ctx.fillText(label, radius - 24, 4);
+      ctx.restore();
+    }
+
+    // Outer Ring
+    ctx.beginPath();
+    ctx.arc(0, 0, radius - 4, 0, 2 * Math.PI);
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+
+    // Center Hub
+    ctx.beginPath();
+    ctx.arc(0, 0, 28, 0, 2 * Math.PI);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#ff4d6d';
+    ctx.stroke();
+
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ff4d6d';
+    ctx.fillText('💖', 0, 0);
+
+    ctx.restore();
+  }, [items, rotationAngle]);
+
+  const handleSpin = () => {
+    if (spinning || items.length === 0) return;
     setSpinning(true);
-    setSelectedReward(null);
+    setWinnerItem(null);
+    setShowModal(false);
 
-    setTimeout(() => {
-      const randomReward = rewards[Math.floor(Math.random() * rewards.length)];
-      setSelectedReward(randomReward);
-      setSpinning(false);
-      triggerConfetti({ particleCount: 60, spread: 90 });
-    }, 2000);
+    const numSlices = items.length;
+    const sliceAngleDegrees = 360 / numSlices;
+    
+    // Pick random winning index
+    const winningIndex = Math.floor(Math.random() * numSlices);
+    
+    const targetSliceCenter = winningIndex * sliceAngleDegrees + sliceAngleDegrees / 2;
+    let finalAngleDegrees = 270 - targetSliceCenter;
+    if (finalAngleDegrees < 0) finalAngleDegrees += 360;
+
+    const extraRounds = (5 + Math.floor(Math.random() * 3)) * 360;
+    const currentDeg = (rotationAngle * 180) / Math.PI;
+    const targetDeg = currentDeg + extraRounds + ((finalAngleDegrees - (currentDeg % 360) + 360) % 360);
+
+    const startTime = performance.now();
+    const duration = 4000;
+    const startRad = rotationAngle;
+    const targetRad = (targetDeg * Math.PI) / 180;
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const currentRad = startRad + (targetRad - startRad) * easeOut;
+
+      setRotationAngle(currentRad);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setSpinning(false);
+        setWinnerItem(items[winningIndex]);
+        setShowModal(true);
+        triggerConfetti({ particleCount: 100, spread: 80 });
+      }
+    };
+
+    requestAnimationFrame(animate);
   };
 
   return (
-    <div className="rounded-3xl bg-white p-6 shadow-xl border border-gray-100 text-center">
-      <h3 className="text-lg font-bold text-gray-900 mb-2">Aşk Çarkıfeleği 🎡</h3>
-      <p className="text-xs text-gray-500 mb-6">Çarkı çevir, şansına ne çıkacağını gör!</p>
+    <div className="space-y-6">
+      {/* Canvas Wheel Box */}
+      <div className="rounded-3xl bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-purple-500/10 p-6 shadow-xl border border-rose-100 text-center relative overflow-hidden">
+        <h3 className="text-xl font-extrabold text-gray-900 mb-1 flex items-center justify-center gap-2">
+          🎡 Aşk Çarkıfeleği
+        </h3>
+        <p className="text-xs text-gray-500 mb-6">
+          Kaderini çark belirlesin! Butona bas ve romantik sürpriz görevi gör.
+        </p>
 
-      <div
-        onClick={spinWheel}
-        className={`mx-auto flex h-48 w-48 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-pink-400 to-purple-500 p-2 shadow-2xl cursor-pointer transition-transform ${
-          spinning ? 'animate-spin' : 'hover:scale-105'
-        }`}
-      >
-        <div className="flex h-full w-full items-center justify-center rounded-full bg-white text-center p-4 shadow-inner">
-          <Disc className="h-16 w-16 text-rose-500" />
+        {/* Wheel Container */}
+        <div className="relative mx-auto w-[300px] h-[300px] flex items-center justify-center">
+          {/* Top Pointer Arrow */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-rose-600 drop-shadow-md" />
+
+          {/* Canvas Element */}
+          <canvas
+            ref={canvasRef}
+            width={300}
+            height={300}
+            className="rounded-full shadow-2xl bg-white"
+          />
+
+          {/* Center Spin Trigger Button Overlay */}
+          <button
+            onClick={handleSpin}
+            disabled={spinning}
+            className="absolute z-30 h-16 w-16 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white font-black text-xs shadow-xl border-4 border-white hover:scale-110 active:scale-95 transition disabled:opacity-75 flex flex-col items-center justify-center"
+          >
+            <span>ÇEVİR</span>
+            <span className="text-[10px]">🎡</span>
+          </button>
+        </div>
+
+        <div className="mt-6">
+          <button
+            onClick={handleSpin}
+            disabled={spinning}
+            className="rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 px-8 py-3 text-xs font-extrabold text-white shadow-xl hover:scale-105 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2 mx-auto"
+          >
+            {spinning ? 'Çark Heyecanla Dönüyor... 🌀' : 'Çarkı Çevir 🚀'}
+          </button>
         </div>
       </div>
 
-      <button
-        onClick={spinWheel}
-        disabled={spinning}
-        className="mt-6 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition hover:scale-105 active:scale-95 disabled:opacity-50"
-      >
-        {spinning ? 'Çark Dönüyor... 🌀' : 'Çarkı Çevir 🚀'}
-      </button>
+      {/* Task Cards List */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider text-left pl-1">
+          📋 Çarktaki Sürpriz Görevler ({items.length})
+        </h4>
 
-      {selectedReward && (
-        <div className="mt-6 rounded-2xl bg-rose-50 p-4 text-center border border-rose-200 animate-in fade-in duration-300">
-          <div className="text-xs font-bold text-rose-500 uppercase tracking-wider mb-1">
-            Çarkın Sonucu ✨
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {items.map((item, idx) => (
+            <div
+              key={idx}
+              className="flex items-center gap-3 rounded-2xl bg-white p-3.5 shadow-sm border border-gray-100 text-left transition hover:shadow-md"
+            >
+              <div
+                className="h-8 w-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs"
+                style={{ backgroundColor: WHEEL_COLORS[idx % WHEEL_COLORS.length] }}
+              >
+                #{idx + 1}
+              </div>
+              <span className="text-xs font-extrabold text-gray-800 leading-snug">{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Winner Result Modal */}
+      {showModal && winnerItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-300">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl border border-rose-100 space-y-4 relative overflow-hidden">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-500 text-3xl animate-bounce">
+              🎉
+            </div>
+
+            <div>
+              <h4 className="text-xs font-extrabold text-rose-500 uppercase tracking-wider mb-1">
+                Aşk Çarkının Kazanan Görevi ✨
+              </h4>
+              <p className="text-base font-black text-gray-900 leading-tight font-serif p-3 bg-rose-50 rounded-2xl border border-rose-100 mt-2">
+                "{winnerItem}"
+              </p>
+            </div>
+
+            <p className="text-xs text-gray-500 italic">
+              Tebrikler! Sevgilinize bu görevi hemen yaptırabilirsiniz. ❤️
+            </p>
+
+            <button
+              onClick={() => setShowModal(false)}
+              className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 py-3 text-xs font-extrabold text-white shadow-lg hover:scale-102 transition"
+            >
+              Harika! Görevi Kabul Et 🥰
+            </button>
           </div>
-          <div className="text-lg font-extrabold text-gray-900">{selectedReward}</div>
         </div>
       )}
     </div>

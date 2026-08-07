@@ -209,6 +209,16 @@ export const DEMO_COUPLE: CoupleConfig = {
       created_at: '2024-01-10T00:00:00.000Z',
     },
   ],
+  wheel_items: [
+    '10 Saniye Sımsıkı Sarıl 🫂',
+    'İstediğin Bir Şeyi Yaptır 👑',
+    'Akşam Yemeği Ismarla 🍕',
+    'Sinema Biletleri Benden 🍿',
+    'Masaj Yap 💆‍♂️',
+    'Romantik Bir Öpücük 💋',
+    'Kahve Demle & Yatakta Sun ☕',
+    'Soru Sormadan Affet 🕊️',
+  ],
   upcoming_event: {
     title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈',
     date: '2026-09-15T00:00:00.000Z',
@@ -274,6 +284,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           diary_entries: data.diary_entries || DEMO_COUPLE.diary_entries,
           time_capsules: data.time_capsules || DEMO_COUPLE.time_capsules,
           movies: data.movies || DEMO_COUPLE.movies,
+          wheel_items: data.wheel_items || DEMO_COUPLE.wheel_items,
           upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
@@ -346,6 +357,7 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         diary_entries: config.diary_entries || [],
         time_capsules: config.time_capsules || [],
         movies: config.movies || [],
+        wheel_items: config.wheel_items || [],
         upcoming_event: config.upcoming_event || null,
         allowed_users: config.allowed_users || {
           partner1_email: 'irem@asksite.com',
@@ -705,6 +717,35 @@ export async function deleteMovie(slug: string, movieId: string): Promise<boolea
   const updated = await saveCoupleConfig({
     ...couple,
     movies: updatedMovies,
+  });
+
+  return !!updated;
+}
+
+// ================= WHEEL OF LOVE SERVICES =================
+export async function addWheelItem(slug: string, item: string): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const updatedItems = [...(couple.wheel_items || []), item];
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    wheel_items: updatedItems,
+  });
+
+  return !!updated;
+}
+
+export async function deleteWheelItem(slug: string, itemIndex: number): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const updatedItems = (couple.wheel_items || []).filter((_, idx) => idx !== itemIndex);
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    wheel_items: updatedItems,
   });
 
   return !!updated;

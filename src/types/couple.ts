@@ -83,6 +83,7 @@ export interface FeatureToggles {
   diary?: boolean;
   capsule?: boolean;
   cinema?: boolean;
+  wheel?: boolean;
 }
 
 export interface CoupleConfig {
@@ -107,6 +108,7 @@ export interface CoupleConfig {
   diary_entries?: DiaryEntry[];
   time_capsules?: CapsuleItem[];
   movies?: MovieItem[];
+  wheel_items?: string[];
   upcoming_event?: UpcomingEvent;
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;
