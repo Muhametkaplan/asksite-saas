@@ -32,6 +32,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
 
   // Form State
   const [config, setConfig] = useState<CoupleConfig>({
@@ -62,6 +63,9 @@ function DashboardContent() {
       day_night: true,
       countdown: true,
       custom_audio: true,
+      canvas: true,
+      love_jar: true,
+      map: true,
     },
   });
 
@@ -90,10 +94,10 @@ function DashboardContent() {
       if (data) {
         setConfig({
           ...data,
-          start_date: data.start_date ? data.start_date.split('T')[0] : new Date().toISOString().split('T')[0],
+          start_date: data.start_date ? data.start_date.split('T')[0] : '2023-01-01',
           upcoming_event: data.upcoming_event
-            ? { ...data.upcoming_event, date: data.upcoming_event.date ? data.upcoming_event.date.split('T')[0] : '' }
-            : { title: 'Birlikte Yeni Bir Anı', date: new Date().toISOString().split('T')[0] },
+            ? { ...data.upcoming_event, date: data.upcoming_event.date ? data.upcoming_event.date.split('T')[0] : '2026-09-15' }
+            : undefined,
           feature_toggles: data.feature_toggles || {
             spotify: true,
             memory: true,
@@ -101,6 +105,9 @@ function DashboardContent() {
             day_night: true,
             countdown: true,
             custom_audio: true,
+            canvas: true,
+            love_jar: true,
+            map: true,
           },
         });
 
@@ -126,6 +133,7 @@ function DashboardContent() {
 
     if (saved) {
       setSavedSuccess(true);
+      setPreviewRefreshKey((prev) => prev + 1);
       setTimeout(() => setSavedSuccess(false), 3000);
     }
     setSaving(false);
@@ -139,6 +147,7 @@ function DashboardContent() {
         [feature]: !prev.feature_toggles?.[feature],
       },
     }));
+    setPreviewRefreshKey((prev) => prev + 1);
   };
 
   const handleAddLyric = () => {
@@ -566,6 +575,24 @@ function DashboardContent() {
                     className="h-4 w-4 accent-rose-500 cursor-pointer"
                   />
                 </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white shadow-xs">
+                  <span className="text-xs font-bold text-gray-800">🏺 Sevgi Kavanozu (Love Jar)</span>
+                  <input
+                    type="checkbox"
+                    checked={config.feature_toggles?.love_jar !== false}
+                    onChange={() => handleToggleFeature('love_jar')}
+                    className="h-4 w-4 accent-rose-500 cursor-pointer"
+                  />
+                </div>
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white shadow-xs">
+                  <span className="text-xs font-bold text-gray-800">📌 Aşk Haritası (Map Markers)</span>
+                  <input
+                    type="checkbox"
+                    checked={config.feature_toggles?.map !== false}
+                    onChange={() => handleToggleFeature('map')}
+                    className="h-4 w-4 accent-rose-500 cursor-pointer"
+                  />
+                </div>
               </div>
 
               {/* Partner Auth & PIN Settings */}
@@ -908,7 +935,7 @@ function DashboardContent() {
 
         {/* Right Desktop Live Preview (5 cols) */}
         <div className="lg:col-span-5 hidden lg:block sticky top-8">
-          <LivePreviewFrame slug={config.slug} previewUrl={`/c/${config.slug}`} />
+          <LivePreviewFrame slug={config.slug} previewUrl={`/c/${config.slug}`} refreshKey={previewRefreshKey} />
         </div>
       </div>
     </div>

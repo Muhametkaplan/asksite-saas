@@ -34,6 +34,8 @@ export interface FeatureToggles {
   countdown?: boolean;
   custom_audio?: boolean;
   canvas?: boolean;
+  love_jar?: boolean;
+  map?: boolean;
 }
 
 export interface CoupleConfig {

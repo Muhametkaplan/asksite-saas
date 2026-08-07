@@ -1,16 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Smartphone, RefreshCw, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface LivePreviewFrameProps {
   slug: string;
   previewUrl?: string;
+  refreshKey?: number;
 }
 
-export default function LivePreviewFrame({ slug, previewUrl }: LivePreviewFrameProps) {
+export default function LivePreviewFrame({ slug, previewUrl, refreshKey = 0 }: LivePreviewFrameProps) {
   const [key, setKey] = useState(0);
+
+  useEffect(() => {
+    setKey((prev) => prev + 1);
+  }, [refreshKey]);
+
   // Ensure relative route /c/${slug}
   const relativeUrl = previewUrl || `/c/${slug}`;
 

@@ -20,6 +20,7 @@ import EventCountdown from '@/components/EventCountdown';
 import CustomAudioPlayer from '@/components/CustomAudioPlayer';
 import PartnerAuthModal from '@/components/PartnerAuthModal';
 import LiveCanvasWidget from '@/components/LiveCanvasWidget';
+import QuickDashboardBar from '@/components/QuickDashboardBar';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -72,12 +73,17 @@ export default async function CouplePage({ params }: PageProps) {
     countdown: true,
     custom_audio: true,
     canvas: true,
+    love_jar: true,
+    map: true,
   };
 
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-28 pt-8">
       {/* Dynamic Background Floating Hearts */}
       <FloatingHearts />
+
+      {/* Quick Dashboard Access Bar (Only visible for authenticated partners) */}
+      <QuickDashboardBar slug={couple.slug} />
 
       {/* Partner Identity Verification & PIN Auth Modal */}
       <PartnerAuthModal
@@ -148,10 +154,14 @@ export default async function CouplePage({ params }: PageProps) {
         <NavigationGrid slug={couple.slug} />
 
         {/* Romantic Map Widget */}
-        <RomanticMap coupleId={couple.id || couple.slug} />
+        {toggles.map !== false && (
+          <RomanticMap coupleId={couple.id || couple.slug} />
+        )}
 
         {/* Love Jar */}
-        <LoveJar reasons={couple.love_reasons} />
+        {toggles.love_jar !== false && (
+          <LoveJar reasons={couple.love_reasons} />
+        )}
 
         {/* Mami-AI Cine-AI Widget */}
         <CineAIWidget partnerName={couple.partner1_name} />
