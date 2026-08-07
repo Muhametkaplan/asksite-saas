@@ -20,10 +20,11 @@ import {
   BookOpen,
   Hourglass,
   Film,
-  Disc
+  Disc,
+  Brain
 } from 'lucide-react';
 
-import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
@@ -34,7 +35,7 @@ function DashboardContent() {
   const slugFromUrl = searchParams.get('slug') || 'irem-muhammet';
   const isNewAccount = searchParams.get('new') === 'true';
 
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'map' | 'qr'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'quiz' | 'map' | 'qr'>('info');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -416,6 +417,48 @@ function DashboardContent() {
     }));
   };
 
+  // Quiz State & Handlers
+  const [quizPartnerTab, setQuizPartnerTab] = useState<'partner1' | 'partner2'>('partner1');
+  const [newQuizQuestion, setNewQuizQuestion] = useState('');
+  const [newOptionA, setNewOptionA] = useState('');
+  const [newOptionB, setNewOptionB] = useState('');
+  const [newOptionC, setNewOptionC] = useState('');
+  const [newOptionD, setNewOptionD] = useState('');
+  const [newCorrectIndex, setNewCorrectIndex] = useState(0);
+
+  const handleAddQuizQuestionDashboard = () => {
+    if (!newQuizQuestion.trim() || !newOptionA.trim() || !newOptionB.trim() || !newOptionC.trim() || !newOptionD.trim()) return;
+
+    const questionObj: QuizQuestion = {
+      id: `q-${Date.now()}`,
+      question: newQuizQuestion.trim(),
+      options: [newOptionA.trim(), newOptionB.trim(), newOptionC.trim(), newOptionD.trim()],
+      correct_index: newCorrectIndex,
+      created_by: quizPartnerTab,
+    };
+
+    const key = quizPartnerTab === 'partner1' ? 'quiz_partner1' : 'quiz_partner2';
+    setConfig((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] || []), questionObj],
+    }));
+
+    setNewQuizQuestion('');
+    setNewOptionA('');
+    setNewOptionB('');
+    setNewOptionC('');
+    setNewOptionD('');
+    setNewCorrectIndex(0);
+  };
+
+  const handleDeleteQuizQuestionDashboard = (partnerKey: 'partner1' | 'partner2', qId: string) => {
+    const key = partnerKey === 'partner1' ? 'quiz_partner1' : 'quiz_partner2';
+    setConfig((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).filter((q) => q.id !== qId),
+    }));
+  };
+
   const handleClearMap = async () => {
     if (confirm('Tüm harita anılarını silmek istediğine emin misin?')) {
       await clearMapMarkers(config.id || config.slug);
@@ -560,6 +603,16 @@ function DashboardContent() {
               <Disc className="h-3.5 w-3.5" /> 8. Aşk Çarkı
             </button>
             <button
+              onClick={() => setActiveTab('quiz')}
+              className={`flex-1 min-w-[105px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'quiz'
+                  ? 'bg-rose-500 text-white shadow-md'
+                  : 'text-gray-600 hover:text-rose-500'
+              }`}
+            >
+              <Brain className="h-3.5 w-3.5" /> 9. Aşk Testi
+            </button>
+            <button
               onClick={() => setActiveTab('map')}
               className={`flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
                 activeTab === 'map'
@@ -567,7 +620,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <MapPin className="h-3.5 w-3.5" /> 9. Harita
+              <MapPin className="h-3.5 w-3.5" /> 10. Harita
             </button>
             <button
               onClick={() => setActiveTab('qr')}
@@ -577,7 +630,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <QrCode className="h-3.5 w-3.5" /> 10. QR & NFC
+              <QrCode className="h-3.5 w-3.5" /> 11. QR & NFC
             </button>
           </div>
 
@@ -1625,7 +1678,166 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* TAB 9: HARİTA NOKTALARI */}
+          {/* TAB 9: AŞK TESTİ */}
+          {activeTab === 'quiz' && (
+            <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-6">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-rose-500" /> Aşk Testi (Love Quiz) Yönetimi
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Partneriniz için özel 4 şıklı sorular hazırlayın.
+                  </p>
+                </div>
+              </div>
+
+              {/* Quiz Partner Selector Tabs */}
+              <div className="flex rounded-2xl bg-gray-100 p-1.5 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setQuizPartnerTab('partner1')}
+                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition ${
+                    quizPartnerTab === 'partner1'
+                      ? 'bg-rose-500 text-white shadow-md'
+                      : 'text-gray-600 hover:text-rose-500'
+                  }`}
+                >
+                  💖 {config.partner1_name} İçi Soru Paneli ({config.quiz_partner1?.length || 0} Soru)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuizPartnerTab('partner2')}
+                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition ${
+                    quizPartnerTab === 'partner2'
+                      ? 'bg-rose-500 text-white shadow-md'
+                      : 'text-gray-600 hover:text-rose-500'
+                  }`}
+                >
+                  💙 {config.partner2_name} İçi Soru Paneli ({config.quiz_partner2?.length || 0} Soru)
+                </button>
+              </div>
+
+              {/* Add New Question Form */}
+              <div className="bg-slate-900 text-white rounded-2xl p-4 border border-slate-800 space-y-3">
+                <h4 className="text-xs font-bold text-rose-400 flex items-center gap-1.5">
+                  <Plus className="h-4 w-4" /> Yeni Soru Ekle ({quizPartnerTab === 'partner1' ? config.partner1_name : config.partner2_name})
+                </h4>
+
+                <input
+                  type="text"
+                  placeholder="Soru Cümlesi (Ör: Benim en sevdiğim tatlı nedir?)"
+                  value={newQuizQuestion}
+                  onChange={(e) => setNewQuizQuestion(e.target.value)}
+                  className="w-full rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <input
+                    type="text"
+                    placeholder="A Şıkkı"
+                    value={newOptionA}
+                    onChange={(e) => setNewOptionA(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="B Şıkkı"
+                    value={newOptionB}
+                    onChange={(e) => setNewOptionB(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="C Şıkkı"
+                    value={newOptionC}
+                    onChange={(e) => setNewOptionC(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="D Şıkkı"
+                    value={newOptionD}
+                    onChange={(e) => setNewOptionD(e.target.value)}
+                    className="rounded-xl bg-slate-800 border border-slate-700 p-2.5 text-xs text-white outline-none focus:border-rose-500"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <label className="text-[11px] font-bold text-slate-300">Doğru Cevap:</label>
+                    <select
+                      value={newCorrectIndex}
+                      onChange={(e) => setNewCorrectIndex(Number(e.target.value))}
+                      className="rounded-xl bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-amber-300 font-bold outline-none focus:border-rose-500"
+                    >
+                      <option value={0}>A Şıkkı</option>
+                      <option value={1}>B Şıkkı</option>
+                      <option value={2}>C Şıkkı</option>
+                      <option value={3}>D Şıkkı</option>
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={handleAddQuizQuestionDashboard}
+                    disabled={!newQuizQuestion.trim() || !newOptionA.trim() || !newOptionB.trim() || !newOptionC.trim() || !newOptionD.trim()}
+                    className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 px-5 py-2 text-xs font-bold text-white shadow-md hover:scale-102 transition disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    <Plus className="h-4 w-4" /> Soruyu Kaydet 🧩
+                  </button>
+                </div>
+              </div>
+
+              {/* Questions List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider">
+                  Kayıtlı Sorular ({(quizPartnerTab === 'partner1' ? config.quiz_partner1 : config.quiz_partner2)?.length || 0})
+                </h4>
+
+                {(!((quizPartnerTab === 'partner1' ? config.quiz_partner1 : config.quiz_partner2)?.length)) ? (
+                  <p className="text-xs text-gray-500 italic p-4 text-center bg-gray-50 rounded-2xl">
+                    Henüz soru eklenmemiş. Yukarıdaki formdan yeni soru ekleyebilirsiniz!
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    {(quizPartnerTab === 'partner1' ? config.quiz_partner1 : config.quiz_partner2)?.map((q, idx) => (
+                      <div
+                        key={q.id}
+                        className="flex items-start justify-between rounded-2xl bg-white p-3.5 border border-rose-100 text-xs shadow-2xs space-y-1"
+                      >
+                        <div className="space-y-1 pr-2">
+                          <div className="font-extrabold text-gray-900 flex items-center gap-2">
+                            <span className="text-rose-500">#{idx + 1}</span>
+                            <span>{q.question}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-1 text-[11px] text-gray-600 pl-4">
+                            {q.options.map((opt, oIdx) => (
+                              <span
+                                key={oIdx}
+                                className={oIdx === q.correct_index ? 'font-bold text-emerald-600 underline' : ''}
+                              >
+                                {String.fromCharCode(65 + oIdx)}: {opt} {oIdx === q.correct_index && '✓'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteQuizQuestionDashboard(quizPartnerTab, q.id)}
+                          className="rounded-lg p-1 text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition shrink-0"
+                          title="Soruyu Sil"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 10: HARİTA NOKTALARI */}
           {activeTab === 'map' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-4">
               <h3 className="text-base font-bold text-gray-900 border-b pb-2 flex items-center gap-2">

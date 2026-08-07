@@ -21,7 +21,7 @@ import {
   Star,
   ExternalLink
 } from 'lucide-react';
-import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry, CapsuleItem, MovieItem } from '@/types/couple';
+import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
 import {
   useCoupon,
   sendCanvasStroke,
@@ -35,6 +35,8 @@ import {
   deleteMovie,
   addWheelItem,
   deleteWheelItem,
+  addQuizQuestion,
+  deleteQuizQuestion,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -119,7 +121,7 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
   }
 
   if (module === 'quiz') {
-    return <QuizWidget partner1={partner1} partner2={partner2} />;
+    return <QuizWidget couple={couple} />;
   }
 
   if (module === 'diary') {
@@ -616,64 +618,242 @@ function WheelWidget({ couple }: { couple: CoupleConfig }) {
   );
 }
 
-/* ================= 4. QUIZ MODULE ================= */
-function QuizWidget({ partner1, partner2 }: { partner1: string; partner2: string }) {
-  const questions = [
-    { q: 'En çok hangi yemeği seversiniz?', options: ['Mantı / Pizza', 'Burger / Kebap', 'Sushi / Asya', 'Ev Yemeği'], correct: 0 },
-    { q: 'İlk baş başa gittiğiniz yer neresiydi?', options: ['Kafe / Park', 'Sinema', 'Deniz Kenarı', 'AVM'], correct: 0 },
-    { q: 'Ortak favori aktiviteniz nedir?', options: ['Dizi / Film İzlemek', 'Geç Saatlere Kadar Sohbet', 'Yemek Yapmak', 'Gezmek'], correct: 1 },
-  ];
+/* ================= 4. QUIZ MODULE (AŞK TESTİ) ================= */
+const DEFAULT_QUIZ_P1: QuizQuestion[] = [
+  {
+    id: 'q1-1',
+    question: 'Benim en sevdiğim kahve çeşidi hangisidir?',
+    options: ['Latte', 'Espresso', 'Iced Americano', 'Türk Kahvesi'],
+    correct_index: 3,
+    created_by: 'partner1',
+  },
+  {
+    id: 'q1-2',
+    question: 'Birlikte gittiğimiz ilk baş başa tatil neresiydi?',
+    options: ['Antalya', 'Kapadokya', 'Bodrum', 'Eskişehir'],
+    correct_index: 1,
+    created_by: 'partner1',
+  },
+  {
+    id: 'q1-3',
+    question: 'Birlikteyken en çok neye gülerim?',
+    options: ['Kötü Esprilere', 'Kedi / Köpek Videolarına', 'Birlikte Anlattığımız Anılara', 'Komik Filmlere'],
+    correct_index: 2,
+    created_by: 'partner1',
+  },
+];
 
-  const [currentQ, setCurrentQ] = useState(0);
+const DEFAULT_QUIZ_P2: QuizQuestion[] = [
+  {
+    id: 'q2-1',
+    question: 'Benim en çok sevdiğim yemek nedir?',
+    options: ['Mantı / Lahmacun', 'Burger & Patates', 'Ev Yemeği / Kuru Fasulye', 'Pizza'],
+    correct_index: 0,
+    created_by: 'partner2',
+  },
+  {
+    id: 'q2-2',
+    question: 'Yoğun bir günün ardından akşam en sevdiğim aktivite nedir?',
+    options: ['Kitap Okumak', 'Birlikte Dizi/Film İzlemek', 'Oyun Oynamak', 'Müzik Dinlemek'],
+    correct_index: 1,
+    created_by: 'partner2',
+  },
+  {
+    id: 'q2-3',
+    question: 'Bana en tatlı ve vazgeçilmez gelen halin hangisi?',
+    options: ['Sabah Uykulu Hallerin', 'Bana Sarılman', 'Gülümsemen', 'Hepsi ve Daha Fazlası ❤️'],
+    correct_index: 3,
+    created_by: 'partner2',
+  },
+];
+
+function QuizWidget({ couple }: { couple: CoupleConfig }) {
+  const partner1Name = couple?.partner1_name || 'Partner 1';
+  const partner2Name = couple?.partner2_name || 'Partner 2';
+
+  const [activePartnerTab, setActivePartnerTab] = useState<'partner1' | 'partner2'>('partner1');
+  const [currentQIndex, setCurrentQIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isAnswering, setIsAnswering] = useState(false);
 
-  const handleAnswer = (index: number) => {
-    if (index === questions[currentQ].correct) {
-      setScore(score + 1);
-    }
-
-    if (currentQ + 1 < questions.length) {
-      setCurrentQ(currentQ + 1);
+  const questions = React.useMemo(() => {
+    if (activePartnerTab === 'partner1') {
+      return couple?.quiz_partner1 && couple.quiz_partner1.length > 0 ? couple.quiz_partner1 : DEFAULT_QUIZ_P1;
     } else {
-      setCompleted(true);
-      triggerConfetti({ particleCount: 70, spread: 100 });
+      return couple?.quiz_partner2 && couple.quiz_partner2.length > 0 ? couple.quiz_partner2 : DEFAULT_QUIZ_P2;
     }
+  }, [activePartnerTab, couple]);
+
+  const handleTabChange = (tab: 'partner1' | 'partner2') => {
+    setActivePartnerTab(tab);
+    setCurrentQIndex(0);
+    setScore(0);
+    setCompleted(false);
+    setSelectedOption(null);
+    setIsAnswering(false);
+  };
+
+  const handleOptionClick = (optionIdx: number) => {
+    if (isAnswering || completed || !questions[currentQIndex]) return;
+
+    setIsAnswering(true);
+    setSelectedOption(optionIdx);
+
+    const isCorrect = optionIdx === questions[currentQIndex].correct_index;
+    if (isCorrect) {
+      setScore((prev) => prev + 1);
+    }
+
+    setTimeout(() => {
+      if (currentQIndex + 1 < questions.length) {
+        setCurrentQIndex((prev) => prev + 1);
+        setSelectedOption(null);
+        setIsAnswering(false);
+      } else {
+        setCompleted(true);
+        setIsAnswering(false);
+        triggerConfetti({ particleCount: 90, spread: 80 });
+      }
+    }, 1200);
+  };
+
+  const resetQuiz = () => {
+    setCurrentQIndex(0);
+    setScore(0);
+    setCompleted(false);
+    setSelectedOption(null);
+    setIsAnswering(false);
+  };
+
+  const currentQ = questions[currentQIndex];
+  const scorePct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+
+  const getRankBadge = () => {
+    if (scorePct === 100) return '💞 %100 - Tam Anlamıyla Ruh Eşisiniz!';
+    if (scorePct >= 70) return `💖 %${scorePct} - Birbirinizi Çok İyi Tanıyorsunuz!`;
+    if (scorePct >= 50) return `🌟 %${scorePct} - Harika Bir Çiftsiniz!`;
+    return `🥰 %${scorePct} - Birlikte Keşfedeceğiniz Çok Şey Var!`;
   };
 
   return (
-    <div className="rounded-3xl bg-white p-6 shadow-xl border border-gray-100">
-      {!completed ? (
-        <div>
-          <div className="text-xs font-bold text-rose-500 uppercase tracking-wider mb-2">
-            Soru {currentQ + 1} / {questions.length}
-          </div>
-          <h3 className="text-base font-bold text-gray-900 mb-4">{questions[currentQ].q}</h3>
+    <div className="space-y-6">
+      {/* Partner Quiz Selector Tabs */}
+      <div className="flex rounded-2xl bg-gray-100 p-1.5 shadow-inner">
+        <button
+          onClick={() => handleTabChange('partner1')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+            activePartnerTab === 'partner1'
+              ? 'bg-rose-500 text-white shadow-md'
+              : 'text-gray-600 hover:text-rose-500'
+          }`}
+        >
+          💖 {partner1Name}'in Testini Çöz
+        </button>
+        <button
+          onClick={() => handleTabChange('partner2')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+            activePartnerTab === 'partner2'
+              ? 'bg-rose-500 text-white shadow-md'
+              : 'text-gray-600 hover:text-rose-500'
+          }`}
+        >
+          💙 {partner2Name}'nin Testini Çöz
+        </button>
+      </div>
 
-          <div className="space-y-2.5">
-            {questions[currentQ].options.map((opt, i) => (
-              <button
-                key={i}
-                onClick={() => handleAnswer(i)}
-                className="w-full text-left rounded-xl bg-gray-50 p-3 text-xs font-semibold text-gray-800 hover:bg-rose-50 hover:text-rose-600 transition border border-gray-200/80 active:scale-98"
-              >
-                {opt}
-              </button>
-            ))}
+      {/* Quiz Card */}
+      <div className="rounded-3xl bg-white p-6 shadow-xl border border-gray-100 text-left relative overflow-hidden">
+        {!completed && currentQ ? (
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3">
+              <span className="text-xs font-extrabold text-rose-500 uppercase tracking-wider">
+                Soru {currentQIndex + 1} / {questions.length}
+              </span>
+              <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold text-rose-600 border border-rose-100">
+                Hazırlayan: {activePartnerTab === 'partner1' ? partner1Name : partner2Name}
+              </span>
+            </div>
+
+            {/* Question Title */}
+            <h3 className="text-base font-extrabold text-gray-900 leading-snug pt-1">
+              {currentQ.question}
+            </h3>
+
+            {/* Options Grid */}
+            <div className="space-y-2.5 pt-2">
+              {currentQ.options.map((optionText, idx) => {
+                let btnStyle = 'bg-gray-50 border-gray-200 text-gray-800 hover:bg-rose-50 hover:border-rose-300';
+                let icon = null;
+
+                if (selectedOption !== null) {
+                  if (idx === currentQ.correct_index) {
+                    btnStyle = 'bg-emerald-500 text-white border-emerald-600 font-bold shadow-md';
+                    icon = '✓';
+                  } else if (idx === selectedOption) {
+                    btnStyle = 'bg-rose-500 text-white border-rose-600 font-bold shadow-md';
+                    icon = '✕';
+                  } else {
+                    btnStyle = 'bg-gray-100 text-gray-400 border-gray-200 opacity-60';
+                  }
+                }
+
+                const letter = String.fromCharCode(65 + idx);
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleOptionClick(idx)}
+                    disabled={isAnswering}
+                    className={`w-full flex items-center justify-between rounded-2xl border p-3.5 text-xs font-semibold transition active:scale-98 ${btnStyle}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/10 text-[11px] font-bold">
+                        {letter}
+                      </span>
+                      <span>{optionText}</span>
+                    </div>
+                    {icon && <span className="font-extrabold text-sm">{icon}</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="text-center">
-          <div className="text-4xl mb-2">🎉</div>
-          <h3 className="text-xl font-bold text-gray-900">Aşk Testi Tamamlandı!</h3>
-          <p className="text-sm text-gray-600 mt-2">
-            Skorunuz: <span className="font-extrabold text-rose-500">{score} / {questions.length}</span>
-          </p>
-          <p className="text-xs text-rose-400 mt-1 font-semibold">
-            Siz birbiriniz için yaratılmışsınız! ❤️
-          </p>
-        </div>
-      )}
+        ) : (
+          /* Result Card */
+          <div className="text-center py-4 space-y-5">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-rose-100 text-rose-500 text-4xl shadow-inner animate-bounce">
+              🏆
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-gray-900">Aşk Testi Tamamlandı!</h3>
+              <p className="text-xs text-gray-500">
+                {activePartnerTab === 'partner1' ? partner1Name : partner2Name} tarafından hazırlanan testi başarıyla çözdünüz.
+              </p>
+            </div>
+
+            {/* Score & Compatibility Badge */}
+            <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100 space-y-2">
+              <div className="text-2xl font-black text-rose-600">
+                {score} / {questions.length} Doğru (%{scorePct})
+              </div>
+              <div className="text-xs font-extrabold text-gray-800 bg-white py-1.5 px-3 rounded-xl shadow-xs border border-rose-100 inline-block">
+                {getRankBadge()}
+              </div>
+            </div>
+
+            <button
+              onClick={resetQuiz}
+              className="rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 px-8 py-3 text-xs font-extrabold text-white shadow-xl hover:scale-105 active:scale-95 transition flex items-center gap-2 mx-auto"
+            >
+              Testi Tekrar Çöz 🔄
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
 import { db, isFirebaseConfigured } from './firebase';
 import {
   doc,
@@ -219,6 +219,52 @@ export const DEMO_COUPLE: CoupleConfig = {
     'Kahve Demle & Yatakta Sun ☕',
     'Soru Sormadan Affet 🕊️',
   ],
+  quiz_partner1: [
+    {
+      id: 'q1-1',
+      question: 'Benim en sevdiğim kahve çeşidi hangisidir?',
+      options: ['Latte', 'Espresso', 'Iced Americano', 'Türk Kahvesi'],
+      correct_index: 3,
+      created_by: 'partner1',
+    },
+    {
+      id: 'q1-2',
+      question: 'Birlikte gittiğimiz ilk baş başa tatil neresiydi?',
+      options: ['Antalya', 'Kapadokya', 'Bodrum', 'Eskişehir'],
+      correct_index: 1,
+      created_by: 'partner1',
+    },
+    {
+      id: 'q1-3',
+      question: 'Birlikteyken en çok neye gülerim?',
+      options: ['Kötü Esprilere', 'Kedi / Köpek Videolarına', 'Birlikte Anlattığımız Anılara', 'Komik Filmlere'],
+      correct_index: 2,
+      created_by: 'partner1',
+    },
+  ],
+  quiz_partner2: [
+    {
+      id: 'q2-1',
+      question: 'Benim en çok sevdiğim yemek nedir?',
+      options: ['Mantı / Lahmacun', 'Burger & Patates', 'Ev Yemeği / Kuru Fasulye', 'Pizza'],
+      correct_index: 0,
+      created_by: 'partner2',
+    },
+    {
+      id: 'q2-2',
+      question: 'Yoğun bir günün ardından akşam en sevdiğim aktivite nedir?',
+      options: ['Kitap Okumak', 'Birlikte Dizi/Film İzlemek', 'Oyun Oynamak', 'Müzik Dinlemek'],
+      correct_index: 1,
+      created_by: 'partner2',
+    },
+    {
+      id: 'q2-3',
+      question: 'Bana en tatlı ve vazgeçilmez gelen halin hangisi?',
+      options: ['Sabah Uykulu Hallerin', 'Bana Sarılman', 'Gülümsemen', 'Hepsi ve Daha Fazlası ❤️'],
+      correct_index: 3,
+      created_by: 'partner2',
+    },
+  ],
   upcoming_event: {
     title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈',
     date: '2026-09-15T00:00:00.000Z',
@@ -285,6 +331,8 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           time_capsules: data.time_capsules || DEMO_COUPLE.time_capsules,
           movies: data.movies || DEMO_COUPLE.movies,
           wheel_items: data.wheel_items || DEMO_COUPLE.wheel_items,
+          quiz_partner1: data.quiz_partner1 || DEMO_COUPLE.quiz_partner1,
+          quiz_partner2: data.quiz_partner2 || DEMO_COUPLE.quiz_partner2,
           upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
@@ -358,6 +406,8 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         time_capsules: config.time_capsules || [],
         movies: config.movies || [],
         wheel_items: config.wheel_items || [],
+        quiz_partner1: config.quiz_partner1 || [],
+        quiz_partner2: config.quiz_partner2 || [],
         upcoming_event: config.upcoming_event || null,
         allowed_users: config.allowed_users || {
           partner1_email: 'irem@asksite.com',
@@ -746,6 +796,51 @@ export async function deleteWheelItem(slug: string, itemIndex: number): Promise<
   const updated = await saveCoupleConfig({
     ...couple,
     wheel_items: updatedItems,
+  });
+
+  return !!updated;
+}
+
+// ================= QUIZ SERVICES =================
+export async function addQuizQuestion(
+  slug: string,
+  targetPartner: 'partner1' | 'partner2',
+  questionData: Omit<QuizQuestion, 'id'>
+): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const newQuestion: QuizQuestion = {
+    ...questionData,
+    id: `q-${Date.now()}`,
+    created_by: targetPartner,
+  };
+
+  const key = targetPartner === 'partner1' ? 'quiz_partner1' : 'quiz_partner2';
+  const updatedQuestions = [...(couple[key] || []), newQuestion];
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    [key]: updatedQuestions,
+  });
+
+  return !!updated;
+}
+
+export async function deleteQuizQuestion(
+  slug: string,
+  targetPartner: 'partner1' | 'partner2',
+  questionId: string
+): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const key = targetPartner === 'partner1' ? 'quiz_partner1' : 'quiz_partner2';
+  const updatedQuestions = (couple[key] || []).filter((q) => q.id !== questionId);
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    [key]: updatedQuestions,
   });
 
   return !!updated;

@@ -69,6 +69,14 @@ export interface MovieItem {
   created_at?: string;
 }
 
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct_index: number;
+  created_by?: 'partner1' | 'partner2';
+}
+
 export interface FeatureToggles {
   spotify?: boolean;
   memory?: boolean;
@@ -84,6 +92,7 @@ export interface FeatureToggles {
   capsule?: boolean;
   cinema?: boolean;
   wheel?: boolean;
+  quiz?: boolean;
 }
 
 export interface CoupleConfig {
@@ -109,6 +118,8 @@ export interface CoupleConfig {
   time_capsules?: CapsuleItem[];
   movies?: MovieItem[];
   wheel_items?: string[];
+  quiz_partner1?: QuizQuestion[];
+  quiz_partner2?: QuizQuestion[];
   upcoming_event?: UpcomingEvent;
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;
