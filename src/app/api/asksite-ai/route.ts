@@ -77,6 +77,10 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY || '';
 
+    if (!apiKey || !apiKey.startsWith('AIzaSy')) {
+      console.warn('[AskSite-AI Warning] GEMINI_API_KEY is missing or does not start with "AIzaSy". Serving fallback recommendations.');
+    }
+
     if (!apiKey) {
       return NextResponse.json({
         movies: FALLBACK_MOVIES,
@@ -123,7 +127,7 @@ Yalnızca aşağıdaki JSON array formatında yanıt ver, başka hiçbir açıkl
         });
       }
     } catch (parseErr) {
-      console.warn('AskSite-AI Gemini JSON parse failed, returning fallback:', parseErr);
+      console.warn('[AskSite-AI Warning] Gemini JSON parse failed, returning fallback:', parseErr);
     }
 
     return NextResponse.json({
@@ -131,7 +135,7 @@ Yalnızca aşağıdaki JSON array formatında yanıt ver, başka hiçbir açıkl
       remaining,
     });
   } catch (err: any) {
-    console.error('AskSite-AI Gemini API Error:', err);
+    console.error('Gemini API Error:', err);
     return NextResponse.json({
       movies: FALLBACK_MOVIES,
       error: 'Canlı yapay zeka servisine erişilemedi, sizin için özenle seçilmiş hazır öneriler sunuluyor! 🍿',
