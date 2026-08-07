@@ -41,6 +41,7 @@ import {
   CanvasStrokeData,
 } from '@/lib/couples';
 import RomanticMap from '@/components/RomanticMap';
+import AskSiteAIWidget from '@/components/CineAIWidget';
 
 // Helper for dynamic window/DOM confetti execution without SSR hydration crash
 const triggerConfetti = async (options?: any) => {
@@ -143,6 +144,10 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
 
   if (module === 'map') {
     return <RomanticMap coupleId={couple.id || couple.slug} />;
+  }
+
+  if (module === 'ai' || module === 'asksite-ai') {
+    return <AskSiteAIWidget partnerName={partner1} slug={couple.slug} />;
   }
 
   return (

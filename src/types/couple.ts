@@ -148,3 +148,17 @@ export interface MovieRecommendationResponse {
   rawText?: string;
   error?: string;
 }
+
+export interface AskSiteAIMovieItem {
+  title: string;
+  genre: string;
+  reason: string;
+  poster_url?: string;
+  watch_url?: string;
+}
+
+export interface AskSiteAIResponse {
+  movies: AskSiteAIMovieItem[];
+  remaining?: number;
+  error?: string;
+}
