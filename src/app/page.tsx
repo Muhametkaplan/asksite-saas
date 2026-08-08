@@ -24,9 +24,15 @@ export default function SaaSPlatformHome() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/c/irem-muhammet"
-            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 hover:shadow-rose-500/25"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 hover:shadow-rose-500/25 w-full sm:w-auto text-center"
           >
             <Heart className="h-5 w-5 fill-white" /> Canlı Çift Demosunu İncele <ArrowRight className="h-5 w-5" />
+          </Link>
+          <Link
+            href="/login?redirect=checkout"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-rose-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 hover:shadow-purple-500/25 border border-white/20 w-full sm:w-auto text-center"
+          >
+            <Rocket className="h-5 w-5" /> Kendi Siteni Oluştur / Satın Al 🚀
           </Link>
         </div>
       </header>

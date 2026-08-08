@@ -478,6 +478,19 @@ function DashboardContent() {
     setBaseUrl(window.location.origin);
   }, []);
 
+  const [currentUser, setCurrentUser] = useState<{ displayName?: string; email?: string; phone?: string } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('asksite_user');
+      if (stored) {
+        try {
+          setCurrentUser(JSON.parse(stored));
+        } catch (e) {}
+      }
+    }
+  }, []);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-pink-50 text-rose-600 font-bold">
@@ -491,8 +504,13 @@ function DashboardContent() {
       {/* Top Banner */}
       <div className="mx-auto max-w-7xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white/90 shadow-md">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-500 uppercase tracking-wider mb-1">
-            <Sparkles className="h-4 w-4" /> Müşteri Yönetim Paneli
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-rose-500 uppercase tracking-wider bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">
+              <Sparkles className="h-3.5 w-3.5" /> SaaS Yönetim Paneli
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-purple-600 uppercase tracking-wider bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
+              {currentUser?.displayName || currentUser?.email || 'Müşteri Hesabı'} • ₺399 VIP Paket Aktif
+            </span>
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900">
             {config.partner1_name} & {config.partner2_name} Siteniz 💖
