@@ -354,7 +354,11 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
     }
   }
 
-  // Fallback to local memory store
+  // Fallback to local memory store or demo slug
+  if (slug === 'demo' || slug === 'irem-muhammet') {
+    return DEMO_COUPLE;
+  }
+
   if (localCouplesMemoryStore.has(slug)) {
     return localCouplesMemoryStore.get(slug)!;
   }

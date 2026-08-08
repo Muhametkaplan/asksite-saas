@@ -8,15 +8,17 @@ interface NavigationGridProps {
 }
 
 export default function NavigationGrid({ slug }: NavigationGridProps) {
+  const prefix = slug === 'demo' ? '/demo' : `/c/${slug}`;
+
   const items = [
-    { label: 'Oyunlar', icon: Gamepad2, color: 'text-rose-500', href: `/c/${slug}/games` },
-    { label: 'Kuponlar', icon: Ticket, color: 'text-amber-500', href: `/c/${slug}/coupons` },
-    { label: 'Sanat Galerisi', icon: Palette, color: 'text-purple-500', href: `/c/${slug}/therapy` },
-    { label: 'Anı Defteri', icon: BookOpen, color: 'text-indigo-500', href: `/c/${slug}/diary` },
-    { label: 'Zaman Kapsülü', icon: Hourglass, color: 'text-teal-500', href: `/c/${slug}/capsule` },
-    { label: 'Sinemamız', icon: Film, color: 'text-blue-500', href: `/c/${slug}/cinema` },
-    { label: 'Aşk Çarkı', icon: Disc, color: 'text-pink-500', href: `/c/${slug}/wheel` },
-    { label: 'Aşk Testi', icon: Brain, color: 'text-emerald-500', href: `/c/${slug}/quiz` },
+    { label: 'Oyunlar', icon: Gamepad2, color: 'text-rose-500', href: `${prefix}/games` },
+    { label: 'Kuponlar', icon: Ticket, color: 'text-amber-500', href: `${prefix}/coupons` },
+    { label: 'Sanat Galerisi', icon: Palette, color: 'text-purple-500', href: `${prefix}/therapy` },
+    { label: 'Anı Defteri', icon: BookOpen, color: 'text-indigo-500', href: `${prefix}/diary` },
+    { label: 'Zaman Kapsülü', icon: Hourglass, color: 'text-teal-500', href: `${prefix}/capsule` },
+    { label: 'Sinemamız', icon: Film, color: 'text-blue-500', href: `${prefix}/cinema` },
+    { label: 'Aşk Çarkı', icon: Disc, color: 'text-pink-500', href: `${prefix}/wheel` },
+    { label: 'Aşk Testi', icon: Brain, color: 'text-emerald-500', href: `${prefix}/quiz` },
   ];
 
   return (
