@@ -24,6 +24,8 @@ import {
   Brain
 } from 'lucide-react';
 
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
@@ -481,14 +483,23 @@ function DashboardContent() {
   const [currentUser, setCurrentUser] = useState<{ displayName?: string; email?: string; phone?: string } | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('asksite_user');
-      if (stored) {
-        try {
-          setCurrentUser(JSON.parse(stored));
-        } catch (e) {}
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setCurrentUser({
+          displayName: firebaseUser.displayName || '',
+          email: firebaseUser.email || '',
+          phone: firebaseUser.phoneNumber || '',
+        });
+      } else if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('asksite_user');
+        if (stored) {
+          try {
+            setCurrentUser(JSON.parse(stored));
+          } catch (e) {}
+        }
       }
-    }
+    });
+    return () => unsubscribe();
   }, []);
 
   if (loading) {

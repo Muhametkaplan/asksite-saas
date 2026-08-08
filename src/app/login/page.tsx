@@ -9,8 +9,29 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, googleProvider, db } from '@/lib/firebase';
 import { Heart, Sparkles, Lock, Mail, User, Phone, LogIn, UserPlus, ArrowRight } from 'lucide-react';
+
+async function saveUserDataToFirestore(user: any, name?: string, phoneNumber?: string) {
+  if (!db) return;
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    await setDoc(
+      userRef,
+      {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || name || '',
+        phone: phoneNumber || '',
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.error('Error saving user data to Firestore:', e);
+  }
+}
 
 function LoginContent() {
   const router = useRouter();
@@ -35,7 +56,7 @@ function LoginContent() {
           uid: userObj.uid,
           email: userObj.email,
           displayName: userObj.displayName || fullName || 'Çift Kullanıcısı',
-          phone: phone || '',
+          phone: phone || userObj.phoneNumber || '',
         })
       );
     }
@@ -48,16 +69,19 @@ function LoginContent() {
     setErrorMsg('');
     try {
       const res = await signInWithPopup(auth, googleProvider);
+      await saveUserDataToFirestore(res.user);
       handleSuccessAuth(res.user);
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      // Fallback local auth simulation if popup is blocked or API key unconfigured in dev
-      const mockUser = {
-        uid: 'google-' + Date.now(),
-        email: 'user@google.com',
-        displayName: 'Google Kullanıcısı',
-      };
-      handleSuccessAuth(mockUser);
+      if (err.code === 'auth/popup-closed-by-user') {
+        setErrorMsg('Google giriş penceresi kapatıldı.');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setErrorMsg('Giriş isteği iptal edildi.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setErrorMsg('Açılır pencere (popup) engellendi. Lütfen tarayıcı izinlerinizi kontrol edin.');
+      } else {
+        setErrorMsg(err.message || 'Google ile giriş yapılırken bir sorun oluştu.');
+      }
     } finally {
       setLoading(false);
     }
@@ -66,7 +90,7 @@ function LoginContent() {
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setErrorMsg('Lütfen e-posta ve parolanızı girin.');
+      setErrorMsg('Lütfen e-posta adresi ve şifrenizi girin.');
       return;
     }
 
@@ -79,24 +103,27 @@ function LoginContent() {
         if (fullName) {
           await updateProfile(res.user, { displayName: fullName });
         }
+        await saveUserDataToFirestore(res.user, fullName, phone);
         handleSuccessAuth({ ...res.user, displayName: fullName || res.user.displayName });
       } else {
         const res = await signInWithEmailAndPassword(auth, email, password);
+        await saveUserDataToFirestore(res.user);
         handleSuccessAuth(res.user);
       }
     } catch (err: any) {
       console.error('Auth Error:', err);
-      // Friendly fallback for demo mode or invalid credentials
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setErrorMsg('E-posta veya şifre hatalı. Kayıtlı hesabınız yoksa Kayıt Olun.');
+        setErrorMsg('E-posta adresi veya şifre hatalı. Kayıtlı hesabınız yoksa "Kayıt Ol" sekmesinden hesap oluşturun.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setErrorMsg('Bu e-posta adresi zaten kullanımda. "Giriş Yap" sekmesinden oturum açabilirsiniz.');
+      } else if (err.code === 'auth/weak-password') {
+        setErrorMsg('Şifreniz en az 6 karakter uzunluğunda olmalıdır.');
+      } else if (err.code === 'auth/invalid-email') {
+        setErrorMsg('Lütfen geçerli bir e-posta adresi giriniz.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setErrorMsg('Çok fazla başarısız deneme yapıldı. Lütfen biraz bekleyip tekrar deneyin.');
       } else {
-        // Local fallback sign-in for seamless SaaS experience
-        const mockUser = {
-          uid: 'u-' + Date.now(),
-          email,
-          displayName: fullName || email.split('@')[0],
-        };
-        handleSuccessAuth(mockUser);
+        setErrorMsg(err.message || 'Oturum açılırken bir hata oluştu.');
       }
     } finally {
       setLoading(false);
@@ -142,7 +169,7 @@ function LoginContent() {
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-3 px-4 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-98 transition mb-5"
+            className="w-full flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-3 px-4 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-98 transition mb-5 disabled:opacity-50"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
