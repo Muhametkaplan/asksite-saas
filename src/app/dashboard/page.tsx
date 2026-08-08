@@ -44,8 +44,8 @@ function DashboardContent() {
   // Form State
   const [config, setConfig] = useState<CoupleConfig>({
     slug: slugFromUrl,
-    partner1_name: 'İrem',
-    partner2_name: 'Muhammet',
+    partner1_name: 'Partner 1',
+    partner2_name: 'Partner 2',
     subtitle: 'Bizim Dünyamız ❤️',
     start_date: new Date().toISOString().split('T')[0],
     theme_color_primary: '#ff4d6d',

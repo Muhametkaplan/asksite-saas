@@ -128,7 +128,7 @@ export const DEMO_COUPLE: CoupleConfig = {
   diary_entries: [
     {
       id: 'd1',
-      author: 'Muhammet',
+      author: 'Partner 2',
       role: 'partner2',
       date: '2023-01-01T14:30:00.000Z',
       content: 'Gözlerinin içine ilk baktığım an dünyadaki tüm gürültüler sustu. İyi ki geldin hayatıma sevgilim.',
@@ -136,7 +136,7 @@ export const DEMO_COUPLE: CoupleConfig = {
     },
     {
       id: 'd2',
-      author: 'İrem',
+      author: 'Partner 1',
       role: 'partner1',
       date: '2023-07-15T19:45:00.000Z',
       content: 'Deniz kenarında gün batımını izlerken elimi tuttuğun o anı hiç unutmayacağım.',
@@ -144,7 +144,7 @@ export const DEMO_COUPLE: CoupleConfig = {
     },
     {
       id: 'd3',
-      author: 'Muhammet',
+      author: 'Partner 2',
       role: 'partner2',
       date: '2024-02-14T21:15:00.000Z',
       content: 'Yağmurlu bir akşamda kahvelerimizi yudumlarken geleceğe dair hayaller kurmak harikaydı.',
@@ -158,7 +158,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       content: 'Gelecekteki bize not: Umarım yine böyle sarılarak, gülerek ve aşkla birbirimizin gözlerine bakıyoruzdur. Seni çok seviyorum!',
       open_date: '2026-12-31T00:00:00.000Z',
       created_at: '2023-01-01T00:00:00.000Z',
-      creator: 'Muhammet',
+      creator: 'Partner 2',
       is_opened: false,
     },
     {
@@ -167,7 +167,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       content: 'Deniz kenarında tuttuğumuz o ilk dilek gerçekleşti! Birlikte nice tatillere ve güzel anılara.',
       open_date: '2024-01-01T00:00:00.000Z',
       created_at: '2023-07-15T00:00:00.000Z',
-      creator: 'İrem',
+      creator: 'Partner 1',
       is_opened: true,
     },
   ],
@@ -181,7 +181,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       rating: 5,
       note: 'Birlikte izlediğimiz en büyüleyici ve duygusal filmlerden biriydi!',
       status: 'watched',
-      added_by: 'Muhammet',
+      added_by: 'Partner 2',
       created_at: '2023-02-14T00:00:00.000Z',
     },
     {
@@ -193,7 +193,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       rating: 5,
       note: 'Müzikleri ve atmosferi harikaydı, son sahnesinde sarıldık.',
       status: 'watched',
-      added_by: 'İrem',
+      added_by: 'Partner 1',
       created_at: '2023-05-20T00:00:00.000Z',
     },
     {
@@ -205,7 +205,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       rating: 0,
       note: 'Yağmurlu bir pazar gecesi patlamış mısır eşliğinde izleyeceğiz!',
       status: 'watchlist',
-      added_by: 'İrem',
+      added_by: 'Partner 1',
       created_at: '2024-01-10T00:00:00.000Z',
     },
   ],
