@@ -163,9 +163,6 @@ export default async function CouplePage({ params }: PageProps) {
           <LoveJar reasons={couple.love_reasons} />
         )}
 
-        {/* AskSite-AI Widget */}
-        <CineAIWidget partnerName={couple.partner1_name} slug={couple.slug} />
-
         {/* Emergency Hug WhatsApp Button */}
         <EmergencyHug phone={couple.whatsapp_number} message={couple.whatsapp_message} />
       </div>
