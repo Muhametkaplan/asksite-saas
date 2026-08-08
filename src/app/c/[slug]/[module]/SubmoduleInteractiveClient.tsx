@@ -1544,6 +1544,8 @@ function FlappyBirdGame({
 
     let frameCount = 0;
     let score = 0;
+    let gameState: 'READY' | 'PLAYING' = 'READY';
+
     const previousRecord = role === 'partner1' ? highScores.p1Score : highScores.p2Score;
 
     const bird = {
@@ -1561,7 +1563,14 @@ function FlappyBirdGame({
     const pipeSpeed = 3.0;
 
     const flap = () => {
-      bird.vy = bird.jump;
+      if (gameState === 'READY') {
+        gameState = 'PLAYING';
+        bird.vy = bird.jump;
+        playDinoSFX('jump', false);
+      } else if (gameState === 'PLAYING') {
+        bird.vy = bird.jump;
+        playDinoSFX('jump', false);
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1576,42 +1585,51 @@ function FlappyBirdGame({
 
     const loop = () => {
       frameCount++;
-      bird.vy += bird.gravity;
-      bird.y += bird.vy;
 
-      // Ground / Ceiling collision
-      if (bird.y - bird.radius <= 0 || bird.y + bird.radius >= canvas.height - 30) {
-        isRunning = false;
-      }
+      if (gameState === 'READY') {
+        // Idle floating sine wave animation before first tap
+        bird.y = 200 + Math.sin(frameCount * 0.08) * 8;
+        bird.vy = 0;
+      } else if (gameState === 'PLAYING') {
+        bird.vy += bird.gravity;
+        bird.y += bird.vy;
 
-      // Spawn pipes
-      if (frameCount % 90 === 0) {
-        const topHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 120)) + 40;
-        pipes.push({
-          x: canvas.width,
-          topHeight,
-          bottomY: topHeight + pipeGap,
-          passed: false,
-        });
-      }
-
-      // Move & filter pipes
-      pipes = pipes.map((p) => {
-        const nextX = p.x - pipeSpeed;
-        if (!p.passed && nextX + pipeWidth < bird.x) {
-          score += 1;
-          setCurrentScore(score);
-          return { ...p, x: nextX, passed: true };
+        // Ground / Ceiling collision
+        if (bird.y - bird.radius <= 0 || bird.y + bird.radius >= canvas.height - 30) {
+          isRunning = false;
         }
-        return { ...p, x: nextX };
-      }).filter((p) => p.x + pipeWidth > 0);
 
-      // Check pipe collisions
-      for (const p of pipes) {
-        if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + pipeWidth) {
-          if (bird.y - bird.radius < p.topHeight || bird.y + bird.radius > p.bottomY) {
-            isRunning = false;
-            break;
+        // Spawn pipes
+        if (frameCount % 90 === 0) {
+          const topHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 120)) + 40;
+          pipes.push({
+            x: canvas.width,
+            topHeight,
+            bottomY: topHeight + pipeGap,
+            passed: false,
+          });
+        }
+
+        // Move & filter pipes
+        pipes = pipes
+          .map((p) => {
+            const nextX = p.x - pipeSpeed;
+            if (!p.passed && nextX + pipeWidth < bird.x) {
+              score += 1;
+              setCurrentScore(score);
+              return { ...p, x: nextX, passed: true };
+            }
+            return { ...p, x: nextX };
+          })
+          .filter((p) => p.x + pipeWidth > 0);
+
+        // Check pipe collisions
+        for (const p of pipes) {
+          if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + pipeWidth) {
+            if (bird.y - bird.radius < p.topHeight || bird.y + bird.radius > p.bottomY) {
+              isRunning = false;
+              break;
+            }
           }
         }
       }
@@ -1651,7 +1669,7 @@ function FlappyBirdGame({
       // Draw Flappy Bird
       ctx.save();
       ctx.translate(bird.x, bird.y);
-      const angle = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, bird.vy * 0.08));
+      const angle = gameState === 'READY' ? 0 : Math.min(Math.PI / 4, Math.max(-Math.PI / 4, bird.vy * 0.08));
       ctx.rotate(angle);
 
       ctx.fillStyle = '#f43f5e';
@@ -1678,6 +1696,15 @@ function FlappyBirdGame({
       ctx.fill();
 
       ctx.restore();
+
+      // Idle Ready Instruction Banner
+      if (gameState === 'READY') {
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '900 20px sans-serif';
+        ctx.shadowColor = 'rgba(255,255,255,0.8)';
+        ctx.shadowBlur = 8;
+        ctx.fillText('👆 Uçmak İçin Dokun / Space Bas!', canvas.width / 2 - 160, canvas.height / 2 - 40);
+      }
 
       // HUD Score
       ctx.fillStyle = '#ffffff';
