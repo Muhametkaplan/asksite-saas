@@ -603,7 +603,7 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
     for (const [a, b, c] of winningCombos) {
       if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
         const isP1 = newBoard[a] === 'X';
-        const winningName = isP1 ? `🔵 Erkek Partner (${partner2})` : `🌸 Kız Partner (${partner1})`;
+        const winningName = isP1 ? `🌸 Kız Partner (${partner1})` : `🔵 Erkek Partner (${partner2})`;
         setWinner(winningName);
         triggerConfetti({ particleCount: 60, spread: 80 });
 
@@ -638,14 +638,14 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
 
       {/* Scoreboard Panel */}
       <div className="flex items-center justify-between rounded-2xl bg-gray-50 border border-gray-200 p-3 shadow-inner text-xs font-black">
-        <div className="flex items-center gap-1.5 text-blue-600">
-          <span>🔵 Erkek Partner ({partner1}) - X</span>
-          <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-sm font-extrabold text-blue-700">{scores.p1Wins}</span>
+        <div className="flex items-center gap-1.5 text-pink-600">
+          <span>🌸 Kız Partner ({partner1}) - X</span>
+          <span className="rounded-lg bg-pink-100 px-2 py-0.5 text-sm font-extrabold text-pink-700">{scores.p1Wins}</span>
         </div>
         <span className="text-gray-400 font-extrabold text-sm">-</span>
-        <div className="flex items-center gap-1.5 text-pink-600">
-          <span className="rounded-lg bg-pink-100 px-2 py-0.5 text-sm font-extrabold text-pink-700">{scores.p2Wins}</span>
-          <span>🌸 Kız Partner ({partner2}) - O</span>
+        <div className="flex items-center gap-1.5 text-blue-600">
+          <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-sm font-extrabold text-blue-700">{scores.p2Wins}</span>
+          <span>🔵 Erkek Partner ({partner2}) - O</span>
         </div>
       </div>
 
@@ -653,12 +653,12 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
       {!winner && (
         <div className="py-1">
           {turn === 'X' ? (
-            <div className="rounded-xl bg-blue-50 border border-blue-200 py-1.5 px-4 text-xs font-black text-blue-700 inline-flex items-center gap-1.5 animate-pulse">
-              <span>Sıra:</span> 🔵 Erkek Partner ({partner1}) - X
+            <div className="rounded-xl bg-pink-50 border border-pink-200 py-1.5 px-4 text-xs font-black text-pink-700 inline-flex items-center gap-1.5 animate-pulse">
+              <span>Sıra:</span> 🌸 Kız Partner ({partner1}) - X
             </div>
           ) : (
-            <div className="rounded-xl bg-pink-50 border border-pink-200 py-1.5 px-4 text-xs font-black text-pink-700 inline-flex items-center gap-1.5 animate-pulse">
-              <span>Sıra:</span> 🌸 Kız Partner ({partner2}) - O
+            <div className="rounded-xl bg-blue-50 border border-blue-200 py-1.5 px-4 text-xs font-black text-blue-700 inline-flex items-center gap-1.5 animate-pulse">
+              <span>Sıra:</span> 🔵 Erkek Partner ({partner2}) - O
             </div>
           )}
         </div>
@@ -673,12 +673,12 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
             className="flex h-20 items-center justify-center rounded-2xl bg-gray-50 border-2 border-gray-200 text-3xl font-black shadow-xs transition hover:bg-rose-50 active:scale-95"
           >
             {cell === 'X' && (
-              <span className="text-blue-500 font-black text-3xl drop-shadow-[0_0_12px_rgba(59,130,246,0.8)]">
+              <span className="text-pink-500 font-black text-3xl drop-shadow-[0_0_12px_rgba(236,72,153,0.8)]">
                 X
               </span>
             )}
             {cell === 'O' && (
-              <span className="text-pink-500 font-black text-3xl drop-shadow-[0_0_12px_rgba(236,72,153,0.8)]">
+              <span className="text-blue-500 font-black text-3xl drop-shadow-[0_0_12px_rgba(59,130,246,0.8)]">
                 O
               </span>
             )}
