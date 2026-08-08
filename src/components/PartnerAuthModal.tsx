@@ -1,323 +1,387 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, UserCheck, ArrowLeft, Users } from 'lucide-react';
-import { AllowedUsers } from '@/types/couple';
+import { useRouter } from 'next/navigation';
+import { Heart, ShieldAlert, LogOut, ArrowRight, UserCheck, Sparkles } from 'lucide-react';
+import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth, googleProvider } from '@/lib/firebase';
+import { CoupleConfig } from '@/types/couple';
+import { getOrCreateDeviceToken, isDeviceAuthorized, registerDeviceToken } from '@/lib/deviceSession';
 import { updatePartnerPresence } from '@/lib/couples';
 
 interface PartnerAuthModalProps {
   slug: string;
   partner1Name: string;
   partner2Name: string;
-  allowedUsers?: AllowedUsers;
+  couple: CoupleConfig;
 }
 
 export default function PartnerAuthModal({
   slug,
   partner1Name,
   partner2Name,
-  allowedUsers,
+  couple,
 }: PartnerAuthModalProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [authRole, setAuthRole] = useState<'partner1' | 'partner2' | 'guest' | null>(null);
-  
-  // 2-Step Flow States
-  const [step, setStep] = useState<'select_profile' | 'verify_pin'>('select_profile');
-  const [targetRole, setTargetRole] = useState<'partner1' | 'partner2' | 'guest' | null>(null);
+  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(true);
+  const [authorizedPartner, setAuthorizedPartner] = useState<string | null>(null);
+  const [authRole, setAuthRole] = useState<'partner1' | 'partner2' | null>(null);
+  const [isAccessDenied, setIsAccessDenied] = useState(false);
 
+  // Email / Password Form State
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [pinInput, setPinInput] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [verificationMethod, setVerificationMethod] = useState<'pin' | 'email'>('pin');
+  const [authMethod, setAuthMethod] = useState<'google' | 'email' | 'pin'>('google');
+  const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const correctPin = allowedUsers?.access_pin || '1234';
-  const visitorPin = allowedUsers?.visitor_pin || '1111';
-  const partner1Email = (allowedUsers?.partner1_email || 'irem@asksite.com').toLowerCase();
-  const partner2Email = (allowedUsers?.partner2_email || 'muhammet@asksite.com').toLowerCase();
-
   useEffect(() => {
-    // Check local storage for existing auth
-    const storedAuth = localStorage.getItem(`asksite_auth_${slug}`);
-    if (storedAuth) {
-      try {
-        const parsed = JSON.parse(storedAuth);
-        if (parsed.role) {
-          setAuthRole(parsed.role);
-          if (parsed.role === 'partner1' || parsed.role === 'partner2') {
-            updatePartnerPresence(slug, parsed.role, true);
-          }
-          return;
-        }
-      } catch {}
-    }
-
-    // Open modal on first load if no auth role stored
-    setIsOpen(true);
-  }, [slug]);
-
-  useEffect(() => {
-    // Custom event listener for re-opening modal from anywhere (e.g. LiveCanvasWidget)
-    const handleReopen = () => {
-      setStep('select_profile');
-      setTargetRole(null);
-      setErrorMessage('');
-      setIsOpen(true);
-    };
-
-    window.addEventListener('open_partner_auth_modal', handleReopen);
-    return () => {
-      window.removeEventListener('open_partner_auth_modal', handleReopen);
-    };
-  }, []);
-
-  const handleSelectProfile = (role: 'partner1' | 'partner2' | 'guest') => {
-    setTargetRole(role);
-    setPinInput('');
-    setUserEmail('');
-    setErrorMessage('');
-    setVerificationMethod('pin');
-    setStep('verify_pin');
-  };
-
-  const handlePinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-
-    if (targetRole === 'guest') {
-      if (pinInput.trim() === visitorPin) {
-        completeAuth('guest', 'visitor');
-      } else {
-        setErrorMessage('Ziyaretçi PIN kodu hatalı. Varsayılan PIN: 1111');
+    // 1. Device Token Auto-Recognition
+    const deviceCheck = isDeviceAuthorized(couple);
+    if (deviceCheck.isAuthorized && deviceCheck.partnerName) {
+      setAuthorizedPartner(deviceCheck.partnerName);
+      setAuthRole(deviceCheck.role || 'partner1');
+      setIsOpen(false);
+      if (deviceCheck.role) {
+        updatePartnerPresence(slug, deviceCheck.role, true);
       }
-    } else {
-      if (pinInput.trim() === correctPin) {
-        if (targetRole) completeAuth(targetRole, `${targetRole}@asksite.com`);
-      } else {
-        setErrorMessage('Çift PIN kodu hatalı. Varsayılan PIN: 1234');
-      }
-    }
-  };
-
-  const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-
-    if (targetRole === 'guest') {
-      setErrorMessage('Ziyaretçi girişi sadece 4 haneli Ziyaretçi PIN kodu ile yapılabilir.');
       return;
     }
 
-    const trimmed = userEmail.trim().toLowerCase();
-    const targetEmail = targetRole === 'partner1' ? partner1Email : partner2Email;
-    const targetName = targetRole === 'partner1' ? partner1Name : partner2Name;
+    // 2. Firebase Auth Observer if device not recognized
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userEmail = (firebaseUser.email || '').toLowerCase();
+        const p1Email = (couple.allowed_users?.partner1_email || '').toLowerCase();
+        const p2Email = (couple.allowed_users?.partner2_email || '').toLowerCase();
+        const isCoOwner = (couple.co_owners || []).includes(firebaseUser.uid);
 
-    if (trimmed === targetEmail) {
-      if (targetRole) completeAuth(targetRole, trimmed);
+        let role: 'partner1' | 'partner2' | null = null;
+        let pName = firebaseUser.displayName || partner1Name;
+
+        if (userEmail && userEmail === p1Email) {
+          role = 'partner1';
+          pName = partner1Name;
+        } else if (userEmail && userEmail === p2Email) {
+          role = 'partner2';
+          pName = partner2Name;
+        } else if (isCoOwner) {
+          role = 'partner2';
+          pName = partner2Name;
+        }
+
+        if (role) {
+          // Register device automatically upon valid login
+          await registerDeviceToken(slug, pName, userEmail, firebaseUser.uid);
+          setAuthorizedPartner(pName);
+          setAuthRole(role);
+          setIsAccessDenied(false);
+          setIsOpen(false);
+          updatePartnerPresence(slug, role, true);
+        } else {
+          // Logged in user does not belong to this couple!
+          setIsAccessDenied(true);
+          setIsOpen(true);
+        }
+      } else {
+        setIsAccessDenied(false);
+        setIsOpen(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [slug, couple]);
+
+  // Google Sign In Handler
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      const userEmail = (user.email || '').toLowerCase();
+      const p1Email = (couple.allowed_users?.partner1_email || '').toLowerCase();
+      const p2Email = (couple.allowed_users?.partner2_email || '').toLowerCase();
+      const isCoOwner = (couple.co_owners || []).includes(user.uid);
+
+      let role: 'partner1' | 'partner2' | null = null;
+      let pName = user.displayName || partner1Name;
+
+      if (userEmail && userEmail === p1Email) {
+        role = 'partner1';
+        pName = partner1Name;
+      } else if (userEmail && userEmail === p2Email) {
+        role = 'partner2';
+        pName = partner2Name;
+      } else if (isCoOwner) {
+        role = 'partner2';
+        pName = partner2Name;
+      }
+
+      if (role) {
+        await registerDeviceToken(slug, pName, userEmail, user.uid);
+        setAuthorizedPartner(pName);
+        setAuthRole(role);
+        setIsAccessDenied(false);
+        setIsOpen(false);
+        updatePartnerPresence(slug, role, true);
+      } else {
+        setIsAccessDenied(true);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Google girişi sırasında bir hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Email/Password Sign In Handler
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const result = await signInWithEmailAndPassword(auth, emailInput, passwordInput);
+      const user = result.user;
+      const userEmail = (user.email || '').toLowerCase();
+      const p1Email = (couple.allowed_users?.partner1_email || '').toLowerCase();
+      const p2Email = (couple.allowed_users?.partner2_email || '').toLowerCase();
+      const isCoOwner = (couple.co_owners || []).includes(user.uid);
+
+      let role: 'partner1' | 'partner2' | null = null;
+      let pName = partner1Name;
+
+      if (userEmail && userEmail === p1Email) {
+        role = 'partner1';
+        pName = partner1Name;
+      } else if (userEmail && userEmail === p2Email) {
+        role = 'partner2';
+        pName = partner2Name;
+      } else if (isCoOwner) {
+        role = 'partner2';
+        pName = partner2Name;
+      }
+
+      if (role) {
+        await registerDeviceToken(slug, pName, userEmail, user.uid);
+        setAuthorizedPartner(pName);
+        setAuthRole(role);
+        setIsAccessDenied(false);
+        setIsOpen(false);
+        updatePartnerPresence(slug, role, true);
+      } else {
+        setIsAccessDenied(true);
+      }
+    } catch (err: any) {
+      setErrorMessage('E-posta adresi veya şifre hatalı.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // PIN Code Handler
+  const handlePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    const correctPin = couple.allowed_users?.access_pin || '1234';
+    if (pinInput.trim() === correctPin) {
+      const pName = partner1Name;
+      await registerDeviceToken(slug, pName, `${slug}@asksite.com`, 'pin-user');
+      setAuthorizedPartner(pName);
+      setAuthRole('partner1');
+      setIsAccessDenied(false);
+      setIsOpen(false);
+      updatePartnerPresence(slug, 'partner1', true);
     } else {
-      setErrorMessage(`Girdiğiniz e-posta (${trimmed}) ${targetName} profiline ait değil.`);
+      setErrorMessage('Çift PIN kodu hatalı! (Varsayılan: 1234)');
     }
   };
 
-  const completeAuth = (role: 'partner1' | 'partner2' | 'guest', email?: string) => {
-    setAuthRole(role);
-    setIsOpen(false);
-    localStorage.setItem(
-      `asksite_auth_${slug}`,
-      JSON.stringify({ role, email, timestamp: Date.now() })
-    );
-
-    if (role === 'partner1' || role === 'partner2') {
-      updatePartnerPresence(slug, role, true);
-    }
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {}
+    localStorage.removeItem('asksite_user');
+    setIsAccessDenied(false);
+    setAuthorizedPartner(null);
+    setIsOpen(true);
   };
 
-  if (!isOpen) {
+  if (!isOpen && authorizedPartner) {
     return (
-      <div className="fixed top-4 right-4 z-30 flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-md px-3.5 py-1.5 text-xs font-semibold shadow-md border border-white/80">
-        <UserCheck className="h-4 w-4 text-rose-500" />
-        <span className="text-gray-800 font-bold">
-          {authRole === 'partner1'
-            ? `💗 ${partner1Name}`
-            : authRole === 'partner2'
-            ? `💙 ${partner2Name}`
-            : '👥 Ziyaretçi'}
+      <div className="fixed top-4 right-4 z-30 flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-md px-4 py-2 text-xs font-semibold shadow-lg border border-rose-100 animate-in fade-in duration-200">
+        <UserCheck className="h-4 w-4 text-emerald-500" />
+        <span className="text-gray-900 font-extrabold">
+          {authRole === 'partner1' ? `💖 ${partner1Name}` : `💙 ${partner2Name}`} (Tanındı 🟢)
         </span>
-        <button
-          onClick={() => {
-            setStep('select_profile');
-            setIsOpen(true);
-          }}
-          className="ml-1 text-[11px] text-rose-500 font-extrabold hover:underline flex items-center gap-0.5"
-        >
-          Profil Değiştir 🔄
-        </button>
       </div>
     );
   }
 
-  const targetName =
-    targetRole === 'partner1'
-      ? partner1Name
-      : targetRole === 'partner2'
-      ? partner2Name
-      : 'Ziyaretçi';
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-gray-100 text-center">
-        {/* STEP 1: PROFİL SEÇİMİ */}
-        {step === 'select_profile' && (
-          <div className="animate-in fade-in zoom-in-95 duration-200">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 shadow-sm border border-rose-100">
-              <Heart className="h-7 w-7 fill-rose-500 text-rose-500 animate-pulse" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 backdrop-blur-xl p-4 animate-in fade-in duration-200 text-left">
+      <div className="relative w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-gray-100 text-center space-y-6">
+        {/* ACCESS DENIED STATE */}
+        {isAccessDenied ? (
+          <div className="space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 border border-rose-100 shadow-sm text-3xl">
+              🚫
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-gray-900">
+                Erişim Yetkiniz Bulunmamaktadır 🔒
+              </h3>
+              <p className="mt-2 text-xs text-gray-600 leading-relaxed">
+                Bu özel çift alanı yalnızca <span className="font-extrabold text-rose-600">{partner1Name} & {partner2Name}</span> çiftine aittir. Oturum açtığınız e-posta adresi bu çiftin yetkili partner bilgileriyle eşleşmemektedir.
+              </p>
             </div>
 
-            <h3 className="text-xl font-extrabold text-gray-900 mb-1">
-              Giriş Profilinizi Seçin 🔐
-            </h3>
-            <p className="text-xs text-gray-500 mb-6">
-              Bu özel alan <span className="font-bold text-rose-600">{partner1Name} & {partner2Name}</span> çiftine aittir. Devam etmek için şifreli profilinizi seçin.
-            </p>
-
-            {/* Profile Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-              {/* Partner 1 Card */}
+            <div className="pt-3 space-y-2">
               <button
-                onClick={() => handleSelectProfile('partner1')}
-                className="group flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-pink-50 to-rose-100/60 border-2 border-rose-200 hover:border-rose-500 hover:shadow-lg transition active:scale-95 text-center"
+                onClick={handleSignOut}
+                className="w-full rounded-2xl bg-rose-600 py-3 text-xs font-extrabold text-white shadow-lg hover:bg-rose-700 transition active:scale-98 flex items-center justify-center gap-2"
               >
-                <div className="h-12 w-12 rounded-full bg-rose-500 text-white flex items-center justify-center text-lg font-black shadow-md mb-2 group-hover:scale-110 transition">
-                  💗
-                </div>
-                <span className="text-base font-extrabold text-gray-900">{partner1Name}</span>
-                <span className="text-[11px] font-semibold text-rose-600 mt-0.5">Partner 1 Profili</span>
+                <LogOut className="h-4 w-4" /> Farklı Hesap İle Giriş Yap
               </button>
-
-              {/* Partner 2 Card */}
               <button
-                onClick={() => handleSelectProfile('partner2')}
-                className="group flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-100/60 border-2 border-indigo-200 hover:border-indigo-500 hover:shadow-lg transition active:scale-95 text-center"
+                onClick={() => router.push('/')}
+                className="w-full rounded-2xl border border-gray-200 py-3 text-xs font-bold text-gray-700 hover:bg-gray-100 transition"
               >
-                <div className="h-12 w-12 rounded-full bg-indigo-500 text-white flex items-center justify-center text-lg font-black shadow-md mb-2 group-hover:scale-110 transition">
-                  💙
-                </div>
-                <span className="text-base font-extrabold text-gray-900">{partner2Name}</span>
-                <span className="text-[11px] font-semibold text-indigo-600 mt-0.5">Partner 2 Profili</span>
+                Ana Sayfaya Dön ➔
               </button>
             </div>
-
-            {/* Visitor Card */}
-            <button
-              onClick={() => handleSelectProfile('guest')}
-              className="group w-full flex items-center justify-center gap-3 p-3.5 rounded-2xl bg-gray-50 border-2 border-gray-200 hover:border-gray-400 hover:bg-gray-100 transition active:scale-98 text-left"
-            >
-              <div className="h-9 w-9 rounded-full bg-gray-700 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-                👥
-              </div>
-              <div className="flex-1">
-                <span className="block text-sm font-bold text-gray-900">Ziyaretçi / Misafir Girişi</span>
-                <span className="block text-[11px] text-gray-500">Özel Ziyaretçi PIN Kodu ile İncele</span>
-              </div>
-            </button>
           </div>
-        )}
+        ) : (
+          /* MANDATORY AUTH GUARD STATE */
+          <div className="space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500 text-white shadow-xl text-3xl">
+              ❤️
+            </div>
 
-        {/* STEP 2: ŞİFRE / PIN DOĞRULAMA */}
-        {step === 'verify_pin' && targetRole && (
-          <div className="animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-4 border-b pb-3">
-              <button
-                onClick={() => setStep('select_profile')}
-                className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-rose-600 transition"
-              >
-                <ArrowLeft className="h-4 w-4" /> Profillere Dön
-              </button>
-              <span className="text-xs font-extrabold text-rose-500 uppercase tracking-wider">
-                Adım 2 / 2
+            <div>
+              <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-rose-500 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
+                <Sparkles className="h-3.5 w-3.5" /> Özel Çift Alanı Koruması
               </span>
+              <h2 className="text-2xl font-black text-gray-900 mt-2">
+                {partner1Name} & {partner2Name}
+              </h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Devam etmek için cihazınızı yetkilendirin veya oturum açın.
+              </p>
             </div>
-
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 font-extrabold text-xl shadow-xs">
-              {targetRole === 'partner1' ? '💗' : targetRole === 'partner2' ? '💙' : '👥'}
-            </div>
-
-            <h3 className="text-lg font-extrabold text-gray-900 mb-1">
-              {targetName} Giriş Şifresi 🔑
-            </h3>
-            <p className="text-xs text-gray-500 mb-4">
-              {targetRole === 'guest'
-                ? 'Çift tarafından verilen 4 haneli Ziyaretçi PIN kodunu giriniz.'
-                : `Lütfen ${targetName} için 4 haneli Çift PIN kodunuzu giriniz.`}
-            </p>
-
-            {/* Method Selector Tab for Partners only */}
-            {targetRole !== 'guest' && (
-              <div className="flex rounded-xl bg-gray-100 p-1 mb-4">
-                <button
-                  onClick={() => setVerificationMethod('pin')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
-                    verificationMethod === 'pin' ? 'bg-white text-rose-600 shadow-xs' : 'text-gray-500'
-                  }`}
-                >
-                  🔑 4 Haneli PIN
-                </button>
-                <button
-                  onClick={() => setVerificationMethod('email')}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition ${
-                    verificationMethod === 'email' ? 'bg-white text-rose-600 shadow-xs' : 'text-gray-500'
-                  }`}
-                >
-                  📧 E-Posta İle
-                </button>
-              </div>
-            )}
 
             {errorMessage && (
-              <div className="mb-3 rounded-xl bg-red-50 p-2.5 text-xs text-red-600 font-semibold border border-red-100">
+              <div className="rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-600 border border-rose-100 text-center">
                 {errorMessage}
               </div>
             )}
 
-            {/* PIN Input Form */}
-            {verificationMethod === 'pin' && (
-              <form onSubmit={handlePinSubmit} className="space-y-3">
-                <div>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    autoFocus
-                    placeholder={targetRole === 'guest' ? 'Örn: 1111' : 'Örn: 1234'}
-                    value={pinInput}
-                    onChange={(e) => setPinInput(e.target.value)}
-                    className="w-full text-center tracking-widest text-xl font-bold rounded-xl border border-gray-200 py-3 outline-none focus:border-rose-500"
-                  />
-                </div>
+            {/* Auth Method Selector */}
+            <div className="flex rounded-xl bg-gray-100 p-1 text-xs font-bold">
+              <button
+                onClick={() => setAuthMethod('google')}
+                className={`flex-1 py-2 rounded-lg transition ${
+                  authMethod === 'google' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                🌐 Google
+              </button>
+              <button
+                onClick={() => setAuthMethod('email')}
+                className={`flex-1 py-2 rounded-lg transition ${
+                  authMethod === 'email' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                📧 E-Posta
+              </button>
+              <button
+                onClick={() => setAuthMethod('pin')}
+                className={`flex-1 py-2 rounded-lg transition ${
+                  authMethod === 'pin' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                🔑 PIN Kodu
+              </button>
+            </div>
+
+            {/* Method 1: Google Sign In */}
+            {authMethod === 'google' && (
+              <div className="space-y-3 pt-1">
+                <button
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-3 rounded-2xl bg-white border border-gray-200 py-3.5 text-xs font-extrabold text-gray-800 shadow-md hover:bg-gray-50 transition active:scale-98 disabled:opacity-50"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  Google ile Giriş Yap & Cihazı Tanıt
+                </button>
+              </div>
+            )}
+
+            {/* Method 2: Email Sign In */}
+            {authMethod === 'email' && (
+              <form onSubmit={handleEmailSignIn} className="space-y-3 pt-1">
+                <input
+                  type="email"
+                  required
+                  placeholder="E-Posta Adresiniz"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-xs outline-none focus:border-rose-500"
+                />
+                <input
+                  type="password"
+                  required
+                  placeholder="Şifreniz"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-xs outline-none focus:border-rose-500"
+                />
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 py-3 text-xs font-bold text-white shadow-md hover:scale-102 active:scale-95 transition"
+                  disabled={loading}
+                  className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 py-3.5 text-xs font-extrabold text-white shadow-xl hover:opacity-95 transition active:scale-98 disabled:opacity-50"
                 >
-                  {targetName} Olarak Giriş Yap ✨
+                  {loading ? 'Doğrulanıyor...' : 'E-Posta İle Giriş Yap 🚀'}
                 </button>
               </form>
             )}
 
-            {/* Email Input Form */}
-            {verificationMethod === 'email' && targetRole !== 'guest' && (
-              <form onSubmit={handleEmailSubmit} className="space-y-3">
-                <div>
-                  <input
-                    type="email"
-                    placeholder={`${targetName.toLowerCase()}@asksite.com`}
-                    value={userEmail}
-                    onChange={(e) => setUserEmail(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-rose-500"
-                  />
-                </div>
+            {/* Method 3: PIN Code */}
+            {authMethod === 'pin' && (
+              <form onSubmit={handlePinSubmit} className="space-y-3 pt-1">
+                <input
+                  type="password"
+                  maxLength={4}
+                  required
+                  placeholder="Örn: 1234"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  className="w-full text-center text-2xl font-mono tracking-widest font-black rounded-2xl border border-gray-200 py-3 outline-none focus:border-rose-500"
+                />
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 py-3 text-xs font-bold text-white shadow-md hover:scale-102 active:scale-95 transition"
+                  className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 py-3.5 text-xs font-extrabold text-white shadow-xl hover:opacity-95 transition active:scale-98"
                 >
-                  E-Posta Doğrula 🚀
+                  4 Haneli PIN İle Giriş Yap 🗝️
                 </button>
               </form>
             )}

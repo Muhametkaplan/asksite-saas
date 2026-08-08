@@ -111,7 +111,7 @@ export default async function CouplePage({ params }: PageProps) {
         slug={couple.slug}
         partner1Name={couple.partner1_name}
         partner2Name={couple.partner2_name}
-        allowedUsers={couple.allowed_users}
+        couple={couple}
       />
 
       <div className="container relative z-10 mx-auto max-w-lg px-5 text-center">

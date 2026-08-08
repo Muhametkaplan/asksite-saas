@@ -276,7 +276,6 @@ export const DEMO_COUPLE: CoupleConfig = {
     partner1_email: 'irem@asksite.com',
     partner2_email: 'muhammet@asksite.com',
     access_pin: '1234',
-    visitor_pin: '1111',
   },
   feature_toggles: {
     spotify: true,
@@ -431,7 +430,6 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
           partner1_email: 'irem@asksite.com',
           partner2_email: 'muhammet@asksite.com',
           access_pin: '1234',
-          visitor_pin: '1111',
         },
         feature_toggles: config.feature_toggles || {},
         packageType: 'digital',

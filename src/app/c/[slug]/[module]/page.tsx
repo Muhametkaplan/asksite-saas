@@ -4,6 +4,8 @@ import { ArrowLeft, Sparkles, Heart, Gamepad2, Ticket, Palette, BookOpen, Hourgl
 import { getCoupleBySlug } from '@/lib/couples';
 import SubmoduleInteractiveClient from './SubmoduleInteractiveClient';
 
+import PartnerAuthModal from '@/components/PartnerAuthModal';
+
 interface ModulePageProps {
   params: Promise<{ slug: string; module: string }>;
 }
@@ -62,6 +64,14 @@ export default async function SubmodulePage({ params }: ModulePageProps) {
 
   return (
     <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-20 pt-6 px-4">
+      {/* Device Session Guard & Auth Modal */}
+      <PartnerAuthModal
+        slug={couple.slug}
+        partner1Name={couple.partner1_name}
+        partner2Name={couple.partner2_name}
+        couple={couple}
+      />
+
       {/* Top Header with Back Button */}
       <div className="mx-auto max-w-lg flex items-center justify-between mb-6">
         <Link

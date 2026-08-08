@@ -23,7 +23,14 @@ export interface AllowedUsers {
   partner1_email?: string;
   partner2_email?: string;
   access_pin?: string;
-  visitor_pin?: string;
+}
+
+export interface AuthenticatedDevice {
+  device_token: string;
+  partner_name: string;
+  email?: string;
+  uid?: string;
+  added_at?: string;
 }
 
 export interface CouponItem {
@@ -135,6 +142,7 @@ export interface CoupleConfig {
   is_active?: boolean;
   pair_code?: string;
   co_owners?: string[];
+  authenticated_devices?: AuthenticatedDevice[];
   created_at?: string;
 }
 

@@ -946,31 +946,12 @@ function DashboardContent() {
                 setConfig((prev) => ({
                   ...prev,
                   allowed_users: {
-                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234', visitor_pin: '1111' }),
+                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
                     access_pin: e.target.value,
                   },
                 }))
               }
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-rose-600 outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Ziyaretçi PIN (4 Haneli)</label>
-            <input
-              type="text"
-              maxLength={4}
-              value={config.allowed_users?.visitor_pin || '1111'}
-              onChange={(e) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  allowed_users: {
-                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234', visitor_pin: '1111' }),
-                    visitor_pin: e.target.value,
-                  },
-                }))
-              }
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-purple-600 outline-none focus:border-purple-500"
             />
           </div>
         </div>
@@ -1409,15 +1390,15 @@ function DashboardContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Ziyaretçi PIN Kodu</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Çift PIN Kodu</label>
                     <input
                       type="text"
                       maxLength={4}
-                      value={config.allowed_users?.visitor_pin || '1111'}
+                      value={config.allowed_users?.access_pin || '1234'}
                       onChange={(e) =>
                         setConfig({
                           ...config,
-                          allowed_users: { ...config.allowed_users, visitor_pin: e.target.value },
+                          allowed_users: { ...config.allowed_users, access_pin: e.target.value },
                         })
                       }
                       className="w-full text-center font-bold tracking-widest rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
