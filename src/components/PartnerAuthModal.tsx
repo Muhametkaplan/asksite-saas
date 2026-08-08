@@ -6,7 +6,7 @@ import { Heart, ShieldAlert, LogOut, ArrowRight, UserCheck, Sparkles } from 'luc
 import { onAuthStateChanged, signInWithPopup, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { CoupleConfig } from '@/types/couple';
-import { getOrCreateDeviceToken, isDeviceAuthorized, registerDeviceToken } from '@/lib/deviceSession';
+import { isDeviceAuthorized, registerDeviceToken } from '@/lib/deviceSession';
 import { updatePartnerPresence } from '@/lib/couples';
 
 interface PartnerAuthModalProps {
@@ -28,7 +28,7 @@ export default function PartnerAuthModal({
   const [authRole, setAuthRole] = useState<'partner1' | 'partner2' | null>(null);
   const [isAccessDenied, setIsAccessDenied] = useState(false);
 
-  // Email / Password Form State
+  // Email / Password / PIN Form State
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [pinInput, setPinInput] = useState('');
@@ -36,20 +36,56 @@ export default function PartnerAuthModal({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const saveSession = (role: 'partner1' | 'partner2', pName: string) => {
+    if (typeof window !== 'undefined') {
+      const authData = JSON.stringify({
+        isAuthenticated: true,
+        role,
+        partnerName: pName,
+        authenticatedAt: Date.now(),
+      });
+      sessionStorage.setItem(`asksite_auth_${slug}`, authData);
+      localStorage.setItem(`asksite_auth_${slug}`, authData);
+    }
+  };
+
   useEffect(() => {
+    // 0. Check Session Storage / Local Storage first for single-PIN verification
+    const storedAuth = typeof window !== 'undefined'
+      ? sessionStorage.getItem(`asksite_auth_${slug}`) || localStorage.getItem(`asksite_auth_${slug}`)
+      : null;
+
+    if (storedAuth) {
+      try {
+        const parsed = JSON.parse(storedAuth);
+        if (parsed.isAuthenticated && parsed.role) {
+          const pName = parsed.partnerName || (parsed.role === 'partner1' ? partner1Name : partner2Name);
+          setAuthorizedPartner(pName);
+          setAuthRole(parsed.role);
+          setIsOpen(false);
+          if (parsed.role) {
+            updatePartnerPresence(slug, parsed.role, true);
+          }
+          return;
+        }
+      } catch (e) {}
+    }
+
     // 1. Device Token Auto-Recognition
     const deviceCheck = isDeviceAuthorized(couple);
     if (deviceCheck.isAuthorized && deviceCheck.partnerName) {
+      const role = deviceCheck.role || 'partner1';
       setAuthorizedPartner(deviceCheck.partnerName);
-      setAuthRole(deviceCheck.role || 'partner1');
+      setAuthRole(role);
       setIsOpen(false);
+      saveSession(role, deviceCheck.partnerName);
       if (deviceCheck.role) {
         updatePartnerPresence(slug, deviceCheck.role, true);
       }
       return;
     }
 
-    // 2. Firebase Auth Observer if device not recognized
+    // 2. Firebase Auth Observer if device/session not recognized
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userEmail = (firebaseUser.email || '').toLowerCase().trim();
@@ -74,15 +110,14 @@ export default function PartnerAuthModal({
         }
 
         if (role) {
-          // Register device automatically upon valid login
           await registerDeviceToken(slug, pName, userEmail, firebaseUser.uid);
           setAuthorizedPartner(pName);
           setAuthRole(role);
           setIsAccessDenied(false);
           setIsOpen(false);
+          saveSession(role, pName);
           updatePartnerPresence(slug, role, true);
         } else {
-          // Logged in user does not belong to this couple!
           setIsAccessDenied(true);
           setIsOpen(true);
         }
@@ -93,7 +128,7 @@ export default function PartnerAuthModal({
     });
 
     return () => unsubscribe();
-  }, [slug, couple]);
+  }, [slug, couple, partner1Name, partner2Name]);
 
   // Google Sign In Handler
   const handleGoogleSignIn = async () => {
@@ -129,6 +164,7 @@ export default function PartnerAuthModal({
         setAuthRole(role);
         setIsAccessDenied(false);
         setIsOpen(false);
+        saveSession(role, pName);
         updatePartnerPresence(slug, role, true);
       } else {
         setIsAccessDenied(true);
@@ -175,6 +211,7 @@ export default function PartnerAuthModal({
         setAuthRole(role);
         setIsAccessDenied(false);
         setIsOpen(false);
+        saveSession(role, pName);
         updatePartnerPresence(slug, role, true);
       } else {
         setIsAccessDenied(true);
@@ -186,7 +223,7 @@ export default function PartnerAuthModal({
     }
   };
 
-  // PIN Code Handler
+  // Single-PIN Verification Handler
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -201,6 +238,7 @@ export default function PartnerAuthModal({
       setAuthRole('partner1');
       setIsAccessDenied(false);
       setIsOpen(false);
+      saveSession('partner1', pName);
       updatePartnerPresence(slug, 'partner1', true);
     } else if (enteredPin === p2Pin) {
       const pName = partner2Name;
@@ -209,6 +247,7 @@ export default function PartnerAuthModal({
       setAuthRole('partner2');
       setIsAccessDenied(false);
       setIsOpen(false);
+      saveSession('partner2', pName);
       updatePartnerPresence(slug, 'partner2', true);
     } else {
       setErrorMessage('Hatalı Çift Şifresi. Lütfen sevgilinizin belirlediği şifreyi girin.');
@@ -219,7 +258,11 @@ export default function PartnerAuthModal({
     try {
       await signOut(auth);
     } catch (e) {}
-    localStorage.removeItem('asksite_user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('asksite_user');
+      sessionStorage.removeItem(`asksite_auth_${slug}`);
+      localStorage.removeItem(`asksite_auth_${slug}`);
+    }
     setIsAccessDenied(false);
     setAuthorizedPartner(null);
     setIsOpen(true);
@@ -284,7 +327,7 @@ export default function PartnerAuthModal({
                 {partner1Name} & {partner2Name}
               </h2>
               <p className="text-xs text-gray-500 mt-1">
-                Devam etmek için cihazınızı yetkilendirin veya oturum açın.
+                Devam etmek için 4 haneli PIN şifrenizi girin veya oturum açın.
               </p>
             </div>
 

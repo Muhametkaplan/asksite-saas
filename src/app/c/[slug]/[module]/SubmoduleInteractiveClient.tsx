@@ -936,7 +936,7 @@ function DiaryWidget({ couple }: { couple: CoupleConfig }) {
   // Authenticated Role Check
   const authState = React.useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('asksite_auth_' + couple.slug);
+      const stored = sessionStorage.getItem('asksite_auth_' + couple.slug) || localStorage.getItem('asksite_auth_' + couple.slug);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -1139,7 +1139,7 @@ function CapsuleWidget({ couple }: { couple: CoupleConfig }) {
 
   const authState = React.useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('asksite_auth_' + couple.slug);
+      const stored = sessionStorage.getItem('asksite_auth_' + couple.slug) || localStorage.getItem('asksite_auth_' + couple.slug);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -1351,7 +1351,7 @@ function CinemaWidget({ couple }: { couple: CoupleConfig }) {
 
   const authState = React.useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('asksite_auth_' + couple.slug);
+      const stored = sessionStorage.getItem('asksite_auth_' + couple.slug) || localStorage.getItem('asksite_auth_' + couple.slug);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -1730,7 +1730,7 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
 
   const userRole: 'partner1' | 'partner2' | 'guest' = React.useMemo(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('asksite_auth_' + couple.slug);
+      const stored = sessionStorage.getItem('asksite_auth_' + couple.slug) || localStorage.getItem('asksite_auth_' + couple.slug);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
