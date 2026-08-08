@@ -1162,9 +1162,20 @@ export async function saveXoxScore(slug: string, p1Wins: number, p2Wins: number)
 }
 
 export async function getDinoHighScores(slug: string): Promise<{ p1Score: number; p2Score: number }> {
+  return getArcadeHighScores(slug, 'dino_runner');
+}
+
+export async function saveDinoHighScore(slug: string, p1Score: number, p2Score: number): Promise<boolean> {
+  return saveArcadeHighScore(slug, 'dino_runner', p1Score, p2Score);
+}
+
+export async function getArcadeHighScores(
+  slug: string,
+  gameKey: 'flappy' | '2048' | 'tower' | 'dino_runner'
+): Promise<{ p1Score: number; p2Score: number }> {
   if (isFirebaseConfigured && db) {
     try {
-      const docRef = doc(db, `couples/${slug}/games_data`, 'dino_runner');
+      const docRef = doc(db, `couples/${slug}/games_data`, gameKey);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data();
@@ -1174,16 +1185,21 @@ export async function getDinoHighScores(slug: string): Promise<{ p1Score: number
         };
       }
     } catch (e) {
-      console.error('Error fetching Dino Runner scores:', e);
+      console.error(`Error fetching ${gameKey} scores:`, e);
     }
   }
   return { p1Score: 0, p2Score: 0 };
 }
 
-export async function saveDinoHighScore(slug: string, p1Score: number, p2Score: number): Promise<boolean> {
+export async function saveArcadeHighScore(
+  slug: string,
+  gameKey: 'flappy' | '2048' | 'tower' | 'dino_runner',
+  p1Score: number,
+  p2Score: number
+): Promise<boolean> {
   if (isFirebaseConfigured && db) {
     try {
-      const docRef = doc(db, `couples/${slug}/games_data`, 'dino_runner');
+      const docRef = doc(db, `couples/${slug}/games_data`, gameKey);
       await setDoc(
         docRef,
         {
@@ -1195,7 +1211,7 @@ export async function saveDinoHighScore(slug: string, p1Score: number, p2Score: 
       );
       return true;
     } catch (e) {
-      console.error('Error saving Dino Runner score:', e);
+      console.error(`Error saving ${gameKey} score:`, e);
     }
   }
   return false;

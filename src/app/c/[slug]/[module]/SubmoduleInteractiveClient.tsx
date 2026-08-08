@@ -43,6 +43,8 @@ import {
   saveXoxScore,
   getDinoHighScores,
   saveDinoHighScore,
+  getArcadeHighScores,
+  saveArcadeHighScore,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -177,7 +179,7 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
   const partner2 = couple?.partner2_name || 'Partner 2';
   const slug = couple?.slug || 'demo';
 
-  const [activeTab, setActiveTab] = useState<'menu' | 'dino' | 'duel' | 'memory' | 'tod' | 'xox' | 'tkm'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'dino' | 'flappy' | '2048' | 'tower' | 'duel' | 'memory' | 'tod' | 'xox' | 'tkm'>('menu');
 
   // Read Session Auth for seamless uninterrupted play
   const authState = useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
@@ -224,14 +226,44 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3.5">
-            {/* Dino Runner (Sonsuz Aşk Koşusu) */}
+            {/* Dino Runner */}
             <button
               onClick={() => setActiveTab('dino')}
               className="col-span-2 flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition text-center group active:scale-98"
             >
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🦖🏃‍♂️</div>
               <h4 className="text-sm font-black text-white">Sonsuz Aşk Koşusu (Dino Runner)</h4>
-              <p className="text-xs text-white/90 font-bold mt-0.5">Asenkron Partner Rekor Yarışı 🏆</p>
+              <p className="text-xs text-white/90 font-bold mt-0.5">Chrome Dino Orijinal Motoru 🏆</p>
+            </button>
+
+            {/* Flappy Bird */}
+            <button
+              onClick={() => setActiveTab('flappy')}
+              className="flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md hover:shadow-xl transition text-center group active:scale-95"
+            >
+              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🐤</div>
+              <h4 className="text-xs font-black text-white">Flappy Bird</h4>
+              <p className="text-[10px] text-sky-100 font-bold mt-0.5">Orijinal Fizik & Borular</p>
+            </button>
+
+            {/* 2048 */}
+            <button
+              onClick={() => setActiveTab('2048')}
+              className="flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md hover:shadow-xl transition text-center group active:scale-95"
+            >
+              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🧩</div>
+              <h4 className="text-xs font-black text-white">2048 Klasik</h4>
+              <p className="text-[10px] text-amber-100 font-bold mt-0.5">Stratejik Matris</p>
+            </button>
+
+            {/* Tower Stacker */}
+            <button
+              onClick={() => setActiveTab('tower')}
+              className="col-span-2 flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition text-center group active:scale-98"
+            >
+              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🏰</div>
+              <h4 className="text-sm font-black text-white">Tower Stacker (Kule Denge)</h4>
+              <p className="text-xs text-white/90 font-bold mt-0.5">Sonsuz Kule İnşası 🧱</p>
             </button>
 
             {/* Click Duel (Halat Çekme) */}
@@ -290,6 +322,39 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
       {/* 2. DINO RUNNER */}
       {activeTab === 'dino' && (
         <DinoRunnerGame
+          partner1={partner1}
+          partner2={partner2}
+          slug={slug}
+          playerName={authState.author}
+          role={authState.role}
+        />
+      )}
+
+      {/* FLAPPY BIRD */}
+      {activeTab === 'flappy' && (
+        <FlappyBirdGame
+          partner1={partner1}
+          partner2={partner2}
+          slug={slug}
+          playerName={authState.author}
+          role={authState.role}
+        />
+      )}
+
+      {/* 2048 */}
+      {activeTab === '2048' && (
+        <Game2048
+          partner1={partner1}
+          partner2={partner2}
+          slug={slug}
+          playerName={authState.author}
+          role={authState.role}
+        />
+      )}
+
+      {/* TOWER STACKER */}
+      {activeTab === 'tower' && (
+        <TowerStackerGame
           partner1={partner1}
           partner2={partner2}
           slug={slug}
@@ -1418,6 +1483,909 @@ function RockPaperScissorsGame({ slug, playerName }: { slug: string; playerName:
           <div className="text-sm font-black text-rose-600 mt-1">{result}</div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* --- SUB-GAME 6: FLAPPY BIRD (ORIGINAL PHYSICS) --- */
+function FlappyBirdGame({
+  partner1,
+  partner2,
+  slug,
+  playerName,
+  role,
+}: {
+  partner1: string;
+  partner2: string;
+  slug: string;
+  playerName: string;
+  role: 'partner1' | 'partner2' | 'guest';
+}) {
+  const [highScores, setHighScores] = useState<{ p1Score: number; p2Score: number }>({ p1Score: 0, p2Score: 0 });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [currentScore, setCurrentScore] = useState(0);
+  const [isNewRecord, setIsNewRecord] = useState(false);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animationFrameId = useRef<number | null>(null);
+
+  useEffect(() => {
+    async function loadScores() {
+      if (slug) {
+        const fetched = await getArcadeHighScores(slug, 'flappy');
+        setHighScores(fetched);
+      }
+    }
+    loadScores();
+  }, [slug]);
+
+  const championName = useMemo(() => {
+    if (highScores.p1Score === 0 && highScores.p2Score === 0) return 'Henüz Rekor Yok 🎯';
+    if (highScores.p1Score > highScores.p2Score) return `🌸 Kız Partner (${partner1})`;
+    if (highScores.p2Score > highScores.p1Score) return `🔵 Erkek Partner (${partner2})`;
+    return 'Berabere 🤝';
+  }, [highScores, partner1, partner2]);
+
+  const startGame = () => {
+    setIsPlaying(true);
+    setGameOver(false);
+    setIsNewRecord(false);
+    setCurrentScore(0);
+  };
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let frameCount = 0;
+    let score = 0;
+    const previousRecord = role === 'partner1' ? highScores.p1Score : highScores.p2Score;
+
+    const bird = {
+      x: 100,
+      y: 200,
+      radius: 16,
+      vy: 0,
+      gravity: 0.45,
+      jump: -7.5,
+    };
+
+    let pipes: Array<{ x: number; topHeight: number; bottomY: number; passed: boolean }> = [];
+    const pipeGap = 135;
+    const pipeWidth = 52;
+    const pipeSpeed = 3.0;
+
+    const flap = () => {
+      bird.vy = bird.jump;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        flap();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    let isRunning = true;
+
+    const loop = () => {
+      frameCount++;
+      bird.vy += bird.gravity;
+      bird.y += bird.vy;
+
+      // Ground / Ceiling collision
+      if (bird.y - bird.radius <= 0 || bird.y + bird.radius >= canvas.height - 30) {
+        isRunning = false;
+      }
+
+      // Spawn pipes
+      if (frameCount % 90 === 0) {
+        const topHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 120)) + 40;
+        pipes.push({
+          x: canvas.width,
+          topHeight,
+          bottomY: topHeight + pipeGap,
+          passed: false,
+        });
+      }
+
+      // Move & filter pipes
+      pipes = pipes.map((p) => {
+        const nextX = p.x - pipeSpeed;
+        if (!p.passed && nextX + pipeWidth < bird.x) {
+          score += 1;
+          setCurrentScore(score);
+          return { ...p, x: nextX, passed: true };
+        }
+        return { ...p, x: nextX };
+      }).filter((p) => p.x + pipeWidth > 0);
+
+      // Check pipe collisions
+      for (const p of pipes) {
+        if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + pipeWidth) {
+          if (bird.y - bird.radius < p.topHeight || bird.y + bird.radius > p.bottomY) {
+            isRunning = false;
+            break;
+          }
+        }
+      }
+
+      // --- CANVAS DRAWING ---
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Background Sky Gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      skyGrad.addColorStop(0, '#38bdf8');
+      skyGrad.addColorStop(0.7, '#bae6fd');
+      skyGrad.addColorStop(1, '#fef08a');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Ground Track
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(0, canvas.height - 30, canvas.width, 4);
+
+      // Draw Pipes
+      pipes.forEach((p) => {
+        // Top Pipe
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(p.x, 0, pipeWidth, p.topHeight);
+        ctx.fillStyle = '#15803d';
+        ctx.fillRect(p.x - 2, p.topHeight - 16, pipeWidth + 4, 16);
+
+        // Bottom Pipe
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(p.x, p.bottomY, pipeWidth, canvas.height - p.bottomY - 30);
+        ctx.fillStyle = '#15803d';
+        ctx.fillRect(p.x - 2, p.bottomY, pipeWidth + 4, 16);
+      });
+
+      // Draw Flappy Bird
+      ctx.save();
+      ctx.translate(bird.x, bird.y);
+      const angle = Math.min(Math.PI / 4, Math.max(-Math.PI / 4, bird.vy * 0.08));
+      ctx.rotate(angle);
+
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.arc(0, 0, bird.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eye & Beak
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(6, -5, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(8, -5, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(22, 4);
+      ctx.lineTo(12, 8);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+
+      // HUD Score
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 24px sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(`🏆 Skor: ${score}`, canvas.width - 150, 40);
+
+      if (isRunning) {
+        animationFrameId.current = requestAnimationFrame(loop);
+      } else {
+        setIsPlaying(false);
+        setGameOver(true);
+        playDinoSFX('gameover', false);
+
+        if (score > previousRecord) {
+          setIsNewRecord(true);
+          triggerConfetti({ particleCount: 80, spread: 90 });
+          const isP1 = role === 'partner1';
+          const updatedScores = {
+            p1Score: isP1 ? score : highScores.p1Score,
+            p2Score: !isP1 ? score : highScores.p2Score,
+          };
+          setHighScores(updatedScores);
+          saveArcadeHighScore(slug, 'flappy', updatedScores.p1Score, updatedScores.p2Score);
+          saveGameScore(slug, 'Flappy Bird', score, playerName);
+        }
+      }
+    };
+
+    animationFrameId.current = requestAnimationFrame(loop);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+    };
+  }, [isPlaying, role, slug, playerName, highScores]);
+
+  return (
+    <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200 max-w-4xl mx-auto w-full">
+      <div className="flex items-center gap-2">
+        <span className="text-2xl">🐤</span>
+        <h3 className="text-xl font-black text-gray-900">Flappy Bird (Orijinal Fizik)</h3>
+      </div>
+
+      {/* Leaderboard Panel */}
+      <div className="rounded-2xl bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 border border-sky-200 p-4 shadow-sm space-y-2">
+        <div className="flex items-center justify-between text-xs font-black">
+          <div className="flex items-center gap-2 text-pink-600">
+            <span>🌸 Kız Partner ({partner1})</span>
+            <span className="rounded-xl bg-pink-100 px-3 py-1 text-xs font-black text-pink-700">
+              {highScores.p1Score} Puan
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-blue-600">
+            <span className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-black text-blue-700">
+              {highScores.p2Score} Puan
+            </span>
+            <span>🔵 Erkek Partner ({partner2})</span>
+          </div>
+        </div>
+
+        <div className="border-t border-sky-200 pt-2 text-xs font-extrabold text-gray-800 flex items-center justify-center gap-1">
+          <span>🏆 Şampiyon:</span> <span className="text-sky-800 font-black text-sm">{championName}</span>
+        </div>
+      </div>
+
+      <div
+        className="relative mx-auto w-full max-w-4xl bg-sky-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-sky-300 cursor-pointer touch-none select-none"
+        onClick={() => {
+          if (isPlaying) {
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+          }
+        }}
+      >
+        <canvas ref={canvasRef} width={800} height={420} className="w-full h-auto block" />
+
+        {!isPlaying && (
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-4 z-30 animate-in fade-in duration-200">
+            {gameOver ? (
+              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-6 text-center shadow-2xl space-y-4 border border-sky-200 animate-in zoom-in-95">
+                {isNewRecord ? (
+                  <div className="space-y-1.5">
+                    <div className="text-5xl animate-bounce">🎉</div>
+                    <h4 className="text-lg font-black text-sky-600">TEBRİKLER! YENİ REKOR!</h4>
+                    <p className="text-xs text-gray-600 font-bold">Harika bir Flappy rekoru kırıldı!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="text-4xl">💥</div>
+                    <h4 className="text-lg font-black text-gray-900">Oyun Bitti!</h4>
+                  </div>
+                )}
+
+                <div className="py-3 px-4 bg-sky-50 rounded-2xl border border-sky-100 text-xs font-black text-sky-700 flex items-center justify-center font-mono">
+                  SKOR: <strong className="text-base text-gray-900 ml-2">{currentScore} Pass</strong>
+                </div>
+
+                <button
+                  onClick={startGame}
+                  className="w-full rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
+                >
+                  Yeniden Uç 🐤
+                </button>
+              </div>
+            ) : (
+              <div className="text-center space-y-4 max-w-md">
+                <div className="text-5xl animate-bounce">🐤</div>
+                <h4 className="text-2xl font-black text-white drop-shadow-md">FLAPPY BIRD</h4>
+                <p className="text-xs text-sky-200 leading-relaxed font-mono">
+                  Uçmak için <span className="font-bold text-sky-300">Space / Tık / Dokun</span> tuşuna basın!
+                </p>
+                <button
+                  onClick={startGame}
+                  className="rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 px-10 py-3.5 text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
+                >
+                  BAŞLAT 🚀
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* --- SUB-GAME 7: 2048 (KLASİK STRATEJİ) --- */
+function Game2048({
+  partner1,
+  partner2,
+  slug,
+  playerName,
+  role,
+}: {
+  partner1: string;
+  partner2: string;
+  slug: string;
+  playerName: string;
+  role: 'partner1' | 'partner2' | 'guest';
+}) {
+  const [highScores, setHighScores] = useState<{ p1Score: number; p2Score: number }>({ p1Score: 0, p2Score: 0 });
+  const [grid, setGrid] = useState<number[][]>(() => createEmptyGrid());
+  const [score, setScore] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    async function loadScores() {
+      if (slug) {
+        const fetched = await getArcadeHighScores(slug, '2048');
+        setHighScores(fetched);
+      }
+    }
+    loadScores();
+  }, [slug]);
+
+  const championName = useMemo(() => {
+    if (highScores.p1Score === 0 && highScores.p2Score === 0) return 'Henüz Rekor Yok 🎯';
+    if (highScores.p1Score > highScores.p2Score) return `🌸 Kız Partner (${partner1})`;
+    if (highScores.p2Score > highScores.p1Score) return `🔵 Erkek Partner (${partner2})`;
+    return 'Berabere 🤝';
+  }, [highScores, partner1, partner2]);
+
+  function createEmptyGrid() {
+    return Array.from({ length: 4 }, () => Array(4).fill(0));
+  }
+
+  function addRandomTile(g: number[][]) {
+    const emptyCells: { r: number; c: number }[] = [];
+    g.forEach((row, r) => {
+      row.forEach((val, c) => {
+        if (val === 0) emptyCells.push({ r, c });
+      });
+    });
+    if (emptyCells.length === 0) return g;
+    const randCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+    const newG = g.map((row) => [...row]);
+    newG[randCell.r][randCell.c] = Math.random() < 0.9 ? 2 : 4;
+    return newG;
+  }
+
+  const restartGame = () => {
+    let newGrid = createEmptyGrid();
+    newGrid = addRandomTile(newGrid);
+    newGrid = addRandomTile(newGrid);
+    setGrid(newGrid);
+    setScore(0);
+    setGameOver(false);
+  };
+
+  useEffect(() => {
+    restartGame();
+  }, []);
+
+  const slideRow = (row: number[]): { newRow: number[]; addedScore: number } => {
+    let filtered = row.filter((v) => v !== 0);
+    let addedScore = 0;
+    for (let i = 0; i < filtered.length - 1; i++) {
+      if (filtered[i] === filtered[i + 1]) {
+        filtered[i] *= 2;
+        addedScore += filtered[i];
+        filtered[i + 1] = 0;
+        i++;
+      }
+    }
+    filtered = filtered.filter((v) => v !== 0);
+    while (filtered.length < 4) {
+      filtered.push(0);
+    }
+    return { newRow: filtered, addedScore };
+  };
+
+  const move = (dir: 'up' | 'down' | 'left' | 'right') => {
+    if (gameOver) return;
+    let current = grid;
+    let newG = createEmptyGrid();
+    let totalAdded = 0;
+    let changed = false;
+
+    if (dir === 'left' || dir === 'right') {
+      for (let r = 0; r < 4; r++) {
+        let row = current[r];
+        if (dir === 'right') row = [...row].reverse();
+        const { newRow, addedScore } = slideRow(row);
+        let finalRow = dir === 'right' ? newRow.reverse() : newRow;
+        newG[r] = finalRow;
+        totalAdded += addedScore;
+        if (finalRow.some((val, c) => val !== current[r][c])) changed = true;
+      }
+    } else {
+      for (let c = 0; c < 4; c++) {
+        let col = [current[0][c], current[1][c], current[2][c], current[3][c]];
+        if (dir === 'down') col = [...col].reverse();
+        const { newRow, addedScore } = slideRow(col);
+        let finalCol = dir === 'down' ? newRow.reverse() : newRow;
+        totalAdded += addedScore;
+        for (let r = 0; r < 4; r++) {
+          newG[r][c] = finalCol[r];
+          if (finalCol[r] !== current[r][c]) changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      const updatedGrid = addRandomTile(newG);
+      const newScore = score + totalAdded;
+      setGrid(updatedGrid);
+      setScore(newScore);
+
+      if (isGameOver(updatedGrid)) {
+        setGameOver(true);
+        const previousRecord = role === 'partner1' ? highScores.p1Score : highScores.p2Score;
+        if (newScore > previousRecord) {
+          triggerConfetti({ particleCount: 90, spread: 90 });
+          const isP1 = role === 'partner1';
+          const updatedScores = {
+            p1Score: isP1 ? newScore : highScores.p1Score,
+            p2Score: !isP1 ? newScore : highScores.p2Score,
+          };
+          setHighScores(updatedScores);
+          saveArcadeHighScore(slug, '2048', updatedScores.p1Score, updatedScores.p2Score);
+          saveGameScore(slug, '2048 Klasik', newScore, playerName);
+        }
+      }
+    }
+  };
+
+  const isGameOver = (g: number[][]) => {
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (g[r][c] === 0) return false;
+        if (c < 3 && g[r][c] === g[r][c + 1]) return false;
+        if (r < 3 && g[r][c] === g[r + 1][c]) return false;
+      }
+    }
+    return true;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'KeyW'].includes(e.code)) {
+        e.preventDefault();
+        move('up');
+      } else if (['ArrowDown', 'KeyS'].includes(e.code)) {
+        e.preventDefault();
+        move('down');
+      } else if (['ArrowLeft', 'KeyA'].includes(e.code)) {
+        e.preventDefault();
+        move('left');
+      } else if (['ArrowRight', 'KeyD'].includes(e.code)) {
+        e.preventDefault();
+        move('right');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [grid, score, gameOver]);
+
+  const getTileColor = (val: number) => {
+    switch (val) {
+      case 2: return 'bg-[#eee4da] text-[#776e65]';
+      case 4: return 'bg-[#ede0c8] text-[#776e65]';
+      case 8: return 'bg-[#f2b179] text-white';
+      case 16: return 'bg-[#f59563] text-white';
+      case 32: return 'bg-[#f67c5f] text-white';
+      case 64: return 'bg-[#f65e3b] text-white';
+      case 128: return 'bg-[#edcf72] text-white shadow-lg';
+      case 256: return 'bg-[#edcc61] text-white shadow-lg';
+      case 512: return 'bg-[#edc850] text-white shadow-xl';
+      case 1024: return 'bg-[#edc53f] text-white shadow-2xl';
+      case 2048: return 'bg-[#edc22e] text-white shadow-2xl animate-pulse';
+      default: return 'bg-[#edc22e] text-white';
+    }
+  };
+
+  return (
+    <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200 max-w-xl mx-auto w-full">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">🧩</span>
+          <h3 className="text-xl font-black text-gray-900">2048 (Klasik Strateji)</h3>
+        </div>
+        <div className="rounded-2xl bg-amber-50 px-4 py-2 border border-amber-200 text-xs font-black text-amber-800 font-mono">
+          SKOR: <span className="text-base text-amber-900">{score}</span>
+        </div>
+      </div>
+
+      {/* Leaderboard Panel */}
+      <div className="rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 p-4 shadow-sm space-y-2">
+        <div className="flex items-center justify-between text-xs font-black">
+          <div className="flex items-center gap-2 text-pink-600">
+            <span>🌸 Kız Partner ({partner1})</span>
+            <span className="rounded-xl bg-pink-100 px-3 py-1 text-xs font-black text-pink-700">
+              {highScores.p1Score} Puan
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-blue-600">
+            <span className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-black text-blue-700">
+              {highScores.p2Score} Puan
+            </span>
+            <span>🔵 Erkek Partner ({partner2})</span>
+          </div>
+        </div>
+
+        <div className="border-t border-amber-200 pt-2 text-xs font-extrabold text-gray-800 flex items-center justify-center gap-1">
+          <span>🏆 Şampiyon:</span> <span className="text-amber-800 font-black text-sm">{championName}</span>
+        </div>
+      </div>
+
+      {/* 2048 Grid Board */}
+      <div
+        className="relative mx-auto bg-[#bbada0] p-3 rounded-3xl max-w-sm aspect-square grid grid-cols-4 gap-2.5 shadow-2xl select-none"
+        onTouchStart={(e) => {
+          if (e.touches.length > 0) {
+            touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (touchStartRef.current && e.changedTouches.length > 0) {
+            const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+            const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+            if (Math.abs(dx) > Math.abs(dy)) {
+              if (dx > 30) move('right');
+              else if (dx < -30) move('left');
+            } else {
+              if (dy > 30) move('down');
+              else if (dy < -30) move('up');
+            }
+          }
+        }}
+      >
+        {grid.map((row, r) =>
+          row.map((val, c) => (
+            <div
+              key={`${r}-${c}`}
+              className={`rounded-2xl flex items-center justify-center font-black text-xl sm:text-2xl transition-all duration-150 ${val === 0 ? 'bg-[#ccc0b4]/60' : getTileColor(val)
+                }`}
+            >
+              {val > 0 ? val : ''}
+            </div>
+          ))
+        )}
+
+        {gameOver && (
+          <div className="absolute inset-0 rounded-3xl bg-black/70 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-3 z-30 animate-in fade-in">
+            <div className="text-4xl">💥</div>
+            <h4 className="text-xl font-black text-white">OYUN BİTTİ!</h4>
+            <p className="text-xs text-amber-200 font-mono">Toplam Skor: {score}</p>
+            <button
+              onClick={restartGame}
+              className="rounded-2xl bg-amber-500 text-white font-black px-6 py-2.5 text-xs shadow-lg hover:bg-amber-600 transition"
+            >
+              Yeni Oyun 🔄
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Touch Control Buttons */}
+      <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+        <div />
+        <button onClick={() => move('up')} className="py-2.5 bg-gray-100 font-black rounded-xl text-sm active:scale-95 shadow-xs">⬆️</button>
+        <div />
+        <button onClick={() => move('left')} className="py-2.5 bg-gray-100 font-black rounded-xl text-sm active:scale-95 shadow-xs">⬅️</button>
+        <button onClick={() => move('down')} className="py-2.5 bg-gray-100 font-black rounded-xl text-sm active:scale-95 shadow-xs">⬇️</button>
+        <button onClick={() => move('right')} className="py-2.5 bg-gray-100 font-black rounded-xl text-sm active:scale-95 shadow-xs">➡️</button>
+      </div>
+    </div>
+  );
+}
+
+/* --- SUB-GAME 8: TOWER STACKER (KULE DENGE) --- */
+function TowerStackerGame({
+  partner1,
+  partner2,
+  slug,
+  playerName,
+  role,
+}: {
+  partner1: string;
+  partner2: string;
+  slug: string;
+  playerName: string;
+  role: 'partner1' | 'partner2' | 'guest';
+}) {
+  const [highScores, setHighScores] = useState<{ p1Score: number; p2Score: number }>({ p1Score: 0, p2Score: 0 });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [currentScore, setCurrentScore] = useState(0);
+  const [isNewRecord, setIsNewRecord] = useState(false);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animationFrameId = useRef<number | null>(null);
+
+  useEffect(() => {
+    async function loadScores() {
+      if (slug) {
+        const fetched = await getArcadeHighScores(slug, 'tower');
+        setHighScores(fetched);
+      }
+    }
+    loadScores();
+  }, [slug]);
+
+  const championName = useMemo(() => {
+    if (highScores.p1Score === 0 && highScores.p2Score === 0) return 'Henüz Rekor Yok 🎯';
+    if (highScores.p1Score > highScores.p2Score) return `🌸 Kız Partner (${partner1})`;
+    if (highScores.p2Score > highScores.p1Score) return `🔵 Erkek Partner (${partner2})`;
+    return 'Berabere 🤝';
+  }, [highScores, partner1, partner2]);
+
+  const startGame = () => {
+    setIsPlaying(true);
+    setGameOver(false);
+    setIsNewRecord(false);
+    setCurrentScore(0);
+  };
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const blockHeight = 24;
+    let cameraY = 0;
+
+    let stack: Array<{ x: number; y: number; width: number; color: string }> = [
+      { x: 260, y: canvas.height - blockHeight - 20, width: 280, color: '#f43f5e' },
+    ];
+
+    let currentBlock = {
+      x: 0,
+      y: canvas.height - blockHeight * 2 - 20,
+      width: 280,
+      speed: 4.5,
+      direction: 1,
+      color: '#ec4899',
+    };
+
+    const colors = ['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9'];
+    let score = 0;
+    let isRunning = true;
+
+    const dropBlock = () => {
+      if (!isRunning) return;
+
+      const topStack = stack[stack.length - 1];
+      const prevX = topStack.x;
+      const prevWidth = topStack.width;
+      const currX = currentBlock.x;
+      const currWidth = currentBlock.width;
+
+      const leftOverlap = Math.max(currX, prevX);
+      const rightOverlap = Math.min(currX + currWidth, prevX + prevWidth);
+      const newWidth = rightOverlap - leftOverlap;
+
+      if (newWidth <= 0) {
+        isRunning = false;
+        return;
+      }
+
+      let finalX = leftOverlap;
+      let finalWidth = newWidth;
+      if (Math.abs(currX - prevX) < 4) {
+        finalX = prevX;
+        finalWidth = prevWidth;
+        triggerConfetti({ particleCount: 30, spread: 50 });
+      }
+
+      score += 1;
+      setCurrentScore(score);
+
+      stack.push({
+        x: finalX,
+        y: currentBlock.y,
+        width: finalWidth,
+        color: currentBlock.color,
+      });
+
+      const nextY = currentBlock.y - blockHeight;
+      const nextColor = colors[stack.length % colors.length];
+
+      currentBlock = {
+        x: Math.random() > 0.5 ? 0 : canvas.width - finalWidth,
+        y: nextY,
+        width: finalWidth,
+        speed: 4.5 + Math.min(4.0, score * 0.15),
+        direction: Math.random() > 0.5 ? 1 : -1,
+        color: nextColor,
+      };
+
+      if (stack.length > 6) {
+        cameraY += blockHeight;
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        dropBlock();
+      }
+    };
+
+    const handleCanvasClick = () => {
+      dropBlock();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    canvas.addEventListener('click', handleCanvasClick);
+
+    const loop = () => {
+      currentBlock.x += currentBlock.speed * currentBlock.direction;
+      if (currentBlock.x <= 0) {
+        currentBlock.x = 0;
+        currentBlock.direction = 1;
+      } else if (currentBlock.x + currentBlock.width >= canvas.width) {
+        currentBlock.x = canvas.width - currentBlock.width;
+        currentBlock.direction = -1;
+      }
+
+      ctx.save();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.translate(0, cameraY);
+
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      skyGrad.addColorStop(0, '#0f172a');
+      skyGrad.addColorStop(1, '#1e1b4b');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, -cameraY, canvas.width, canvas.height);
+
+      stack.forEach((b) => {
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x, b.y, b.width, blockHeight - 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(b.x, b.y, b.width, 3);
+      });
+
+      if (isRunning) {
+        ctx.fillStyle = currentBlock.color;
+        ctx.fillRect(currentBlock.x, currentBlock.y, currentBlock.width, blockHeight - 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(currentBlock.x, currentBlock.y, currentBlock.width, 3);
+      }
+
+      ctx.restore();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 24px sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(`🏰 Kat: ${score}`, canvas.width - 150, 40);
+
+      if (isRunning) {
+        animationFrameId.current = requestAnimationFrame(loop);
+      } else {
+        setIsPlaying(false);
+        setGameOver(true);
+        playDinoSFX('gameover', false);
+
+        const previousRecord = role === 'partner1' ? highScores.p1Score : highScores.p2Score;
+        if (score > previousRecord) {
+          setIsNewRecord(true);
+          triggerConfetti({ particleCount: 90, spread: 90 });
+          const isP1 = role === 'partner1';
+          const updatedScores = {
+            p1Score: isP1 ? score : highScores.p1Score,
+            p2Score: !isP1 ? score : highScores.p2Score,
+          };
+          setHighScores(updatedScores);
+          saveArcadeHighScore(slug, 'tower', updatedScores.p1Score, updatedScores.p2Score);
+          saveGameScore(slug, 'Tower Stacker', score, playerName);
+        }
+      }
+    };
+
+    animationFrameId.current = requestAnimationFrame(loop);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      canvas.removeEventListener('click', handleCanvasClick);
+      if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+    };
+  }, [isPlaying, role, slug, playerName, highScores]);
+
+  return (
+    <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200 max-w-4xl mx-auto w-full">
+      <div className="flex items-center gap-2">
+        <span className="text-2xl">🏰</span>
+        <h3 className="text-xl font-black text-gray-900">Tower Stacker (Kule Denge)</h3>
+      </div>
+
+      {/* Leaderboard Panel */}
+      <div className="rounded-2xl bg-gradient-to-r from-purple-50 via-fuchsia-50 to-pink-50 border border-purple-200 p-4 shadow-sm space-y-2">
+        <div className="flex items-center justify-between text-xs font-black">
+          <div className="flex items-center gap-2 text-pink-600">
+            <span>🌸 Kız Partner ({partner1})</span>
+            <span className="rounded-xl bg-pink-100 px-3 py-1 text-xs font-black text-pink-700">
+              {highScores.p1Score} Kat
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-blue-600">
+            <span className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-black text-blue-700">
+              {highScores.p2Score} Kat
+            </span>
+            <span>🔵 Erkek Partner ({partner2})</span>
+          </div>
+        </div>
+
+        <div className="border-t border-purple-200 pt-2 text-xs font-extrabold text-gray-800 flex items-center justify-center gap-1">
+          <span>🏆 Şampiyon:</span> <span className="text-purple-800 font-black text-sm">{championName}</span>
+        </div>
+      </div>
+
+      <div className="relative mx-auto w-full max-w-4xl bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-purple-300 cursor-pointer touch-none select-none">
+        <canvas ref={canvasRef} width={800} height={420} className="w-full h-auto block" />
+
+        {!isPlaying && (
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-4 z-30 animate-in fade-in duration-200">
+            {gameOver ? (
+              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-6 text-center shadow-2xl space-y-4 border border-purple-200 animate-in zoom-in-95">
+                {isNewRecord ? (
+                  <div className="space-y-1.5">
+                    <div className="text-5xl animate-bounce">🎉</div>
+                    <h4 className="text-lg font-black text-purple-600">TEBRİKLER! YENİ REKOR!</h4>
+                    <p className="text-xs text-gray-600 font-bold">Harika bir kule kat rekoru kırıldı!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="text-4xl">💥</div>
+                    <h4 className="text-lg font-black text-gray-900">Kule Yıkıldı!</h4>
+                  </div>
+                )}
+
+                <div className="py-3 px-4 bg-purple-50 rounded-2xl border border-purple-100 text-xs font-black text-purple-700 flex items-center justify-center font-mono">
+                  İNŞA EDİLEN: <strong className="text-base text-gray-900 ml-2">{currentScore} Kat</strong>
+                </div>
+
+                <button
+                  onClick={startGame}
+                  className="w-full rounded-2xl bg-gradient-to-r from-purple-500 via-pink-600 to-rose-600 py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
+                >
+                  Yeniden İnşa Et 🏰
+                </button>
+              </div>
+            ) : (
+              <div className="text-center space-y-4 max-w-md">
+                <div className="text-5xl animate-bounce">🏰</div>
+                <h4 className="text-2xl font-black text-white drop-shadow-md">TOWER STACKER</h4>
+                <p className="text-xs text-purple-200 leading-relaxed font-mono">
+                  Bloğu düşürmek için <span className="font-bold text-pink-300">Space / Tık / Dokun</span> tuşuna basın!
+                </p>
+                <button
+                  onClick={startGame}
+                  className="rounded-2xl bg-gradient-to-r from-purple-500 via-pink-600 to-rose-600 px-10 py-3.5 text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
+                >
+                  BAŞLAT 🚀
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
