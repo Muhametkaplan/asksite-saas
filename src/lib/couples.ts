@@ -1121,3 +1121,43 @@ export async function saveGameScore(
   return false;
 }
 
+export async function getXoxScore(slug: string): Promise<{ p1Wins: number; p2Wins: number }> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/games_data`, 'xox');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        return {
+          p1Wins: data.p1Wins || 0,
+          p2Wins: data.p2Wins || 0,
+        };
+      }
+    } catch (e) {
+      console.error('Error fetching XOX score:', e);
+    }
+  }
+  return { p1Wins: 0, p2Wins: 0 };
+}
+
+export async function saveXoxScore(slug: string, p1Wins: number, p2Wins: number): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/games_data`, 'xox');
+      await setDoc(
+        docRef,
+        {
+          p1Wins,
+          p2Wins,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return true;
+    } catch (e) {
+      console.error('Error saving XOX score:', e);
+    }
+  }
+  return false;
+}
+

@@ -39,6 +39,8 @@ import {
   deleteQuizQuestion,
   saveQuizScore,
   saveGameScore,
+  getXoxScore,
+  saveXoxScore,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -570,13 +572,25 @@ function TruthOrDareGame({ slug, playerName }: { slug: string; playerName: strin
   );
 }
 
-/* --- SUB-GAME 4: NEON XOX (CLASSIC X & O) --- */
+/* --- SUB-GAME 4: NEON XOX (2-PLAYER DUAL PARTNER & FIRESTORE SCORE) --- */
 function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: string; partner2: string; slug: string; playerName: string }) {
   const [board, setBoard] = useState<Array<'X' | 'O' | null>>(Array(9).fill(null));
   const [turn, setTurn] = useState<'X' | 'O'>('X');
   const [winner, setWinner] = useState<string | null>(null);
+  const [scores, setScores] = useState<{ p1Wins: number; p2Wins: number }>({ p1Wins: 0, p2Wins: 0 });
 
-  const handleCellClick = (idx: number) => {
+  // Load existing total scores from Firestore on mount
+  useEffect(() => {
+    async function loadScore() {
+      if (slug) {
+        const fetched = await getXoxScore(slug);
+        setScores(fetched);
+      }
+    }
+    loadScore();
+  }, [slug]);
+
+  const handleCellClick = async (idx: number) => {
     if (board[idx] || winner) return;
     const newBoard = [...board];
     newBoard[idx] = turn;
@@ -590,10 +604,18 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
 
     for (const [a, b, c] of winningCombos) {
       if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
-        const winningName = newBoard[a] === 'X' ? partner1 : partner2;
+        const isP1 = newBoard[a] === 'X';
+        const winningName = isP1 ? partner1 : partner2;
         setWinner(winningName);
-        triggerConfetti({ particleCount: 50, spread: 70 });
-        saveGameScore(slug, 'Neon XOX', 100, playerName);
+        triggerConfetti({ particleCount: 60, spread: 80 });
+
+        const updatedScores = {
+          p1Wins: isP1 ? scores.p1Wins + 1 : scores.p1Wins,
+          p2Wins: !isP1 ? scores.p2Wins + 1 : scores.p2Wins,
+        };
+        setScores(updatedScores);
+        await saveXoxScore(slug, updatedScores.p1Wins, updatedScores.p2Wins);
+        await saveGameScore(slug, 'Neon XOX', 100, winningName);
         return;
       }
     }
@@ -614,12 +636,38 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
 
   return (
     <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200">
-      <h3 className="text-lg font-black text-gray-900">❌⭕ Neon XOX Aşk Oyunu</h3>
-      <p className="text-xs text-gray-500">
-        <span className="text-rose-600 font-extrabold">{partner1} (X)</span> vs <span className="text-indigo-600 font-extrabold">{partner2} (O)</span>
-      </p>
+      <h3 className="text-lg font-black text-gray-900">❌⭕ Neon XOX Çift Düellosu</h3>
 
-      <div className="mx-auto grid grid-cols-3 gap-3 max-w-[250px]">
+      {/* Scoreboard Panel */}
+      <div className="flex items-center justify-between rounded-2xl bg-gray-50 border border-gray-200 p-3 shadow-inner text-xs font-black">
+        <div className="flex items-center gap-1.5 text-blue-600">
+          <span>🔵 {partner1} (X)</span>
+          <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-sm font-extrabold text-blue-700">{scores.p1Wins}</span>
+        </div>
+        <span className="text-gray-400 font-extrabold text-sm">-</span>
+        <div className="flex items-center gap-1.5 text-pink-600">
+          <span className="rounded-lg bg-pink-100 px-2 py-0.5 text-sm font-extrabold text-pink-700">{scores.p2Wins}</span>
+          <span>🌸 {partner2} (O)</span>
+        </div>
+      </div>
+
+      {/* Active Turn Indicator Banner */}
+      {!winner && (
+        <div className="py-1">
+          {turn === 'X' ? (
+            <div className="rounded-xl bg-blue-50 border border-blue-200 py-1.5 px-4 text-xs font-black text-blue-700 inline-flex items-center gap-1.5 animate-pulse">
+              <span>Sıra:</span> 🔵 Mavi Partner ({partner1}) - X
+            </div>
+          ) : (
+            <div className="rounded-xl bg-pink-50 border border-pink-200 py-1.5 px-4 text-xs font-black text-pink-700 inline-flex items-center gap-1.5 animate-pulse">
+              <span>Sıra:</span> 🌸 Pembe Partner ({partner2}) - O
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Grid */}
+      <div className="mx-auto grid grid-cols-3 gap-3 max-w-[250px] pt-1">
         {board.map((cell, i) => (
           <button
             key={i}
@@ -627,12 +675,12 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
             className="flex h-20 items-center justify-center rounded-2xl bg-gray-50 border-2 border-gray-200 text-3xl font-black shadow-xs transition hover:bg-rose-50 active:scale-95"
           >
             {cell === 'X' && (
-              <span className="text-rose-500 font-extrabold text-3xl drop-shadow-[0_0_10px_rgba(244,63,94,0.6)]">
+              <span className="text-blue-500 font-black text-3xl drop-shadow-[0_0_12px_rgba(59,130,246,0.8)]">
                 X
               </span>
             )}
             {cell === 'O' && (
-              <span className="text-indigo-500 font-extrabold text-3xl drop-shadow-[0_0_10px_rgba(99,102,241,0.6)]">
+              <span className="text-pink-500 font-black text-3xl drop-shadow-[0_0_12px_rgba(236,72,153,0.8)]">
                 O
               </span>
             )}
@@ -641,8 +689,8 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
       </div>
 
       {winner && (
-        <div className="text-sm font-black text-rose-600 animate-bounce">
-          {winner === 'Berabere' ? '🤝 Oyun Berabere Bitti!' : `🎉 Kazanan taraf: ${winner}!`}
+        <div className="text-sm font-black text-rose-600 animate-bounce py-1">
+          {winner === 'Berabere' ? '🤝 Oyun Berabere Bitti!' : `🎉 Kazanan Taraf: ${winner}!`}
         </div>
       )}
 
@@ -650,7 +698,7 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
         onClick={resetGame}
         className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 py-3 text-xs font-black text-white shadow-md hover:scale-102 active:scale-95 transition"
       >
-        Yeniden Başla 🔄
+        Yeni Tur Başlat 🔄
       </button>
     </div>
   );
