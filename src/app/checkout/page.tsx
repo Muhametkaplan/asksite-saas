@@ -1,8 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, Sparkles, CreditCard, CheckCircle2, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import {
+  Heart,
+  Sparkles,
+  CreditCard,
+  CheckCircle2,
+  Truck,
+  ShieldCheck,
+  ArrowRight,
+  User,
+  LogOut,
+  ChevronDown,
+  LayoutDashboard,
+  LogIn,
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
@@ -21,6 +37,40 @@ export default function CheckoutPage() {
   const [fullName, setFullName] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
+
+  // Auth User & Profile Dropdown State
+  const [currentUser, setCurrentUser] = useState<{ displayName?: string; email?: string } | null>(null);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setCurrentUser({
+          displayName: firebaseUser.displayName || '',
+          email: firebaseUser.email || '',
+        });
+      } else if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('asksite_user');
+        if (stored) {
+          try {
+            setCurrentUser(JSON.parse(stored));
+          } catch (e) {}
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {}
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('asksite_user');
+    }
+    setCurrentUser(null);
+    setProfileDropdownOpen(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,8 +129,106 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 py-12 px-4 sm:px-6">
-      <div className="mx-auto max-w-3xl">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 pb-16">
+      {/* Shared Header / Navbar Integration */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-xs px-4 sm:px-8 py-3.5">
+        <div className="mx-auto max-w-5xl flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-xl font-black text-rose-600">
+            <Heart className="h-6 w-6 fill-rose-500 text-rose-500 animate-pulse" /> AskSite SaaS
+          </Link>
+
+          <div className="flex items-center gap-3">
+            {currentUser ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-md hover:scale-102 transition active:scale-95"
+                >
+                  <LayoutDashboard className="h-4 w-4" /> Yönetim Paneline Git ➔
+                </Link>
+
+                {/* Profile Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    className="flex items-center gap-2 rounded-2xl bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-800 hover:bg-gray-100 transition"
+                  >
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-white font-extrabold text-[11px]">
+                      {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
+                    </div>
+                    <span className="max-w-[100px] truncate hidden sm:inline">{currentUser.displayName || currentUser.email}</span>
+                    <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                  </button>
+
+                  {profileDropdownOpen && (
+                    <div className="absolute right-0 top-11 z-50 w-52 rounded-2xl bg-white p-2 shadow-2xl border border-gray-100 animate-in fade-in duration-150 text-left">
+                      <div className="p-2 border-b border-gray-100">
+                        <div className="text-xs font-extrabold text-gray-900 truncate">
+                          {currentUser.displayName || 'Müşteri Hesabı'}
+                        </div>
+                        <div className="text-[11px] text-gray-400 truncate">
+                          {currentUser.email}
+                        </div>
+                      </div>
+
+                      <div className="py-1">
+                        <Link
+                          href="/dashboard"
+                          onClick={() => setProfileDropdownOpen(false)}
+                          className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition"
+                        >
+                          <LayoutDashboard className="h-4 w-4 text-rose-500" /> Yönetim Paneli
+                        </Link>
+                        <button
+                          onClick={handleSignOut}
+                          className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition border-t border-gray-100 mt-1"
+                        >
+                          <LogOut className="h-4 w-4 text-rose-600" /> Oturumu Kapat
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <Link
+                href="/login?redirect=checkout"
+                className="flex items-center gap-1.5 rounded-2xl bg-white border border-gray-200 px-4 py-2 text-xs font-bold text-gray-800 shadow-xs hover:bg-gray-50 transition"
+              >
+                <LogIn className="h-4 w-4 text-rose-500" /> Giriş Yap
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <div className="mx-auto max-w-3xl pt-8 px-4 sm:px-6">
+        {/* Prominent Quick Dashboard Shortcut Bar for Logged-In Users */}
+        {currentUser && (
+          <div className="mb-6 rounded-2xl bg-white p-4 shadow-md border border-rose-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center font-bold shrink-0">
+                ✨
+              </div>
+              <div>
+                <span className="text-xs font-bold text-gray-900 block">
+                  Zaten Aktif Hesabınız Var Mı?
+                </span>
+                <span className="text-[11px] text-gray-500 block">
+                  Ödeme yapmadan doğrudan sitenizin yönetim paneline geçiş yapabilirsiniz.
+                </span>
+              </div>
+            </div>
+            <Link
+              href="/dashboard"
+              className="shrink-0 rounded-xl bg-rose-50 px-4 py-2 text-xs font-extrabold text-rose-600 border border-rose-200 hover:bg-rose-100 transition active:scale-95 flex items-center gap-1"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" /> Paneli Aç ➔
+            </Link>
+          </div>
+        )}
+
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-4 py-1 text-xs font-bold text-rose-600 mb-3">
             <Sparkles className="h-4 w-4" /> Güvenli Ödeme & Otomatik Kurulum
