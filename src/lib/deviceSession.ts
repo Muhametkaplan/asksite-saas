@@ -22,11 +22,17 @@ export function isDeviceAuthorized(couple: CoupleConfig): { isAuthorized: boolea
 
   const found = couple.authenticated_devices.find((d) => d.device_token === token);
   if (found) {
-    const isP1 = found.partner_name === couple.partner1_name || (couple.allowed_users?.partner1_email && found.email?.toLowerCase() === couple.allowed_users.partner1_email.toLowerCase());
+    const determinedRole: 'partner1' | 'partner2' =
+      found.role ||
+      (found.partner_name === couple.partner1_name ||
+      (couple.allowed_users?.partner1_email && found.email?.toLowerCase() === couple.allowed_users.partner1_email.toLowerCase())
+        ? 'partner1'
+        : 'partner2');
+
     return {
       isAuthorized: true,
       partnerName: found.partner_name,
-      role: isP1 ? 'partner1' : 'partner2',
+      role: determinedRole,
     };
   }
 
@@ -37,7 +43,8 @@ export async function registerDeviceToken(
   slug: string,
   partnerName: string,
   email?: string,
-  uid?: string
+  uid?: string,
+  role?: 'partner1' | 'partner2'
 ): Promise<boolean> {
   const token = getOrCreateDeviceToken();
 
@@ -53,6 +60,7 @@ export async function registerDeviceToken(
         const newDevice: AuthenticatedDevice = {
           device_token: token,
           partner_name: partnerName,
+          role: role || (partnerName === data.partner1_name ? 'partner1' : 'partner2'),
           email: email || '',
           uid: uid || '',
           added_at: new Date().toISOString(),

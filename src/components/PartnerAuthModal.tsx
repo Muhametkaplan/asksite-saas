@@ -32,7 +32,7 @@ export default function PartnerAuthModal({
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [pinInput, setPinInput] = useState('');
-  const [authMethod, setAuthMethod] = useState<'google' | 'email' | 'pin'>('google');
+  const [authMethod, setAuthMethod] = useState<'pin' | 'google' | 'email'>('pin');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -190,17 +190,28 @@ export default function PartnerAuthModal({
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    const correctPin = couple.allowed_users?.access_pin || '1234';
-    if (pinInput.trim() === correctPin) {
+    const p1Pin = (couple.partner1_pin || couple.allowed_users?.partner1_pin || couple.allowed_users?.access_pin || '1234').trim();
+    const p2Pin = (couple.partner2_pin || couple.allowed_users?.partner2_pin || '5678').trim();
+    const enteredPin = pinInput.trim();
+
+    if (enteredPin === p1Pin) {
       const pName = partner1Name;
-      await registerDeviceToken(slug, pName, `${slug}@asksite.com`, 'pin-user');
+      await registerDeviceToken(slug, pName, couple.partner1_email || `${slug}@asksite.com`, 'pin-user', 'partner1');
       setAuthorizedPartner(pName);
       setAuthRole('partner1');
       setIsAccessDenied(false);
       setIsOpen(false);
       updatePartnerPresence(slug, 'partner1', true);
+    } else if (enteredPin === p2Pin) {
+      const pName = partner2Name;
+      await registerDeviceToken(slug, pName, couple.partner2_email || `${slug}@asksite.com`, 'pin-user', 'partner2');
+      setAuthorizedPartner(pName);
+      setAuthRole('partner2');
+      setIsAccessDenied(false);
+      setIsOpen(false);
+      updatePartnerPresence(slug, 'partner2', true);
     } else {
-      setErrorMessage('Çift PIN kodu hatalı! (Varsayılan: 1234)');
+      setErrorMessage('Hatalı Çift Şifresi. Lütfen sevgilinizin belirlediği şifreyi girin.');
     }
   };
 
@@ -286,6 +297,14 @@ export default function PartnerAuthModal({
             {/* Auth Method Selector */}
             <div className="flex rounded-xl bg-gray-100 p-1 text-xs font-bold">
               <button
+                onClick={() => setAuthMethod('pin')}
+                className={`flex-1 py-2 rounded-lg transition ${
+                  authMethod === 'pin' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                🔑 PIN Kodu
+              </button>
+              <button
                 onClick={() => setAuthMethod('google')}
                 className={`flex-1 py-2 rounded-lg transition ${
                   authMethod === 'google' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-500'
@@ -300,14 +319,6 @@ export default function PartnerAuthModal({
                 }`}
               >
                 📧 E-Posta
-              </button>
-              <button
-                onClick={() => setAuthMethod('pin')}
-                className={`flex-1 py-2 rounded-lg transition ${
-                  authMethod === 'pin' ? 'bg-white text-rose-600 shadow-sm' : 'text-gray-500'
-                }`}
-              >
-                🔑 PIN Kodu
               </button>
             </div>
 

@@ -23,11 +23,14 @@ export interface AllowedUsers {
   partner1_email?: string;
   partner2_email?: string;
   access_pin?: string;
+  partner1_pin?: string;
+  partner2_pin?: string;
 }
 
 export interface AuthenticatedDevice {
   device_token: string;
   partner_name: string;
+  role?: 'partner1' | 'partner2';
   email?: string;
   uid?: string;
   added_at?: string;
@@ -112,6 +115,8 @@ export interface CoupleConfig {
   partner2_name: string;
   partner1_email?: string;
   partner2_email?: string;
+  partner1_pin?: string;
+  partner2_pin?: string;
   authorized_emails?: string[];
   subtitle: string;
   start_date: string; // ISO date string

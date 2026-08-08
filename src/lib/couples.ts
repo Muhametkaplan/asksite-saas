@@ -430,9 +430,13 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
           partner1_email: config.partner1_email || '',
           partner2_email: config.partner2_email || '',
           access_pin: '1234',
+          partner1_pin: config.partner1_pin || '1234',
+          partner2_pin: config.partner2_pin || '5678',
         },
         partner1_email: config.partner1_email || config.allowed_users?.partner1_email || '',
         partner2_email: config.partner2_email || config.allowed_users?.partner2_email || '',
+        partner1_pin: config.partner1_pin || config.allowed_users?.partner1_pin || '1234',
+        partner2_pin: config.partner2_pin || config.allowed_users?.partner2_pin || '5678',
         authorized_emails: Array.from(new Set([
           ...(config.authorized_emails || []),
           (config.partner1_email || config.allowed_users?.partner1_email || '').toLowerCase().trim(),

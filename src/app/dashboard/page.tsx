@@ -977,21 +977,42 @@ function DashboardContent() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Çift Giriş PIN (4 Haneli)</label>
+            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 Özel PIN (4 Haneli)</label>
             <input
               type="text"
               maxLength={4}
-              value={config.allowed_users?.access_pin || '1234'}
+              value={config.allowed_users?.partner1_pin || config.partner1_pin || '1234'}
               onChange={(e) =>
                 setConfig((prev) => ({
                   ...prev,
+                  partner1_pin: e.target.value,
                   allowed_users: {
                     ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
-                    access_pin: e.target.value,
+                    partner1_pin: e.target.value,
                   },
                 }))
               }
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-rose-600 outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 Özel PIN (4 Haneli)</label>
+            <input
+              type="text"
+              maxLength={4}
+              value={config.allowed_users?.partner2_pin || config.partner2_pin || '5678'}
+              onChange={(e) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  partner2_pin: e.target.value,
+                  allowed_users: {
+                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
+                    partner2_pin: e.target.value,
+                  },
+                }))
+              }
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-purple-600 outline-none focus:border-purple-500"
             />
           </div>
         </div>
