@@ -392,7 +392,7 @@ function DinoRunnerGame({
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [currentScore, setCurrentScore] = useState(0);
-  const [currentMultiplier, setCurrentMultiplier] = useState('1.0');
+  const [currentSpeed, setCurrentSpeed] = useState('6.0');
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -426,7 +426,7 @@ function DinoRunnerGame({
     setGameOver(false);
     setIsNewRecord(false);
     setCurrentScore(0);
-    setCurrentMultiplier('1.0');
+    setCurrentSpeed('6.0');
   };
 
   useEffect(() => {
@@ -438,65 +438,65 @@ function DinoRunnerGame({
     if (!ctx) return;
 
     let frameCount = 0;
+    let distanceRan = 0;
     let score = 0;
     let shakeTimer = 0;
     let scoreFlashTimer = 0;
     let liveRecordBroken = false;
 
+    // Chromium Dino Engine Constants
+    const groundY = 320;
+    let speed = 6.0;
+    const maxSpeed = 14.0;
+    const acceleration = 0.0015;
+
     const previousRecord = role === 'partner1' ? highScores.p1Score : highScores.p2Score;
 
-    // Background Stars & Clouds for Parallax
-    const stars = Array.from({ length: 25 }, () => ({
+    // Clouds & Night Horizon Stars
+    const clouds = Array.from({ length: 4 }, () => ({
       x: Math.random() * canvas.width,
-      y: Math.random() * 180,
-      size: Math.random() * 2.5 + 1,
-      opacity: Math.random() * 0.8 + 0.2,
+      y: Math.random() * 80 + 30,
+      size: Math.random() * 20 + 30,
     }));
 
-    const clouds = Array.from({ length: 5 }, () => ({
+    const stars = Array.from({ length: 20 }, () => ({
       x: Math.random() * canvas.width,
-      y: Math.random() * 90 + 20,
-      size: Math.random() * 30 + 35,
+      y: Math.random() * 150 + 10,
+      size: Math.random() * 2 + 1,
     }));
 
-    // Runner physics & state (Expansive 380px Canvas height)
-    const runner = {
+    // T-Rex Runner State
+    const dino = {
       x: 70,
-      y: 290,
-      normalWidth: 32,
-      normalHeight: 50,
-      duckWidth: 46,
-      duckHeight: 26,
+      y: groundY - 47,
+      normalWidth: 44,
+      normalHeight: 47,
+      duckWidth: 59,
+      duckHeight: 30,
       vy: 0,
-      gravity: 0.72,
+      jumpVelocity: -12.5,
+      gravity: 0.65,
       isJumping: false,
-      groundY: 290,
     };
 
-    let particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; text?: string; emoji?: string }> = [];
-    let obstacles: Array<{ x: number; y: number; width: number; height: number; emoji: string; isAir: boolean }> = [];
+    let obstacles: Array<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      type: 'cactus' | 'pterodactyl';
+      wingState?: number;
+    }> = [];
 
     const jump = () => {
-      if (!runner.isJumping) {
-        runner.vy = -14.5;
-        runner.isJumping = true;
+      if (!dino.isJumping) {
+        dino.vy = dino.jumpVelocity;
+        dino.isJumping = true;
         playDinoSFX('jump', isMuted);
-
-        // Spawn Jump Sparkles & Dust
-        for (let i = 0; i < 7; i++) {
-          particles.push({
-            x: runner.x + 12,
-            y: runner.y + 45,
-            vx: (Math.random() - 0.5) * 4,
-            vy: Math.random() * -3 - 1,
-            life: 1,
-            emoji: Math.random() > 0.4 ? '✨' : '💖',
-          });
-        }
       }
     };
 
-    // Keyboard controls (Jump: Space / ArrowUp; Duck: ArrowDown / KeyS)
+    // Controls (Jump: Space / ArrowUp; Duck: ArrowDown / KeyS)
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
@@ -520,288 +520,207 @@ function DinoRunnerGame({
 
     const loop = () => {
       frameCount++;
-      score += 1;
+      distanceRan += speed * 0.15;
+      score = Math.floor(distanceRan);
       setCurrentScore(score);
 
-      // Chrome Dino style 100-point milestone beep & HUD flash
-      if (score > 0 && score % 100 === 0) {
+      // Smooth acceleration like Chromium Runner
+      if (speed < maxSpeed) {
+        speed += acceleration;
+      }
+      setCurrentSpeed(speed.toFixed(1));
+
+      // Chrome Dino 100-point double beep & flash
+      if (score > 0 && score % 100 === 0 && frameCount % 6 === 0) {
         playDinoSFX('milestone', isMuted);
-        shakeTimer = 6;
-        scoreFlashTimer = 14;
-        particles.push({
-          x: runner.x + 40,
-          y: runner.y - 20,
-          vx: 0,
-          vy: -1.2,
-          life: 1.2,
-          text: `${score} PTS! 🎉`,
-        });
+        shakeTimer = 5;
+        scoreFlashTimer = 12;
       }
 
       // Check Live Record Breaking
       if (!liveRecordBroken && previousRecord > 0 && score > previousRecord) {
         liveRecordBroken = true;
-        triggerConfetti({ particleCount: 80, spread: 90 });
+        triggerConfetti({ particleCount: 75, spread: 85 });
         playDinoSFX('milestone', isMuted);
       }
 
-      // Smooth continuous acceleration curve (dinorunner.com standard)
-      const multVal = (1.0 + Math.min(2.0, score * 0.0012)).toFixed(1);
-      setCurrentMultiplier(multVal);
-      const speed = 3.2 * parseFloat(multVal);
+      // Physics update
+      dino.y += dino.vy;
+      dino.vy += dino.gravity;
 
-      // Update runner position
-      runner.y += runner.vy;
-      runner.vy += runner.gravity;
+      const isDucking = isDuckingRef.current && !dino.isJumping;
+      const currentHeight = isDucking ? dino.duckHeight : dino.normalHeight;
+      const currentWidth = isDucking ? dino.duckWidth : dino.normalWidth;
+      const currentGroundY = isDucking ? groundY - dino.duckHeight : groundY - dino.normalHeight;
 
-      if (runner.y >= runner.groundY) {
-        runner.y = runner.groundY;
-        runner.vy = 0;
-        runner.isJumping = false;
-      }
-
-      // Current Runner Dimensions
-      const isDucking = isDuckingRef.current && !runner.isJumping;
-      const currentHeight = isDucking ? runner.duckHeight : runner.normalHeight;
-      const currentWidth = isDucking ? runner.duckWidth : runner.normalWidth;
-      const currentY = isDucking ? runner.groundY + 24 : runner.y;
-
-      // Spawn Footprint Dust when running on ground
-      if (!runner.isJumping && frameCount % 7 === 0) {
-        particles.push({
-          x: runner.x - 4,
-          y: currentY + currentHeight - 8,
-          vx: -speed * 0.4,
-          vy: (Math.random() - 0.5) * 0.5,
-          life: 0.7,
-          emoji: '💨',
-        });
+      if (dino.y >= currentGroundY) {
+        dino.y = currentGroundY;
+        dino.vy = 0;
+        dino.isJumping = false;
       }
 
       // Update Parallax Backgrounds
-      stars.forEach((star) => {
-        star.x -= speed * 0.2;
-        if (star.x < 0) star.x = canvas.width;
-      });
-
       clouds.forEach((cloud) => {
-        cloud.x -= speed * 0.4;
+        cloud.x -= speed * 0.2;
         if (cloud.x < -cloud.size) cloud.x = canvas.width + cloud.size;
       });
 
-      // Update Particles
-      particles.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life -= 0.03;
+      stars.forEach((star) => {
+        star.x -= speed * 0.1;
+        if (star.x < 0) star.x = canvas.width;
       });
-      particles = particles.filter((p) => p.life > 0);
 
-      // Spawn obstacles (Single, Clusters, Low Air Duckable, High Air)
-      const spawnInterval = Math.max(42, Math.floor(100 - Math.min(50, score / 80)));
+      // Spawn Obstacles (Cacti or Pterodactyls)
+      const spawnInterval = Math.max(45, Math.floor(110 - speed * 4));
       if (frameCount % spawnInterval === 0) {
-        const canAir = score >= 350;
-        const rand = Math.random();
-
-        if (canAir && rand < 0.3) {
-          // Low Air Obstacle (Requires Ducking!)
+        const canFly = score >= 300;
+        if (canFly && Math.random() < 0.3) {
+          // Low Flying Pterodactyl (Dodged by ducking!)
           obstacles.push({
             x: canvas.width,
-            y: 265,
-            width: 32,
-            height: 34,
-            emoji: Math.random() > 0.5 ? '🦅' : '⚡',
-            isAir: true,
-          });
-        } else if (canAir && rand < 0.42) {
-          // High Air Obstacle (Passable by running)
-          obstacles.push({
-            x: canvas.width,
-            y: 200,
-            width: 30,
-            height: 32,
-            emoji: '🎈',
-            isAir: true,
-          });
-        } else if (rand < 0.72) {
-          // Double Obstacle Cluster
-          const isHeart = Math.random() > 0.5;
-          obstacles.push({
-            x: canvas.width,
-            y: 302,
-            width: 55,
+            y: groundY - 58,
+            width: 46,
             height: 38,
-            emoji: isHeart ? '💔💔' : '🌵🌵',
-            isAir: false,
+            type: 'pterodactyl',
+            wingState: 0,
           });
         } else {
-          // Single Ground Obstacle
-          const emojis = ['🌵', '💔', '🔥', '🪨', '🚧'];
-          const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+          // Cactus cluster
+          const isLarge = Math.random() < 0.4;
           obstacles.push({
             x: canvas.width,
-            y: 302,
-            width: 30,
-            height: 38,
-            emoji,
-            isAir: false,
+            y: isLarge ? groundY - 50 : groundY - 38,
+            width: isLarge ? 34 : 24,
+            height: isLarge ? 50 : 38,
+            type: 'cactus',
           });
         }
       }
 
       // Move obstacles
-      obstacles = obstacles.map((obs) => ({ ...obs, x: obs.x - speed })).filter((obs) => obs.x + obs.width > 0);
+      obstacles = obstacles.map((obs) => {
+        if (obs.type === 'pterodactyl' && frameCount % 10 === 0) {
+          obs.wingState = obs.wingState === 0 ? 1 : 0;
+        }
+        return { ...obs, x: obs.x - speed };
+      }).filter((obs) => obs.x + obs.width > 0);
 
-      // --- CANVAS DRAWING (800x380 High Res) ---
+      // --- CANVAS DRAWING (Native Chromium Dino Aesthetics) ---
       ctx.save();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Screen Shake Effect on milestone
       if (shakeTimer > 0) {
         shakeTimer--;
-        ctx.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
+        ctx.translate((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4);
       }
 
-      // 1. Rich Sunset/Twilight Sky Gradient
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      skyGrad.addColorStop(0, '#2e1065');
-      skyGrad.addColorStop(0.4, '#581c87');
-      skyGrad.addColorStop(0.7, '#c026d3');
-      skyGrad.addColorStop(0.9, '#f472b6');
-      skyGrad.addColorStop(1, '#fde047');
-      ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Day / Night background shift based on score
+      const isNight = Math.floor(score / 700) % 2 === 1;
+      if (isNight) {
+        ctx.fillStyle = '#171717';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 2. Parallax Stars
-      stars.forEach((star) => {
-        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+        ctx.fillStyle = '#f5f5f5';
+        stars.forEach((star) => {
+          ctx.fillRect(star.x, star.y, star.size, star.size);
+        });
+      } else {
+        ctx.fillStyle = '#fafafa';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Draw Clouds
+      ctx.fillStyle = isNight ? '#404040' : '#d4d4d4';
+      clouds.forEach((c) => {
         ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // 3. Parallax Soft Clouds
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-      clouds.forEach((cloud) => {
-        ctx.beginPath();
-        ctx.arc(cloud.x, cloud.y, cloud.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      // 4. Distant Rolling Mountains / Skyline
-      ctx.fillStyle = 'rgba(157, 23, 77, 0.5)';
+      // Ground Horizon Line
+      ctx.strokeStyle = isNight ? '#737373' : '#525252';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(150 - (frameCount * 0.4) % 400, 480, 220, 0, Math.PI * 2);
-      ctx.arc(500 - (frameCount * 0.4) % 400, 490, 240, 0, Math.PI * 2);
-      ctx.arc(850 - (frameCount * 0.4) % 400, 480, 230, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 5. Solid Ground Track (Height: 40px)
-      ctx.fillStyle = '#831843';
-      ctx.fillRect(0, 340, canvas.width, 40);
-
-      // Top Ground Border Line
-      ctx.beginPath();
-      ctx.moveTo(0, 340);
-      ctx.lineTo(canvas.width, 340);
-      ctx.strokeStyle = '#f472b6';
-      ctx.lineWidth = 5;
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(canvas.width, groundY);
       ctx.stroke();
 
-      // 6. Draw Particles & Milestone Popups
-      particles.forEach((p) => {
-        ctx.globalAlpha = Math.max(0, p.life);
-        if (p.text) {
-          ctx.fillStyle = '#fde047';
-          ctx.font = '900 16px sans-serif';
-          ctx.shadowColor = 'rgba(0,0,0,0.8)';
-          ctx.shadowBlur = 6;
-          ctx.fillText(p.text, p.x, p.y);
-        } else if (p.emoji) {
-          ctx.font = '16px sans-serif';
-          ctx.fillText(p.emoji, p.x, p.y);
-        }
-        ctx.globalAlpha = 1.0;
-      });
+      // Horizon Bumps
+      ctx.fillStyle = isNight ? '#737373' : '#525252';
+      for (let i = 0; i < canvas.width; i += 60) {
+        const bumpX = (i - (frameCount * speed) % 60 + canvas.width) % canvas.width;
+        ctx.fillRect(bumpX, groundY + 4, 4, 2);
+        ctx.fillRect(bumpX + 20, groundY + 8, 8, 2);
+      }
 
-      // 7. Draw 3-State Character Sprite (Running, Jumping, Ducking)
+      // Draw Native Chrome Dino T-Rex Character
       ctx.save();
-      ctx.translate(runner.x, currentY);
+      ctx.translate(dino.x, dino.y);
 
-      // Shadow underneath feet
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-      ctx.beginPath();
-      ctx.ellipse(currentWidth / 2, currentHeight - 4, currentWidth / 2, 4, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = isNight ? '#e5e5e5' : '#333333';
+      ctx.strokeStyle = isNight ? '#e5e5e5' : '#333333';
 
       if (isDucking) {
-        // --- STATE 3: DUCKING / CROUCHING POSE ---
-        ctx.fillStyle = role === 'partner1' ? '#f472b6' : '#60a5fa';
-        ctx.fillRect(-10, 10, 16, 4); // Flat horizontal scarf
-
-        ctx.font = '28px sans-serif';
-        ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', 4, 24);
-      } else if (runner.isJumping) {
-        // --- STATE 2: JUMPING / MID-AIR POSE ---
-        ctx.save();
-        ctx.rotate(-0.15); // Slight forward tilt in air
-
-        ctx.strokeStyle = role === 'partner1' ? '#be185d' : '#1d4ed8';
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(12, 30);
-        ctx.lineTo(6, 42); // Tucked knees
-        ctx.stroke();
-
-        ctx.font = '36px sans-serif';
-        ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', -2, 32);
-        ctx.restore();
+        // --- DUCKING T-REX SPRITE ---
+        ctx.fillRect(0, 8, 52, 20); // Low body
+        ctx.fillRect(36, 0, 20, 14); // Low head
+        ctx.fillRect(52, 4, 4, 4); // Eye
+        ctx.fillRect(-8, 10, 10, 6); // Tail
+        // Legs
+        const legPhase = frameCount % 8 < 4 ? 0 : 6;
+        ctx.fillRect(12 + legPhase, 24, 6, 8);
+        ctx.fillRect(28 - legPhase, 24, 6, 8);
+      } else if (dino.isJumping) {
+        // --- JUMPING T-REX SPRITE ---
+        ctx.fillRect(8, 0, 32, 40); // Body
+        ctx.fillRect(24, -8, 20, 16); // Head
+        ctx.fillStyle = isNight ? '#171717' : '#fafafa';
+        ctx.fillRect(38, -4, 4, 4); // Eye
+        ctx.fillStyle = isNight ? '#e5e5e5' : '#333333';
+        ctx.fillRect(0, 14, 10, 8); // Tail
+        ctx.fillRect(12, 38, 6, 8); // Tucked Left leg
+        ctx.fillRect(24, 38, 6, 8); // Tucked Right leg
       } else {
-        // --- STATE 1: RUNNING POSE ---
-        const legPhase = Math.sin(frameCount * 0.35);
-        ctx.strokeStyle = role === 'partner1' ? '#be185d' : '#1d4ed8';
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-
-        // Left Leg
-        ctx.beginPath();
-        ctx.moveTo(12, 32);
-        ctx.lineTo(12 + legPhase * 10, 44);
-        ctx.stroke();
-
-        // Right Leg
-        ctx.beginPath();
-        ctx.moveTo(20, 32);
-        ctx.lineTo(20 - legPhase * 10, 44);
-        ctx.stroke();
-
-        // Scarf / Hair Trailing in wind
-        const scarfWiggle = Math.cos(frameCount * 0.3) * 5;
-        ctx.fillStyle = role === 'partner1' ? '#f472b6' : '#60a5fa';
-        ctx.beginPath();
-        ctx.moveTo(8, 14);
-        ctx.quadraticCurveTo(-10, 14 + scarfWiggle, -18, 20 + scarfWiggle);
-        ctx.lineTo(-8, 18);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.font = '36px sans-serif';
-        ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', -2, 34);
+        // --- RUNNING T-REX SPRITE ---
+        ctx.fillRect(8, 0, 32, 40); // Body
+        ctx.fillRect(24, -8, 20, 16); // Head
+        ctx.fillStyle = isNight ? '#171717' : '#fafafa';
+        ctx.fillRect(38, -4, 4, 4); // Eye
+        ctx.fillStyle = isNight ? '#e5e5e5' : '#333333';
+        ctx.fillRect(0, 14, 10, 8); // Tail
+        // Alternating Running Legs
+        const legStep = frameCount % 8 < 4;
+        ctx.fillRect(14, 38, 6, legStep ? 10 : 4);
+        ctx.fillRect(26, 38, 6, legStep ? 4 : 10);
       }
       ctx.restore();
 
-      // 8. Draw Obstacles & Check Tightened 80% Hitbox Collision
+      // Draw Obstacles (Cacti & Pterodactyls)
       for (const obs of obstacles) {
-        ctx.font = obs.width > 40 ? '26px sans-serif' : '32px sans-serif';
-        ctx.fillText(obs.emoji, obs.x, obs.y + 30);
+        ctx.fillStyle = isNight ? '#e5e5e5' : '#333333';
+        if (obs.type === 'pterodactyl') {
+          // Pterodactyl Sprite (Wing Flap)
+          ctx.fillRect(obs.x, obs.y + 10, 36, 12); // Body
+          ctx.fillRect(obs.x + 30, obs.y + 2, 14, 12); // Head & Beak
+          if (obs.wingState === 0) {
+            ctx.fillRect(obs.x + 12, obs.y - 12, 12, 22); // Wings Up
+          } else {
+            ctx.fillRect(obs.x + 12, obs.y + 16, 12, 18); // Wings Down
+          }
+        } else {
+          // Cactus Sprite
+          ctx.fillRect(obs.x + (obs.width / 2 - 4), obs.y, 8, obs.height);
+          ctx.fillRect(obs.x, obs.y + 10, obs.width, 6);
+          ctx.fillRect(obs.x, obs.y + 4, 4, 12);
+          ctx.fillRect(obs.x + obs.width - 4, obs.y + 4, 4, 12);
+        }
 
-        // Tightened 80% Bounding Box Collision Check (Eliminates unfair deaths)
+        // Tightened 80% Bounding Box Collision Check
         const rInsetX = currentWidth * 0.1;
         const rInsetY = currentHeight * 0.1;
-        const runnerBox = {
-          x: runner.x + rInsetX,
-          y: currentY + rInsetY,
+        const dinoBox = {
+          x: dino.x + rInsetX,
+          y: dino.y + rInsetY,
           width: currentWidth * 0.8,
           height: currentHeight * 0.8,
         };
@@ -814,38 +733,34 @@ function DinoRunnerGame({
         };
 
         if (
-          runnerBox.x < obsBox.x + obsBox.width &&
-          runnerBox.x + runnerBox.width > obsBox.x &&
-          runnerBox.y < obsBox.y + obsBox.height &&
-          runnerBox.y + runnerBox.height > obsBox.y
+          dinoBox.x < obsBox.x + obsBox.width &&
+          dinoBox.x + dinoBox.width > obsBox.x &&
+          dinoBox.y < obsBox.y + obsBox.height &&
+          dinoBox.y + dinoBox.height > obsBox.y
         ) {
-          // Collision Detected! Game Over
+          // Collision! Game Over
           isRunning = false;
           break;
         }
       }
 
-      // 9. Premium HUD Overlay (Flashing Score, Speed Level & Real-time Record Broken Banner)
+      // Draw HUD Score & High Score
       if (scoreFlashTimer > 0) {
         scoreFlashTimer--;
-        ctx.fillStyle = '#fde047'; // Flashing yellow glow on milestone
+        ctx.fillStyle = '#eab308';
       } else {
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = isNight ? '#e5e5e5' : '#525252';
       }
-      ctx.font = '900 15px sans-serif';
-      ctx.shadowColor = 'rgba(0,0,0,0.6)';
-      ctx.shadowBlur = 6;
-      ctx.fillText(`🏆 Skor: ${score}`, canvas.width - 150, 30);
+      ctx.font = '700 16px monospace';
+      const formattedScore = String(score).padStart(5, '0');
+      const formattedHI = String(previousRecord).padStart(5, '0');
+      ctx.fillText(`HI ${formattedHI}  ${formattedScore}`, canvas.width - 180, 30);
 
-      const speedColor = parseFloat(multVal) >= 2.0 ? '#facc15' : parseFloat(multVal) >= 1.5 ? '#38bdf8' : '#4ade80';
-      ctx.fillStyle = speedColor;
-      ctx.fillText(`⚡ Hız: ${multVal}x`, canvas.width - 150, 52);
-
-      // Real-time Record Broken Banner on Canvas
+      // Real-time Record Broken Banner
       if (liveRecordBroken) {
-        ctx.fillStyle = '#facc15';
-        ctx.font = '900 14px sans-serif';
-        ctx.fillText('🏆 YENİ REKOR! 🏆', canvas.width / 2 - 60, 30);
+        ctx.fillStyle = '#eab308';
+        ctx.font = '700 14px monospace';
+        ctx.fillText('🏆 YENİ REKOR! 🏆', canvas.width / 2 - 70, 30);
       }
 
       ctx.restore();
@@ -869,7 +784,7 @@ function DinoRunnerGame({
           };
           setHighScores(updatedScores);
           saveDinoHighScore(slug, updatedScores.p1Score, updatedScores.p2Score);
-          saveGameScore(slug, 'Aşk Koşusu (Dino Runner)', currentFinalScore, playerName);
+          saveGameScore(slug, 'Chrome Dino', currentFinalScore, playerName);
         }
       }
     };
@@ -890,7 +805,7 @@ function DinoRunnerGame({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🦖</span>
-          <h3 className="text-xl font-black text-gray-900">Sonsuz Aşk Koşusu (Dino Runner)</h3>
+          <h3 className="text-xl font-black text-gray-900">Chrome Dinozor Oyunu (Runner Engine)</h3>
         </div>
         <button
           onClick={() => setIsMuted(!isMuted)}
@@ -902,7 +817,7 @@ function DinoRunnerGame({
       </div>
 
       {/* Leaderboard Panel */}
-      <div className="rounded-2xl bg-gradient-to-r from-purple-50 via-pink-50 to-rose-50 border border-pink-200 p-4 shadow-sm space-y-2">
+      <div className="rounded-2xl bg-gradient-to-r from-gray-50 via-slate-50 to-zinc-50 border border-gray-200 p-4 shadow-sm space-y-2">
         <div className="flex items-center justify-between text-xs font-black">
           <div className="flex items-center gap-2 text-pink-600">
             <span>🌸 Kız Partner ({partner1})</span>
@@ -919,14 +834,14 @@ function DinoRunnerGame({
           </div>
         </div>
 
-        <div className="border-t border-pink-200/60 pt-2 text-xs font-extrabold text-gray-800 flex items-center justify-center gap-1">
-          <span>🏆 Şampiyon:</span> <span className="text-purple-700 font-black text-sm">{championName}</span>
+        <div className="border-t border-gray-200 pt-2 text-xs font-extrabold text-gray-800 flex items-center justify-center gap-1">
+          <span>🏆 Şampiyon:</span> <span className="text-zinc-800 font-black text-sm">{championName}</span>
         </div>
       </div>
 
-      {/* Expanded Game Canvas Container */}
+      {/* Chrome Dino Engine Canvas */}
       <div
-        className="relative mx-auto w-full max-w-4xl bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-purple-300 cursor-pointer touch-none select-none"
+        className="relative mx-auto w-full max-w-4xl bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-gray-300 cursor-pointer touch-none select-none"
         onTouchStart={(e) => {
           if (e.touches.length > 0) {
             touchStartYRef.current = e.touches[0].clientY;
@@ -936,7 +851,6 @@ function DinoRunnerGame({
           if (e.touches.length > 0) {
             const deltaY = e.touches[0].clientY - touchStartYRef.current;
             if (deltaY > 25) {
-              // Swipe Down -> Duck
               isDuckingRef.current = true;
             }
           }
@@ -949,13 +863,11 @@ function DinoRunnerGame({
             const rect = e.currentTarget.getBoundingClientRect();
             const clickY = e.clientY - rect.top;
             if (clickY > rect.height * 0.65) {
-              // Clicked lower region -> Duck
               isDuckingRef.current = true;
               setTimeout(() => {
                 isDuckingRef.current = false;
               }, 600);
             } else {
-              // Clicked upper region -> Jump
               window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
             }
           }
@@ -963,50 +875,50 @@ function DinoRunnerGame({
       >
         <canvas ref={canvasRef} width={800} height={380} className="w-full h-auto block" />
 
-        {/* Start / Game Over Overlay Modal */}
+        {/* Overlay Modal */}
         {!isPlaying && (
           <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-4 z-30 animate-in fade-in duration-200">
             {gameOver ? (
-              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-6 text-center shadow-2xl space-y-4 border border-rose-200 animate-in zoom-in-95">
+              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-6 text-center shadow-2xl space-y-4 border border-gray-200 animate-in zoom-in-95">
                 {isNewRecord ? (
                   <div className="space-y-1.5">
                     <div className="text-5xl animate-bounce">🎉</div>
-                    <h4 className="text-lg font-black text-rose-600">TEBRİKLER! YENİ REKOR!</h4>
-                    <p className="text-xs text-gray-600 font-bold">Muhteşem bir koşu çıkardınız! Rekor kırıldı.</p>
+                    <h4 className="text-lg font-black text-emerald-600">TEBRİKLER! YENİ REKOR!</h4>
+                    <p className="text-xs text-gray-600 font-bold">Chrome Dino rekorunu kırdınız!</p>
                   </div>
                 ) : (
                   <div className="space-y-1.5">
                     <div className="text-4xl">💥</div>
-                    <h4 className="text-lg font-black text-gray-900">Oyun Bitti!</h4>
+                    <h4 className="text-lg font-black text-gray-900">GAME OVER</h4>
                   </div>
                 )}
 
-                <div className="py-3 px-4 bg-rose-50 rounded-2xl border border-rose-100 text-xs font-black text-rose-700 flex items-center justify-around">
-                  <span>Skorunuz: <strong className="text-base text-gray-900">{currentScore}</strong></span>
-                  <span>Son Hız: <strong className="text-base text-purple-700">{currentMultiplier}x</strong></span>
+                <div className="py-3 px-4 bg-gray-100 rounded-2xl border border-gray-200 text-xs font-black text-gray-800 flex items-center justify-around font-mono">
+                  <span>SCORE: <strong className="text-base text-gray-900">{currentScore}</strong></span>
+                  <span>SPEED: <strong className="text-base text-emerald-600">{currentSpeed}</strong></span>
                 </div>
 
                 <button
                   onClick={startGame}
-                  className="w-full rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
+                  className="w-full rounded-2xl bg-gradient-to-r from-gray-800 via-gray-900 to-black py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
                 >
-                  Yeniden Koş 🏃‍♂️
+                  Oyna 🔄
                 </button>
               </div>
             ) : (
               <div className="text-center space-y-4 max-w-md">
-                <div className="text-5xl animate-bounce">🦖🏃‍♂️</div>
-                <h4 className="text-2xl font-black text-white drop-shadow-md">Sonsuz Aşk Koşusu</h4>
-                <p className="text-xs text-purple-200 leading-relaxed">
-                  Zıplama: <span className="font-bold text-pink-300">Space / Yukarı Ok</span> | Eğilme: <span className="font-bold text-pink-300">Aşağı Ok / S</span>
+                <div className="text-5xl animate-bounce">🦖</div>
+                <h4 className="text-2xl font-black text-white font-mono drop-shadow-md">CHROME DINO RUNNER</h4>
+                <p className="text-xs text-gray-300 leading-relaxed font-mono">
+                  Zıplama: <span className="font-bold text-emerald-400">Space / Up</span> | Eğilme: <span className="font-bold text-emerald-400">Down / S</span>
                   <br />
-                  Mobilde zıplamak için üst bölgeye, eğilmek için aşağı kaydırın (Swipe Down) veya butonlara dokunun!
+                  Mobilde zıplamak için dokunun, eğilmek için aşağı sürükleyin!
                 </p>
                 <button
                   onClick={startGame}
-                  className="rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 px-10 py-3.5 text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
+                  className="rounded-2xl bg-gradient-to-r from-gray-800 via-gray-900 to-black px-10 py-3.5 text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition border border-gray-600 font-mono"
                 >
-                  Yarışı Başlat 🚀
+                  START GAME 🚀
                 </button>
               </div>
             )}
@@ -1019,9 +931,9 @@ function DinoRunnerGame({
         <div className="flex items-center justify-center gap-4 pt-1 md:hidden">
           <button
             onPointerDown={() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }))}
-            className="flex-1 py-3 bg-purple-600 text-white rounded-2xl text-xs font-black shadow-md active:scale-95"
+            className="flex-1 py-3 bg-gray-900 text-white rounded-2xl text-xs font-black shadow-md active:scale-95 font-mono"
           >
-            🦘 Zıpla (Yukarı)
+            🦘 JUMP (Space)
           </button>
           <button
             onPointerDown={() => {
@@ -1030,9 +942,9 @@ function DinoRunnerGame({
             onPointerUp={() => {
               isDuckingRef.current = false;
             }}
-            className="flex-1 py-3 bg-pink-600 text-white rounded-2xl text-xs font-black shadow-md active:scale-95"
+            className="flex-1 py-3 bg-gray-700 text-white rounded-2xl text-xs font-black shadow-md active:scale-95 font-mono"
           >
-            👇 Eğil (Aşağı Ok)
+            👇 DUCK (Down)
           </button>
         </div>
       )}
