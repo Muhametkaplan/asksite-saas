@@ -927,11 +927,51 @@ function DashboardContent() {
           </div>
 
           <div>
+            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 E-Postası</label>
+            <input
+              type="email"
+              placeholder="partner1@example.com"
+              value={config.allowed_users?.partner1_email || config.partner1_email || ''}
+              onChange={(e) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  partner1_email: e.target.value,
+                  allowed_users: {
+                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
+                    partner1_email: e.target.value,
+                  },
+                }))
+              }
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div>
             <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 İsmi</label>
             <input
               type="text"
               value={config.partner2_name}
               onChange={(e) => setConfig((prev) => ({ ...prev, partner2_name: e.target.value }))}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 E-Postası</label>
+            <input
+              type="email"
+              placeholder="partner2@example.com"
+              value={config.allowed_users?.partner2_email || config.partner2_email || ''}
+              onChange={(e) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  partner2_email: e.target.value,
+                  allowed_users: {
+                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
+                    partner2_email: e.target.value,
+                  },
+                }))
+              }
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
             />
           </div>

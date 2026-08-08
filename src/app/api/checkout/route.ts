@@ -19,7 +19,7 @@ function slugify(text: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { partner1_name, partner2_name, package_type, shipping_address, whatsapp_number, start_date } = body;
+    const { partner1_name, partner2_name, partner1_email, partner2_email, package_type, shipping_address, whatsapp_number, start_date } = body;
 
     if (!partner1_name || !partner2_name) {
       return NextResponse.json({ error: 'Lütfen çift isimlerini eksiksiz girin.' }, { status: 400 });
@@ -30,11 +30,23 @@ export async function POST(req: NextRequest) {
     const slug = `${baseSlug}-${randomSuffix}`;
     const pair_code = `ASK-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
+    const p1Email = (partner1_email || '').toLowerCase().trim();
+    const p2Email = (partner2_email || '').toLowerCase().trim();
+    const authorized_emails = Array.from(new Set([p1Email, p2Email].filter(Boolean)));
+
     const newCouple = {
       slug,
       pair_code,
       partner1_name,
       partner2_name,
+      partner1_email: p1Email,
+      partner2_email: p2Email,
+      authorized_emails,
+      allowed_users: {
+        partner1_email: p1Email,
+        partner2_email: p2Email,
+        access_pin: '1234',
+      },
       subtitle: 'Bizim Dünyamız ❤️',
       start_date: start_date ? new Date(start_date).toISOString() : new Date().toISOString(),
       theme_color_primary: '#ff4d6d',

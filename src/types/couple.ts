@@ -110,6 +110,9 @@ export interface CoupleConfig {
   slug: string;
   partner1_name: string;
   partner2_name: string;
+  partner1_email?: string;
+  partner2_email?: string;
+  authorized_emails?: string[];
   subtitle: string;
   start_date: string; // ISO date string
   theme_color_primary: string;

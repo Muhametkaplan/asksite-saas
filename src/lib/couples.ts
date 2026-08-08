@@ -427,10 +427,18 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         quiz_partner2_expires_at: config.quiz_partner2_expires_at || null,
         upcoming_event: config.upcoming_event || null,
         allowed_users: config.allowed_users || {
-          partner1_email: 'irem@asksite.com',
-          partner2_email: 'muhammet@asksite.com',
+          partner1_email: config.partner1_email || '',
+          partner2_email: config.partner2_email || '',
           access_pin: '1234',
         },
+        partner1_email: config.partner1_email || config.allowed_users?.partner1_email || '',
+        partner2_email: config.partner2_email || config.allowed_users?.partner2_email || '',
+        authorized_emails: Array.from(new Set([
+          ...(config.authorized_emails || []),
+          (config.partner1_email || config.allowed_users?.partner1_email || '').toLowerCase().trim(),
+          (config.partner2_email || config.allowed_users?.partner2_email || '').toLowerCase().trim(),
+        ].filter(Boolean))),
+        co_owners: config.co_owners || [],
         feature_toggles: config.feature_toggles || {},
         packageType: 'digital',
         isActive: true,
@@ -446,6 +454,79 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
   }
 
   return config;
+}
+
+// Auto-Claim Engine: Automatically link user account if their email matches authorized_emails
+export async function autoClaimCoupleByEmail(user: { uid: string; email?: string | null }): Promise<string | null> {
+  if (!user || !user.email || !isFirebaseConfigured || !db) return null;
+  const normalizedEmail = user.email.toLowerCase().trim();
+
+  try {
+    const couplesRef = collection(db, 'couples');
+    
+    // First try array-contains on authorized_emails
+    const q = query(couplesRef, where('authorized_emails', 'array-contains', normalizedEmail));
+    const snap = await getDocs(q);
+
+    let matchedSlug: string | null = null;
+    let matchedDocRef: any = null;
+
+    if (!snap.empty) {
+      const docSnap = snap.docs[0];
+      matchedSlug = docSnap.id || docSnap.data().slug;
+      matchedDocRef = docSnap.ref;
+    } else {
+      // Fallback: search all couples for partner1_email or partner2_email
+      const snapAll = await getDocs(couplesRef);
+      for (const d of snapAll.docs) {
+        const cData = d.data();
+        const p1 = (cData.allowed_users?.partner1_email || cData.partner1_email || '').toLowerCase().trim();
+        const p2 = (cData.allowed_users?.partner2_email || cData.partner2_email || '').toLowerCase().trim();
+        const authEmails = (cData.authorized_emails || []).map((e: string) => e.toLowerCase().trim());
+
+        if (p1 === normalizedEmail || p2 === normalizedEmail || authEmails.includes(normalizedEmail)) {
+          matchedSlug = d.id || cData.slug;
+          matchedDocRef = d.ref;
+          break;
+        }
+      }
+    }
+
+    if (matchedSlug && matchedDocRef) {
+      const snapDoc = await getDoc(matchedDocRef);
+      if (snapDoc.exists()) {
+        const cData = snapDoc.data() as Record<string, any>;
+        const coOwners: string[] = cData.co_owners || [];
+        const authEmails: string[] = cData.authorized_emails || [];
+
+        if (!coOwners.includes(user.uid)) {
+          coOwners.push(user.uid);
+        }
+        if (!authEmails.includes(normalizedEmail)) {
+          authEmails.push(normalizedEmail);
+        }
+
+        await setDoc(matchedDocRef, { co_owners: coOwners, authorized_emails: authEmails }, { merge: true });
+
+        // Update user record in users/{uid}
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(
+          userRef,
+          {
+            hasPurchasedSite: true,
+            hasActiveSubscription: true,
+            coupleSlug: matchedSlug,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return matchedSlug;
+      }
+    }
+  } catch (e) {
+    console.error('Error in autoClaimCoupleByEmail:', e);
+  }
+  return null;
 }
 
 export async function getMapMarkers(coupleId: string): Promise<MapMarker[]> {

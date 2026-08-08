@@ -52,10 +52,12 @@ export default function PartnerAuthModal({
     // 2. Firebase Auth Observer if device not recognized
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userEmail = (firebaseUser.email || '').toLowerCase();
-        const p1Email = (couple.allowed_users?.partner1_email || '').toLowerCase();
-        const p2Email = (couple.allowed_users?.partner2_email || '').toLowerCase();
+        const userEmail = (firebaseUser.email || '').toLowerCase().trim();
+        const p1Email = (couple.allowed_users?.partner1_email || couple.partner1_email || '').toLowerCase().trim();
+        const p2Email = (couple.allowed_users?.partner2_email || couple.partner2_email || '').toLowerCase().trim();
+        const authEmails = (couple.authorized_emails || []).map((e) => e.toLowerCase().trim());
         const isCoOwner = (couple.co_owners || []).includes(firebaseUser.uid);
+        const isAuthorizedEmail = userEmail && authEmails.includes(userEmail);
 
         let role: 'partner1' | 'partner2' | null = null;
         let pName = firebaseUser.displayName || partner1Name;
@@ -66,7 +68,7 @@ export default function PartnerAuthModal({
         } else if (userEmail && userEmail === p2Email) {
           role = 'partner2';
           pName = partner2Name;
-        } else if (isCoOwner) {
+        } else if (isAuthorizedEmail || isCoOwner) {
           role = 'partner2';
           pName = partner2Name;
         }
@@ -100,10 +102,12 @@ export default function PartnerAuthModal({
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      const userEmail = (user.email || '').toLowerCase();
-      const p1Email = (couple.allowed_users?.partner1_email || '').toLowerCase();
-      const p2Email = (couple.allowed_users?.partner2_email || '').toLowerCase();
+      const userEmail = (user.email || '').toLowerCase().trim();
+      const p1Email = (couple.allowed_users?.partner1_email || couple.partner1_email || '').toLowerCase().trim();
+      const p2Email = (couple.allowed_users?.partner2_email || couple.partner2_email || '').toLowerCase().trim();
+      const authEmails = (couple.authorized_emails || []).map((e) => e.toLowerCase().trim());
       const isCoOwner = (couple.co_owners || []).includes(user.uid);
+      const isAuthorizedEmail = userEmail && authEmails.includes(userEmail);
 
       let role: 'partner1' | 'partner2' | null = null;
       let pName = user.displayName || partner1Name;
@@ -114,7 +118,7 @@ export default function PartnerAuthModal({
       } else if (userEmail && userEmail === p2Email) {
         role = 'partner2';
         pName = partner2Name;
-      } else if (isCoOwner) {
+      } else if (isAuthorizedEmail || isCoOwner) {
         role = 'partner2';
         pName = partner2Name;
       }
@@ -144,10 +148,12 @@ export default function PartnerAuthModal({
     try {
       const result = await signInWithEmailAndPassword(auth, emailInput, passwordInput);
       const user = result.user;
-      const userEmail = (user.email || '').toLowerCase();
-      const p1Email = (couple.allowed_users?.partner1_email || '').toLowerCase();
-      const p2Email = (couple.allowed_users?.partner2_email || '').toLowerCase();
+      const userEmail = (user.email || '').toLowerCase().trim();
+      const p1Email = (couple.allowed_users?.partner1_email || couple.partner1_email || '').toLowerCase().trim();
+      const p2Email = (couple.allowed_users?.partner2_email || couple.partner2_email || '').toLowerCase().trim();
+      const authEmails = (couple.authorized_emails || []).map((e) => e.toLowerCase().trim());
       const isCoOwner = (couple.co_owners || []).includes(user.uid);
+      const isAuthorizedEmail = userEmail && authEmails.includes(userEmail);
 
       let role: 'partner1' | 'partner2' | null = null;
       let pName = partner1Name;
@@ -158,7 +164,7 @@ export default function PartnerAuthModal({
       } else if (userEmail && userEmail === p2Email) {
         role = 'partner2';
         pName = partner2Name;
-      } else if (isCoOwner) {
+      } else if (isAuthorizedEmail || isCoOwner) {
         role = 'partner2';
         pName = partner2Name;
       }

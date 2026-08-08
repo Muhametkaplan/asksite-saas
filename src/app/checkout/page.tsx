@@ -38,6 +38,8 @@ export default function CheckoutPage() {
 
   const [partner1, setPartner1] = useState('');
   const [partner2, setPartner2] = useState('');
+  const [partner1Email, setPartner1Email] = useState('');
+  const [partner2Email, setPartner2Email] = useState('');
   const [startDate, setStartDate] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
 
@@ -61,6 +63,9 @@ export default function CheckoutPage() {
           displayName: firebaseUser.displayName || '',
           email: firebaseUser.email || '',
         });
+        if (firebaseUser.email) {
+          setPartner1Email((prev) => prev || firebaseUser.email || '');
+        }
 
         if (db) {
           try {
@@ -180,6 +185,8 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           partner1_name: partner1,
           partner2_name: partner2,
+          partner1_email: partner1Email,
+          partner2_email: partner2Email,
           package_type: packageType,
           start_date: startDate,
           whatsapp_number: whatsapp,
@@ -561,6 +568,22 @@ export default function CheckoutPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Sizin E-Posta Adresiniz (Partner 1) *
+              </label>
+              <input
+                type="email"
+                required
+                placeholder="ahmet@example.com"
+                value={partner1Email}
+                onChange={(e) => setPartner1Email(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Sevgilinizin İsmi (Partner 2) *
               </label>
               <input
@@ -569,6 +592,19 @@ export default function CheckoutPage() {
                 placeholder="Örn: Ayşe"
                 value={partner2}
                 onChange={(e) => setPartner2(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Sevgilinizin E-Posta Adresi (Partner 2) *
+              </label>
+              <input
+                type="email"
+                required
+                placeholder="ayse@example.com"
+                value={partner2Email}
+                onChange={(e) => setPartner2Email(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
               />
             </div>

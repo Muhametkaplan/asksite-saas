@@ -12,6 +12,7 @@ import {
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
 import { Heart, Sparkles, Lock, Mail, User, Phone, LogIn, UserPlus, ArrowRight } from 'lucide-react';
+import { autoClaimCoupleByEmail } from '@/lib/couples';
 
 async function saveUserDataToFirestore(user: any, name?: string, phoneNumber?: string) {
   if (!db) return;
@@ -48,7 +49,7 @@ function LoginContent() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSuccessAuth = (userObj: any) => {
+  const handleSuccessAuth = async (userObj: any) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(
         'asksite_user',
@@ -60,8 +61,16 @@ function LoginContent() {
         })
       );
     }
-    const targetUrl = redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`;
-    router.push(targetUrl);
+
+    // Auto-Claim Engine: Automatically link user account if email matches an authorized couple
+    const matchedSlug = await autoClaimCoupleByEmail({ uid: userObj.uid, email: userObj.email });
+
+    if (matchedSlug) {
+      router.push(`/c/${matchedSlug}`);
+    } else {
+      const targetUrl = redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`;
+      router.push(targetUrl);
+    }
   };
 
   const handleGoogleSignIn = async () => {
