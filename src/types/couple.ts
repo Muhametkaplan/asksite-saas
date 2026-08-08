@@ -75,6 +75,9 @@ export interface QuizQuestion {
   options: string[];
   correct_index: number;
   created_by?: 'partner1' | 'partner2';
+  points?: number;
+  created_at?: string;
+  expires_at?: string;
 }
 
 export interface FeatureToggles {
@@ -120,6 +123,12 @@ export interface CoupleConfig {
   wheel_items?: string[];
   quiz_partner1?: QuizQuestion[];
   quiz_partner2?: QuizQuestion[];
+  partner1_score?: number;
+  partner2_score?: number;
+  quiz_partner1_created_at?: string;
+  quiz_partner2_created_at?: string;
+  quiz_partner1_expires_at?: string;
+  quiz_partner2_expires_at?: string;
   upcoming_event?: UpcomingEvent;
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;

@@ -333,6 +333,12 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           wheel_items: data.wheel_items || DEMO_COUPLE.wheel_items,
           quiz_partner1: data.quiz_partner1 || DEMO_COUPLE.quiz_partner1,
           quiz_partner2: data.quiz_partner2 || DEMO_COUPLE.quiz_partner2,
+          partner1_score: data.partner1_score !== undefined ? data.partner1_score : 120,
+          partner2_score: data.partner2_score !== undefined ? data.partner2_score : 150,
+          quiz_partner1_created_at: data.quiz_partner1_created_at || null,
+          quiz_partner2_created_at: data.quiz_partner2_created_at || null,
+          quiz_partner1_expires_at: data.quiz_partner1_expires_at || null,
+          quiz_partner2_expires_at: data.quiz_partner2_expires_at || null,
           upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
@@ -408,6 +414,12 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         wheel_items: config.wheel_items || [],
         quiz_partner1: config.quiz_partner1 || [],
         quiz_partner2: config.quiz_partner2 || [],
+        partner1_score: config.partner1_score !== undefined ? config.partner1_score : 120,
+        partner2_score: config.partner2_score !== undefined ? config.partner2_score : 150,
+        quiz_partner1_created_at: config.quiz_partner1_created_at || null,
+        quiz_partner2_created_at: config.quiz_partner2_created_at || null,
+        quiz_partner1_expires_at: config.quiz_partner1_expires_at || null,
+        quiz_partner2_expires_at: config.quiz_partner2_expires_at || null,
         upcoming_event: config.upcoming_event || null,
         allowed_users: config.allowed_users || {
           partner1_email: 'irem@asksite.com',
@@ -818,24 +830,55 @@ export async function deleteWheelItem(slug: string, itemIndex: number): Promise<
 // ================= QUIZ SERVICES =================
 export async function addQuizQuestion(
   slug: string,
-  targetPartner: 'partner1' | 'partner2',
-  questionData: Omit<QuizQuestion, 'id'>
+  questionData: Omit<QuizQuestion, 'id'>,
+  targetPartner: 'partner1' | 'partner2'
 ): Promise<boolean> {
   const couple = await getCoupleBySlug(slug);
   if (!couple) return false;
+
+  const nowIso = new Date().toISOString();
+  const expiresIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const newQuestion: QuizQuestion = {
     ...questionData,
     id: `q-${Date.now()}`,
     created_by: targetPartner,
+    points: 10,
+    created_at: nowIso,
+    expires_at: expiresIso,
   };
 
   const key = targetPartner === 'partner1' ? 'quiz_partner1' : 'quiz_partner2';
   const updatedQuestions = [...(couple[key] || []), newQuestion];
 
+  const timeKeyCreated = targetPartner === 'partner1' ? 'quiz_partner1_created_at' : 'quiz_partner2_created_at';
+  const timeKeyExpires = targetPartner === 'partner1' ? 'quiz_partner1_expires_at' : 'quiz_partner2_expires_at';
+
   const updated = await saveCoupleConfig({
     ...couple,
     [key]: updatedQuestions,
+    [timeKeyCreated]: nowIso,
+    [timeKeyExpires]: expiresIso,
+  });
+
+  return !!updated;
+}
+
+export async function saveQuizScore(
+  slug: string,
+  solverPartner: 'partner1' | 'partner2',
+  pointsEarned: number
+): Promise<boolean> {
+  const couple = await getCoupleBySlug(slug);
+  if (!couple) return false;
+
+  const scoreKey = solverPartner === 'partner1' ? 'partner1_score' : 'partner2_score';
+  const currentScore = couple[scoreKey] !== undefined ? couple[scoreKey]! : (solverPartner === 'partner1' ? 120 : 150);
+  const newScore = currentScore + pointsEarned;
+
+  const updated = await saveCoupleConfig({
+    ...couple,
+    [scoreKey]: newScore,
   });
 
   return !!updated;

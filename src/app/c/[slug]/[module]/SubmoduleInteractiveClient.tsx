@@ -37,6 +37,7 @@ import {
   deleteWheelItem,
   addQuizQuestion,
   deleteQuizQuestion,
+  saveQuizScore,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -681,12 +682,16 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
   const partner1Name = couple?.partner1_name || 'Partner 1';
   const partner2Name = couple?.partner2_name || 'Partner 2';
 
+  const [p1Score, setP1Score] = useState<number>(couple?.partner1_score !== undefined ? couple.partner1_score : 120);
+  const [p2Score, setP2Score] = useState<number>(couple?.partner2_score !== undefined ? couple.partner2_score : 150);
+
   const [activePartnerTab, setActivePartnerTab] = useState<'partner1' | 'partner2'>('partner1');
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswering, setIsAnswering] = useState(false);
+  const [pointsEarned, setPointsEarned] = useState(0);
 
   const questions = React.useMemo(() => {
     if (activePartnerTab === 'partner1') {
@@ -696,6 +701,14 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
     }
   }, [activePartnerTab, couple]);
 
+  // Weekly lock countdown calculation
+  const expiresAtStr = activePartnerTab === 'partner1' ? couple?.quiz_partner1_expires_at : couple?.quiz_partner2_expires_at;
+  const expiresTime = expiresAtStr ? new Date(expiresAtStr).getTime() : 0;
+  const now = Date.now();
+  const remainingMs = Math.max(0, expiresTime - now);
+  const remainingDays = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
+  const remainingHours = Math.floor((remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
   const handleTabChange = (tab: 'partner1' | 'partner2') => {
     setActivePartnerTab(tab);
     setCurrentQIndex(0);
@@ -703,6 +716,7 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
     setCompleted(false);
     setSelectedOption(null);
     setIsAnswering(false);
+    setPointsEarned(0);
   };
 
   const handleOptionClick = (optionIdx: number) => {
@@ -712,19 +726,32 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
     setSelectedOption(optionIdx);
 
     const isCorrect = optionIdx === questions[currentQIndex].correct_index;
+    let newScore = score;
     if (isCorrect) {
-      setScore((prev) => prev + 1);
+      newScore = score + 1;
+      setScore(newScore);
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (currentQIndex + 1 < questions.length) {
         setCurrentQIndex((prev) => prev + 1);
         setSelectedOption(null);
         setIsAnswering(false);
       } else {
+        const totalPoints = newScore * 10;
+        setPointsEarned(totalPoints);
         setCompleted(true);
         setIsAnswering(false);
         triggerConfetti({ particleCount: 90, spread: 80 });
+
+        // Save score to Firebase
+        const solverRole = activePartnerTab === 'partner1' ? 'partner2' : 'partner1';
+        await saveQuizScore(couple.slug, solverRole, totalPoints);
+        if (solverRole === 'partner1') {
+          setP1Score((prev) => prev + totalPoints);
+        } else {
+          setP2Score((prev) => prev + totalPoints);
+        }
       }
     }, 1200);
   };
@@ -735,6 +762,7 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
     setCompleted(false);
     setSelectedOption(null);
     setIsAnswering(false);
+    setPointsEarned(0);
   };
 
   const currentQ = questions[currentQIndex];
@@ -748,7 +776,32 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Scoreboard (Puan Tablosu) Header */}
+      <div className="rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 p-3.5 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="flex items-center gap-2 font-extrabold text-xs tracking-wide">
+          <span className="text-base">🏆</span> AŞK PUAN TABLOSU
+        </div>
+        <div className="flex items-center gap-2 text-xs font-black">
+          <span className="bg-white/20 backdrop-blur-xs px-3 py-1 rounded-xl border border-white/30">
+            💖 {partner1Name}: <strong className="text-amber-200">{p1Score} Puan</strong>
+          </span>
+          <span className="bg-white/20 backdrop-blur-xs px-3 py-1 rounded-xl border border-white/30">
+            💙 {partner2Name}: <strong className="text-amber-200">{p2Score} Puan</strong>
+          </span>
+        </div>
+      </div>
+
+      {/* Weekly Countdown Badge */}
+      {expiresTime > now && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-center text-xs font-bold text-amber-800 flex items-center justify-center gap-1.5 shadow-xs">
+          <span>⏳</span>
+          <span>
+            Haftalık Test Hazırlama Süresi Devam Ediyor (Kalan: {remainingDays} Gün {remainingHours} Saat)
+          </span>
+        </div>
+      )}
+
       {/* Partner Quiz Selector Tabs */}
       <div className="flex rounded-2xl bg-gray-100 p-1.5 shadow-inner">
         <button
@@ -780,7 +833,7 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
             {/* Header */}
             <div className="flex items-center justify-between border-b pb-3">
               <span className="text-xs font-extrabold text-rose-500 uppercase tracking-wider">
-                Soru {currentQIndex + 1} / {questions.length}
+                Soru {currentQIndex + 1} / {questions.length} (Soru Başı 10 Puan)
               </span>
               <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-[10px] font-bold text-rose-600 border border-rose-100">
                 Hazırlayan: {activePartnerTab === 'partner1' ? partner1Name : partner2Name}
@@ -845,12 +898,15 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
               </p>
             </div>
 
-            {/* Score & Compatibility Badge */}
+            {/* Score & Points Earned Badge */}
             <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100 space-y-2">
               <div className="text-2xl font-black text-rose-600">
                 {score} / {questions.length} Doğru (%{scorePct})
               </div>
-              <div className="text-xs font-extrabold text-gray-800 bg-white py-1.5 px-3 rounded-xl shadow-xs border border-rose-100 inline-block">
+              <div className="text-sm font-black text-emerald-600 bg-emerald-50 py-1.5 px-4 rounded-xl border border-emerald-200 inline-block">
+                🎉 Kazanılan Aşk Puanı: +{pointsEarned} Puan!
+              </div>
+              <div className="text-xs font-extrabold text-gray-800 bg-white py-1.5 px-3 rounded-xl shadow-xs border border-rose-100 block mt-2">
                 {getRankBadge()}
               </div>
             </div>
