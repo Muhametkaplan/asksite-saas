@@ -387,6 +387,7 @@ function DinoRunnerGame({
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameId = useRef<number | null>(null);
+  const isDuckingRef = useRef(false);
 
   // Load existing high scores from Firestore on mount
   useEffect(() => {
@@ -426,7 +427,10 @@ function DinoRunnerGame({
 
     let frameCount = 0;
     let score = 0;
-    let lastMilestone = 0;
+    let shakeTimer = 0;
+    let liveRecordBroken = false;
+
+    const previousRecord = role === 'partner1' ? highScores.p1Score : highScores.p2Score;
 
     // Background Stars & Clouds for Parallax
     const stars = Array.from({ length: 25 }, () => ({
@@ -446,15 +450,17 @@ function DinoRunnerGame({
     const runner = {
       x: 70,
       y: 290,
-      width: 32,
-      height: 50,
+      normalWidth: 32,
+      normalHeight: 50,
+      duckWidth: 42,
+      duckHeight: 28,
       vy: 0,
       gravity: 0.72,
       isJumping: false,
       groundY: 290,
     };
 
-    let particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; emoji: string; size?: number }> = [];
+    let particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; text?: string; emoji?: string }> = [];
     let obstacles: Array<{ x: number; y: number; width: number; height: number; emoji: string; isAir: boolean }> = [];
 
     const jump = () => {
@@ -477,15 +483,25 @@ function DinoRunnerGame({
       }
     };
 
-    // Keyboard controls (Space / ArrowUp)
+    // Keyboard controls (Jump: Space / ArrowUp; Duck: ArrowDown / KeyS)
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
         jump();
+      } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+        e.preventDefault();
+        isDuckingRef.current = true;
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+        isDuckingRef.current = false;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
 
     let isRunning = true;
 
@@ -494,16 +510,31 @@ function DinoRunnerGame({
       score += 1;
       setCurrentScore(score);
 
-      // Milestone Chime sound every 500 points
-      if (score - lastMilestone >= 500) {
-        lastMilestone = Math.floor(score / 500) * 500;
+      // Milestone Popups & Screen Shake every 100 points
+      if (score > 0 && score % 100 === 0) {
+        playDinoSFX('milestone', isMuted);
+        shakeTimer = 6;
+        particles.push({
+          x: runner.x + 40,
+          y: runner.y - 20,
+          vx: 0,
+          vy: -1.2,
+          life: 1.2,
+          text: `${score} PTS! 🎉`,
+        });
+      }
+
+      // Check Live Record Breaking
+      if (!liveRecordBroken && previousRecord > 0 && score > previousRecord) {
+        liveRecordBroken = true;
+        triggerConfetti({ particleCount: 70, spread: 80 });
         playDinoSFX('milestone', isMuted);
       }
 
-      // Progressive Speed Scaling: increases every 100 points
-      const multVal = (1.0 + Math.min(2.0, Math.floor(score / 100) * 0.1)).toFixed(1);
+      // Smooth Pacing: gradual speed increase every 280 points
+      const multVal = (1.0 + Math.min(1.8, Math.floor(score / 280) * 0.08)).toFixed(1);
       setCurrentMultiplier(multVal);
-      const speed = 3.6 * parseFloat(multVal);
+      const speed = 3.2 * parseFloat(multVal);
 
       // Update runner position
       runner.y += runner.vy;
@@ -515,11 +546,17 @@ function DinoRunnerGame({
         runner.isJumping = false;
       }
 
+      // Current Runner Bounding Height/Y
+      const isDucking = isDuckingRef.current && !runner.isJumping;
+      const currentHeight = isDucking ? runner.duckHeight : runner.normalHeight;
+      const currentWidth = isDucking ? runner.duckWidth : runner.normalWidth;
+      const currentY = isDucking ? runner.groundY + 22 : runner.y;
+
       // Spawn Footprint Dust when running on ground
       if (!runner.isJumping && frameCount % 7 === 0) {
         particles.push({
           x: runner.x - 4,
-          y: runner.y + 42,
+          y: currentY + currentHeight - 8,
           vx: -speed * 0.4,
           vy: (Math.random() - 0.5) * 0.5,
           life: 0.7,
@@ -542,31 +579,74 @@ function DinoRunnerGame({
       particles.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
-        p.life -= 0.04;
+        p.life -= 0.03;
       });
       particles = particles.filter((p) => p.life > 0);
 
-      // Spawn obstacles with progressive interval
-      const spawnInterval = Math.max(38, Math.floor(90 - Math.min(45, score / 70)));
+      // Spawn obstacles (Single, Clusters, Low Air Duckable, High Air)
+      const spawnInterval = Math.max(42, Math.floor(100 - Math.min(50, score / 80)));
       if (frameCount % spawnInterval === 0) {
-        const isAir = Math.random() < 0.35;
-        const emojis = isAir ? ['🕊️', '⚡', '🎈', '🦅'] : ['🌵', '💔', '🔥', '🚧', '🪨'];
-        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-        obstacles.push({
-          x: canvas.width,
-          y: isAir ? 210 : 300,
-          width: 30,
-          height: 38,
-          emoji,
-          isAir,
-        });
+        const canAir = score >= 400;
+        const rand = Math.random();
+
+        if (canAir && rand < 0.28) {
+          // Low Air Obstacle (Requires Ducking!)
+          obstacles.push({
+            x: canvas.width,
+            y: 268,
+            width: 32,
+            height: 34,
+            emoji: Math.random() > 0.5 ? '🦅' : '⚡',
+            isAir: true,
+          });
+        } else if (canAir && rand < 0.4) {
+          // High Air Obstacle (Passable by running)
+          obstacles.push({
+            x: canvas.width,
+            y: 200,
+            width: 30,
+            height: 32,
+            emoji: '🎈',
+            isAir: true,
+          });
+        } else if (rand < 0.7) {
+          // Double Obstacle Cluster
+          const isHeart = Math.random() > 0.5;
+          obstacles.push({
+            x: canvas.width,
+            y: 302,
+            width: 55,
+            height: 38,
+            emoji: isHeart ? '💔💔' : '🌵🌵',
+            isAir: false,
+          });
+        } else {
+          // Single Ground Obstacle
+          const emojis = ['🌵', '💔', '🔥', '🪨', '🚧'];
+          const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+          obstacles.push({
+            x: canvas.width,
+            y: 302,
+            width: 30,
+            height: 38,
+            emoji,
+            isAir: false,
+          });
+        }
       }
 
       // Move obstacles
       obstacles = obstacles.map((obs) => ({ ...obs, x: obs.x - speed })).filter((obs) => obs.x + obs.width > 0);
 
       // --- CANVAS DRAWING (800x380 High Res) ---
+      ctx.save();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Screen Shake Effect
+      if (shakeTimer > 0) {
+        shakeTimer--;
+        ctx.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
+      }
 
       // 1. Rich Sunset/Twilight Sky Gradient
       const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -614,65 +694,76 @@ function DinoRunnerGame({
       ctx.lineWidth = 5;
       ctx.stroke();
 
-      // 6. Draw Dust & Sparkle Particles
+      // 6. Draw Particles & Popups
       particles.forEach((p) => {
-        ctx.font = '16px sans-serif';
         ctx.globalAlpha = Math.max(0, p.life);
-        ctx.fillText(p.emoji, p.x, p.y);
+        if (p.text) {
+          ctx.fillStyle = '#fde047';
+          ctx.font = '900 16px sans-serif';
+          ctx.shadowColor = 'rgba(0,0,0,0.8)';
+          ctx.shadowBlur = 6;
+          ctx.fillText(p.text, p.x, p.y);
+        } else if (p.emoji) {
+          ctx.font = '16px sans-serif';
+          ctx.fillText(p.emoji, p.x, p.y);
+        }
         ctx.globalAlpha = 1.0;
       });
 
-      // 7. Draw Detailed Animated Vector Runner Character
+      // 7. Draw Animated Vector Runner Character (Standing or Ducking)
       ctx.save();
-      ctx.translate(runner.x, runner.y);
+      ctx.translate(runner.x, currentY);
 
       // Shadow underneath feet
       ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
       ctx.beginPath();
-      ctx.ellipse(16, 46, 14, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(currentWidth / 2, currentHeight - 4, currentWidth / 2, 4, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Running Legs Animation (Sine wave)
-      const legPhase = runner.isJumping ? 0.8 : Math.sin(frameCount * 0.35);
-      ctx.strokeStyle = role === 'partner1' ? '#be185d' : '#1d4ed8';
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
+      if (isDucking) {
+        // Ducking crouching pose
+        ctx.font = '30px sans-serif';
+        ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', -2, 26);
+      } else {
+        // Standing running pose with leg animation
+        const legPhase = runner.isJumping ? 0.8 : Math.sin(frameCount * 0.35);
+        ctx.strokeStyle = role === 'partner1' ? '#be185d' : '#1d4ed8';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
 
-      // Left Leg
-      ctx.beginPath();
-      ctx.moveTo(12, 32);
-      ctx.lineTo(12 + legPhase * 10, 44);
-      ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(12, 32);
+        ctx.lineTo(12 + legPhase * 10, 44);
+        ctx.stroke();
 
-      // Right Leg
-      ctx.beginPath();
-      ctx.moveTo(20, 32);
-      ctx.lineTo(20 - legPhase * 10, 44);
-      ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(20, 32);
+        ctx.lineTo(20 - legPhase * 10, 44);
+        ctx.stroke();
 
-      // Scarf / Hair Trailing in wind
-      const scarfWiggle = Math.cos(frameCount * 0.3) * 5;
-      ctx.fillStyle = role === 'partner1' ? '#f472b6' : '#60a5fa';
-      ctx.beginPath();
-      ctx.moveTo(8, 14);
-      ctx.quadraticCurveTo(-10, 14 + scarfWiggle, -18, 20 + scarfWiggle);
-      ctx.lineTo(-8, 18);
-      ctx.closePath();
-      ctx.fill();
+        // Scarf / Hair Trailing in wind
+        const scarfWiggle = Math.cos(frameCount * 0.3) * 5;
+        ctx.fillStyle = role === 'partner1' ? '#f472b6' : '#60a5fa';
+        ctx.beginPath();
+        ctx.moveTo(8, 14);
+        ctx.quadraticCurveTo(-10, 14 + scarfWiggle, -18, 20 + scarfWiggle);
+        ctx.lineTo(-8, 18);
+        ctx.closePath();
+        ctx.fill();
 
-      // Character Body & Head Sprite Frame
-      ctx.font = '36px sans-serif';
-      ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', -2, 34);
+        ctx.font = '36px sans-serif';
+        ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', -2, 34);
+      }
       ctx.restore();
 
       // 8. Draw Obstacles & Check Collision
       for (const obs of obstacles) {
-        ctx.font = '32px sans-serif';
-        ctx.fillText(obs.emoji, obs.x, obs.y + 32);
+        ctx.font = obs.width > 40 ? '26px sans-serif' : '32px sans-serif';
+        ctx.fillText(obs.emoji, obs.x, obs.y + 30);
 
-        // Precise Bounding Box Collision Check
-        const runnerBox = { x: runner.x + 6, y: runner.y + 8, width: runner.width - 8, height: runner.height - 10 };
-        const obsBox = { x: obs.x + 4, y: obs.y + 6, width: obs.width - 6, height: obs.height - 8 };
+        // Bounding Box Collision Check
+        const runnerBox = { x: runner.x + 4, y: currentY + 4, width: currentWidth - 6, height: currentHeight - 6 };
+        const obsBox = { x: obs.x + 3, y: obs.y + 4, width: obs.width - 6, height: obs.height - 6 };
 
         if (
           runnerBox.x < obsBox.x + obsBox.width &&
@@ -686,17 +777,25 @@ function DinoRunnerGame({
         }
       }
 
-      // 9. Premium HUD Overlay (Score & Dynamic Speed Level)
+      // 9. Premium HUD Overlay (Score, Speed Level & Live Record Broken Banner)
       ctx.fillStyle = '#ffffff';
       ctx.font = '900 15px sans-serif';
       ctx.shadowColor = 'rgba(0,0,0,0.6)';
       ctx.shadowBlur = 6;
       ctx.fillText(`🏆 Skor: ${score}`, canvas.width - 150, 30);
 
-      // Speed level badge color shifts with multiplier
       const speedColor = parseFloat(multVal) >= 2.0 ? '#facc15' : parseFloat(multVal) >= 1.5 ? '#38bdf8' : '#4ade80';
       ctx.fillStyle = speedColor;
       ctx.fillText(`⚡ Hız: ${multVal}x`, canvas.width - 150, 52);
+
+      // Real-time Record Broken Banner on Canvas
+      if (liveRecordBroken) {
+        ctx.fillStyle = '#facc15';
+        ctx.font = '900 14px sans-serif';
+        ctx.fillText('🏆 YENİ REKOR! 🏆', canvas.width / 2 - 60, 30);
+      }
+
+      ctx.restore();
 
       if (isRunning) {
         animationFrameId.current = requestAnimationFrame(loop);
@@ -708,11 +807,9 @@ function DinoRunnerGame({
 
         const currentFinalScore = score;
         const isP1 = role === 'partner1';
-        const previousRecord = isP1 ? highScores.p1Score : highScores.p2Score;
 
         if (currentFinalScore > previousRecord) {
           setIsNewRecord(true);
-          triggerConfetti({ particleCount: 100, spread: 100 });
           const updatedScores = {
             p1Score: isP1 ? currentFinalScore : highScores.p1Score,
             p2Score: !isP1 ? currentFinalScore : highScores.p2Score,
@@ -728,6 +825,7 @@ function DinoRunnerGame({
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);
       }
@@ -773,12 +871,23 @@ function DinoRunnerGame({
         </div>
       </div>
 
-      {/* Expanded Game Canvas Container (800x380 High-Res Canvas) */}
+      {/* Expanded Game Canvas Container */}
       <div
         className="relative mx-auto w-full max-w-4xl bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-purple-300 cursor-pointer touch-none select-none"
-        onClick={() => {
+        onClick={(e) => {
           if (isPlaying) {
-            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickY = e.clientY - rect.top;
+            if (clickY > rect.height * 0.65) {
+              // Clicked lower region -> Duck
+              isDuckingRef.current = true;
+              setTimeout(() => {
+                isDuckingRef.current = false;
+              }, 600);
+            } else {
+              // Clicked upper region -> Jump
+              window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+            }
           }
         }}
       >
@@ -819,7 +928,9 @@ function DinoRunnerGame({
                 <div className="text-5xl animate-bounce">🦖🏃‍♂️</div>
                 <h4 className="text-2xl font-black text-white drop-shadow-md">Sonsuz Aşk Koşusu</h4>
                 <p className="text-xs text-purple-200 leading-relaxed">
-                  Masaüstünde <span className="font-bold text-pink-300">Boşluk (Space)</span> veya <span className="font-bold text-pink-300">Yukarı Ok</span> tuşuna basın, mobilde ekrana <span className="font-bold text-pink-300">Dokunun (Tap)</span>!
+                  Zıplama: <span className="font-bold text-pink-300">Space / Yukarı Ok</span> | Eğilme: <span className="font-bold text-pink-300">Aşağı Ok / S</span>
+                  <br />
+                  Mobilde zıplamak için üst bölgeye, eğilmek için alt bölgeye veya butonlara dokunun!
                 </p>
                 <button
                   onClick={startGame}
@@ -833,8 +944,31 @@ function DinoRunnerGame({
         )}
       </div>
 
+      {/* Mobile Explicit Controls */}
+      {isPlaying && (
+        <div className="flex items-center justify-center gap-4 pt-1 md:hidden">
+          <button
+            onPointerDown={() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }))}
+            className="flex-1 py-3 bg-purple-600 text-white rounded-2xl text-xs font-black shadow-md active:scale-95"
+          >
+            🦘 Zıpla (Yukarı)
+          </button>
+          <button
+            onPointerDown={() => {
+              isDuckingRef.current = true;
+            }}
+            onPointerUp={() => {
+              isDuckingRef.current = false;
+            }}
+            className="flex-1 py-3 bg-pink-600 text-white rounded-2xl text-xs font-black shadow-md active:scale-95"
+          >
+            👇 Eğil (Aşağı Ok)
+          </button>
+        </div>
+      )}
+
       <p className="text-xs text-gray-500 font-medium">
-        💡 Her 100 puanda hızınız ve zorluk kademeli olarak artar. En yüksek skorunuz partner liderlik panosuna kaydedilir!
+        💡 Hızınız her 280 puanda bir yumuşakça artar. 400+ puandan sonra uçan kuşlara karşı eğilin!
       </p>
     </div>
   );
