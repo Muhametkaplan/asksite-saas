@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -33,7 +34,7 @@ import {
 } from 'lucide-react';
 
 import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
@@ -513,6 +514,14 @@ function DashboardContent() {
 
   const router = useRouter();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [disableModalOpen, setDisableModalOpen] = useState(false);
+
+  const handleToggleSiteActive = async (newStatus: boolean) => {
+    const updated = { ...config, is_active: newStatus };
+    setConfig(updated);
+    await saveCoupleConfig(updated);
+    setDisableModalOpen(false);
+  };
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -523,6 +532,34 @@ function DashboardContent() {
   const [confirmAccountPassword, setConfirmAccountPassword] = useState('');
   const [accountStatusMsg, setAccountStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [accountUpdating, setAccountUpdating] = useState(false);
+
+  const [hasPurchased, setHasPurchased] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function checkSubscription() {
+      if (auth.currentUser && db) {
+        try {
+          const userRef = doc(db, 'users', auth.currentUser.uid);
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.hasPurchasedSite === false || data.hasActiveSubscription === false) {
+              setHasPurchased(false);
+            } else {
+              setHasPurchased(true);
+            }
+          } else {
+            setHasPurchased(true);
+          }
+        } catch (e) {
+          setHasPurchased(true);
+        }
+      } else {
+        setHasPurchased(true);
+      }
+    }
+    checkSubscription();
+  }, [currentUser]);
 
   useEffect(() => {
     if (currentUser) {
@@ -715,13 +752,47 @@ function DashboardContent() {
         </div>
       </div>
 
+      {/* Dynamic Checkout Callout Banner if no active subscription */}
+      {hasPurchased === false && (
+        <div className="mx-auto max-w-7xl mb-6 rounded-3xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 p-6 text-white shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-200">
+          <div className="space-y-1 text-left">
+            <span className="inline-block rounded-full bg-white/20 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-white border border-white/30">
+              Henüz Aktif Siteniz Bulunmamaktadır 🚀
+            </span>
+            <h2 className="text-xl font-black">
+              Hemen Kendi Çift Sitenizi Oluşturun ve Yayına Alın! 💖
+            </h2>
+            <p className="text-xs text-white/90">
+              Tek tıkla VIP paketinizi tamamlayın, anında kendinize özel link ve QR kod ile çift sayfanızı yönetin.
+            </p>
+          </div>
+          <Link
+            href="/checkout"
+            className="shrink-0 rounded-2xl bg-white px-6 py-3 text-xs font-black text-rose-600 shadow-xl hover:bg-rose-50 transition active:scale-95 flex items-center gap-1.5"
+          >
+            Satın Almayı Tamamla (₺399) 🛒
+          </Link>
+        </div>
+      )}
+
       {/* Aktif Site Yönetim Kartı */}
       <div className="mx-auto max-w-7xl mb-6 rounded-3xl bg-white p-6 shadow-xl border border-gray-100">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-gray-100 pb-4 mb-5">
           <div className="space-y-1 text-left">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-500 flex items-center gap-1">
-              <Shield className="h-3.5 w-3.5" /> Aktif Çift Sitesi Yönetim Kartı
-            </span>
+            <div className="flex items-center gap-2 flex-wrap mt-1">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-500 flex items-center gap-1">
+                <Shield className="h-3.5 w-3.5" /> Aktif Çift Sitesi Yönetim Kartı
+              </span>
+              {config.is_active !== false ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                  Canlıda / Yayında 🟢
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
+                  Pasif / Kapatıldı 🔴
+                </span>
+              )}
+            </div>
             <h2 className="text-xl font-black text-gray-900">
               {config.partner1_name} & {config.partner2_name}
             </h2>
@@ -746,6 +817,22 @@ function DashboardContent() {
             >
               <ExternalLink className="h-3.5 w-3.5" /> Siteme Git 🔗
             </a>
+
+            {config.is_active !== false ? (
+              <button
+                onClick={() => setDisableModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition active:scale-95"
+              >
+                Sitemi Yayından Kaldır / Kapat 🚫
+              </button>
+            ) : (
+              <button
+                onClick={() => handleToggleSiteActive(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3.5 py-2 text-xs font-extrabold text-white shadow-md hover:scale-102 transition active:scale-95"
+              >
+                Sitemi Yeniden Yayına Al 🟢
+              </button>
+            )}
           </div>
         </div>
 
@@ -2313,6 +2400,40 @@ function DashboardContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Site Disable Confirmation Modal */}
+      {disableModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200 text-left">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 border border-rose-100 text-xl font-bold">
+              🚫
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-black text-gray-900">
+                Sitenizi Pasife Almak Üzeresiniz 🚫
+              </h3>
+              <p className="text-xs text-gray-600 leading-relaxed">
+                Siteniz dışarıdan erişime kapatılacak ve ziyaretçilere <span className="font-bold text-rose-600 text-[11px]">&apos;Bu sayfa sahibi tarafından geçici olarak erişime kapatılmıştır&apos;</span> uyarısı gösterilecektir. Ancak hesap bilgileriniz ve tüm verileriniz güvenle saklanacaktır.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setDisableModalOpen(false)}
+                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-100 transition"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={() => handleToggleSiteActive(false)}
+                className="flex-1 rounded-xl bg-rose-600 py-2.5 text-xs font-extrabold text-white shadow-md hover:bg-rose-700 transition"
+              >
+                Evet, Sitemi Kapat 🔒
+              </button>
+            </div>
           </div>
         </div>
       )}
