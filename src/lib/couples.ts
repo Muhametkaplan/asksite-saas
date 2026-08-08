@@ -275,7 +275,8 @@ export const DEMO_COUPLE: CoupleConfig = {
   allowed_users: {
     partner1_email: 'irem@asksite.com',
     partner2_email: 'muhammet@asksite.com',
-    access_pin: '1234',
+    partner1_pin: '1234',
+    partner2_pin: '5678',
   },
   feature_toggles: {
     spotify: true,
@@ -429,7 +430,6 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         allowed_users: config.allowed_users || {
           partner1_email: config.partner1_email || '',
           partner2_email: config.partner2_email || '',
-          access_pin: '1234',
           partner1_pin: config.partner1_pin || '1234',
           partner2_pin: config.partner2_pin || '5678',
         },

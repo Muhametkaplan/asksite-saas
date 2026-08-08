@@ -22,7 +22,6 @@ export interface UpcomingEvent {
 export interface AllowedUsers {
   partner1_email?: string;
   partner2_email?: string;
-  access_pin?: string;
   partner1_pin?: string;
   partner2_pin?: string;
 }

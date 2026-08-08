@@ -190,7 +190,7 @@ export default function PartnerAuthModal({
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    const p1Pin = (couple.partner1_pin || couple.allowed_users?.partner1_pin || couple.allowed_users?.access_pin || '1234').trim();
+    const p1Pin = (couple.partner1_pin || couple.allowed_users?.partner1_pin || '1234').trim();
     const p2Pin = (couple.partner2_pin || couple.allowed_users?.partner2_pin || '5678').trim();
     const enteredPin = pinInput.trim();
 

@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
       allowed_users: {
         partner1_email: p1Email,
         partner2_email: p2Email,
-        access_pin: '1234',
         partner1_pin: '1234',
         partner2_pin: '5678',
       },

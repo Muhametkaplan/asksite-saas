@@ -3,7 +3,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export async function uploadFileToStorage(
   file: File,
-  slug: string = 'irem-muhammet',
+  slug: string = 'demo',
   folder: 'music' | 'photos' = 'photos'
 ): Promise<string | null> {
   if (isFirebaseConfigured && storage) {
@@ -26,5 +26,4 @@ export async function uploadFileToStorage(
   return URL.createObjectURL(file);
 }
 
-// Backwards compatibility alias
 export const uploadFileToSupabase = uploadFileToStorage;

@@ -990,7 +990,7 @@ function DashboardContent() {
                   ...prev,
                   partner1_pin: e.target.value,
                   allowed_users: {
-                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
+                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '' }),
                     partner1_pin: e.target.value,
                   },
                 }))
@@ -1010,7 +1010,7 @@ function DashboardContent() {
                   ...prev,
                   partner2_pin: e.target.value,
                   allowed_users: {
-                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
+                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '' }),
                     partner2_pin: e.target.value,
                   },
                 }))
@@ -1439,33 +1439,35 @@ function DashboardContent() {
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">4 Haneli Çift PIN'i</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Partner 1 PIN Kodu</label>
                     <input
                       type="text"
                       maxLength={4}
-                      value={config.allowed_users?.access_pin || '1234'}
+                      value={config.allowed_users?.partner1_pin || config.partner1_pin || '1234'}
                       onChange={(e) =>
                         setConfig({
                           ...config,
-                          allowed_users: { ...config.allowed_users, access_pin: e.target.value },
+                          partner1_pin: e.target.value,
+                          allowed_users: { ...config.allowed_users, partner1_pin: e.target.value },
                         })
                       }
-                      className="w-full text-center font-bold tracking-widest rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
+                      className="w-full text-center font-bold tracking-widest rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500 text-rose-600"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Çift PIN Kodu</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Partner 2 PIN Kodu</label>
                     <input
                       type="text"
                       maxLength={4}
-                      value={config.allowed_users?.access_pin || '1234'}
+                      value={config.allowed_users?.partner2_pin || config.partner2_pin || '5678'}
                       onChange={(e) =>
                         setConfig({
                           ...config,
-                          allowed_users: { ...config.allowed_users, access_pin: e.target.value },
+                          partner2_pin: e.target.value,
+                          allowed_users: { ...config.allowed_users, partner2_pin: e.target.value },
                         })
                       }
-                      className="w-full text-center font-bold tracking-widest rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
+                      className="w-full text-center font-bold tracking-widest rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-purple-500 text-purple-600"
                     />
                   </div>
                   <div>
