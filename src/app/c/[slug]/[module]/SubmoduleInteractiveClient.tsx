@@ -187,7 +187,7 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
           const role = parsed.role as 'partner1' | 'partner2' | 'guest';
           const author = role === 'partner1' ? partner1 : role === 'partner2' ? partner2 : 'Partner';
           return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
-        } catch (e) {}
+        } catch (e) { }
       }
     }
     return { role: 'partner1', author: partner1, isPartner: true };
@@ -346,7 +346,7 @@ function ClickDuelGame({ partner1, partner2, slug, playerName }: { partner1: str
         <div className="relative h-6 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200 shadow-inner">
           {/* Middle Indicator */}
           <div className="absolute left-1/2 top-0 h-full w-0.5 bg-gray-400 z-10 opacity-70" />
-          
+
           {/* Dynamic Tug Fill */}
           <div
             className="h-full bg-gradient-to-r from-rose-500 via-purple-500 to-indigo-600 transition-all duration-150 ease-out"
@@ -475,9 +475,8 @@ function MemoryMatchGame({ slug, playerName }: { slug: string; playerName: strin
 
                 {/* Back face (Revealed Emoji) */}
                 <div
-                  className={`absolute inset-0 flex items-center justify-center rounded-2xl text-2xl font-bold border-2 shadow-inner ${
-                    matched.includes(idx) ? 'bg-emerald-50 border-emerald-400' : 'bg-white border-rose-300'
-                  }`}
+                  className={`absolute inset-0 flex items-center justify-center rounded-2xl text-2xl font-bold border-2 shadow-inner ${matched.includes(idx) ? 'bg-emerald-50 border-emerald-400' : 'bg-white border-rose-300'
+                    }`}
                   style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(180deg)',
@@ -558,9 +557,8 @@ function TruthOrDareGame({ slug, playerName }: { slug: string; playerName: strin
 
       {currentText && (
         <div
-          className={`p-5 rounded-3xl border text-xs font-black leading-relaxed animate-in fade-in ${
-            activeType === 'truth' ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-rose-50 text-rose-800 border-rose-200'
-          }`}
+          className={`p-5 rounded-3xl border text-xs font-black leading-relaxed animate-in fade-in ${activeType === 'truth' ? 'bg-blue-50 text-blue-800 border-blue-200' : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}
         >
           <span className="uppercase text-[10px] tracking-wider block mb-1 font-extrabold">
             {activeType === 'truth' ? '🔍 Doğruluk Sorusu' : '🔥 Cesaret Görevi'}
@@ -605,7 +603,7 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
     for (const [a, b, c] of winningCombos) {
       if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
         const isP1 = newBoard[a] === 'X';
-        const winningName = isP1 ? `🔵 Erkek Partner (${partner1})` : `🌸 Kız Partner (${partner2})`;
+        const winningName = isP1 ? `🔵 Erkek Partner (${partner2})` : `🌸 Kız Partner (${partner1})`;
         setWinner(winningName);
         triggerConfetti({ particleCount: 60, spread: 80 });
 
@@ -813,11 +811,10 @@ function CouponsWidget({ couple }: { couple: CoupleConfig }) {
             <div
               key={c.id}
               onClick={() => handleOpenModal(c)}
-              className={`relative overflow-hidden rounded-3xl p-5 shadow-lg transition-all duration-300 ${
-                c.is_used
-                  ? 'bg-gray-100 border-2 border-gray-200 opacity-65 cursor-not-allowed grayscale-[40%]'
-                  : `bg-gradient-to-r ${style.bg} text-white hover:scale-[1.02] cursor-pointer shadow-rose-500/20 active:scale-98`
-              }`}
+              className={`relative overflow-hidden rounded-3xl p-5 shadow-lg transition-all duration-300 ${c.is_used
+                ? 'bg-gray-100 border-2 border-gray-200 opacity-65 cursor-not-allowed grayscale-[40%]'
+                : `bg-gradient-to-r ${style.bg} text-white hover:scale-[1.02] cursor-pointer shadow-rose-500/20 active:scale-98`
+                }`}
             >
               {/* Used Stamp Badge */}
               {c.is_used && (
@@ -921,7 +918,7 @@ const WHEEL_COLORS = [
 function WheelWidget({ couple }: { couple: CoupleConfig }) {
   const items = couple?.wheel_items && couple.wheel_items.length > 0 ? couple.wheel_items : DEFAULT_WHEEL_TASKS;
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
-  
+
   const [rotationAngle, setRotationAngle] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [winnerItem, setWinnerItem] = useState<string | null>(null);
@@ -967,7 +964,7 @@ function WheelWidget({ couple }: { couple: CoupleConfig }) {
       ctx.font = 'bold 11px sans-serif';
       ctx.shadowColor = 'rgba(0,0,0,0.4)';
       ctx.shadowBlur = 4;
-      
+
       const label = items[i].length > 20 ? items[i].substring(0, 18) + '...' : items[i];
       ctx.fillText(label, radius - 24, 4);
       ctx.restore();
@@ -1006,10 +1003,10 @@ function WheelWidget({ couple }: { couple: CoupleConfig }) {
 
     const numSlices = items.length;
     const sliceAngleDegrees = 360 / numSlices;
-    
+
     // Pick random winning index
     const winningIndex = Math.floor(Math.random() * numSlices);
-    
+
     const targetSliceCenter = winningIndex * sliceAngleDegrees + sliceAngleDegrees / 2;
     let finalAngleDegrees = 270 - targetSliceCenter;
     if (finalAngleDegrees < 0) finalAngleDegrees += 360;
@@ -1325,21 +1322,19 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
       <div className="flex rounded-2xl bg-gray-100 p-1.5 shadow-inner">
         <button
           onClick={() => handleTabChange('partner1')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-            activePartnerTab === 'partner1'
-              ? 'bg-rose-500 text-white shadow-md'
-              : 'text-gray-600 hover:text-rose-500'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${activePartnerTab === 'partner1'
+            ? 'bg-rose-500 text-white shadow-md'
+            : 'text-gray-600 hover:text-rose-500'
+            }`}
         >
           💖 {partner1Name}'in Testini Çöz
         </button>
         <button
           onClick={() => handleTabChange('partner2')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-            activePartnerTab === 'partner2'
-              ? 'bg-rose-500 text-white shadow-md'
-              : 'text-gray-600 hover:text-rose-500'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${activePartnerTab === 'partner2'
+            ? 'bg-rose-500 text-white shadow-md'
+            : 'text-gray-600 hover:text-rose-500'
+            }`}
         >
           💙 {partner2Name}'nin Testini Çöz
         </button>
@@ -1462,7 +1457,7 @@ function DiaryWidget({ couple }: { couple: CoupleConfig }) {
           const role = parsed.role as 'partner1' | 'partner2' | 'guest';
           const author = role === 'partner1' ? couple.partner1_name : role === 'partner2' ? couple.partner2_name : 'Misafir';
           return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
-        } catch (e) {}
+        } catch (e) { }
       }
     }
     return { role: 'guest', author: 'Misafir', isPartner: false };
@@ -1531,9 +1526,8 @@ function DiaryWidget({ couple }: { couple: CoupleConfig }) {
                   <button
                     key={m}
                     onClick={() => setSelectedMood(m)}
-                    className={`h-7 w-7 rounded-xl text-sm transition-transform ${
-                      selectedMood === m ? 'scale-125 bg-amber-200 shadow-xs' : 'hover:scale-110 opacity-80'
-                    }`}
+                    className={`h-7 w-7 rounded-xl text-sm transition-transform ${selectedMood === m ? 'scale-125 bg-amber-200 shadow-xs' : 'hover:scale-110 opacity-80'
+                      }`}
                   >
                     {m}
                   </button>
@@ -1665,7 +1659,7 @@ function CapsuleWidget({ couple }: { couple: CoupleConfig }) {
           const role = parsed.role as 'partner1' | 'partner2' | 'guest';
           const author = role === 'partner1' ? couple.partner1_name : role === 'partner2' ? couple.partner2_name : 'Misafir';
           return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
-        } catch (e) {}
+        } catch (e) { }
       }
     }
     return { role: 'guest', author: 'Misafir', isPartner: false };
@@ -1877,7 +1871,7 @@ function CinemaWidget({ couple }: { couple: CoupleConfig }) {
           const role = parsed.role as 'partner1' | 'partner2' | 'guest';
           const author = role === 'partner1' ? couple.partner1_name : role === 'partner2' ? couple.partner2_name : 'Misafir';
           return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
-        } catch (e) {}
+        } catch (e) { }
       }
     }
     return { role: 'guest', author: 'Misafir', isPartner: false };
@@ -1947,21 +1941,19 @@ function CinemaWidget({ couple }: { couple: CoupleConfig }) {
       <div className="flex rounded-2xl bg-gray-100 p-1.5 shadow-inner">
         <button
           onClick={() => setActiveTab('watched')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-            activeTab === 'watched'
-              ? 'bg-rose-500 text-white shadow-md'
-              : 'text-gray-600 hover:text-rose-500'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${activeTab === 'watched'
+            ? 'bg-rose-500 text-white shadow-md'
+            : 'text-gray-600 hover:text-rose-500'
+            }`}
         >
           🍿 Birlikte İzlediklerimiz ({watchedMovies.length})
         </button>
         <button
           onClick={() => setActiveTab('watchlist')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-            activeTab === 'watchlist'
-              ? 'bg-rose-500 text-white shadow-md'
-              : 'text-gray-600 hover:text-rose-500'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${activeTab === 'watchlist'
+            ? 'bg-rose-500 text-white shadow-md'
+            : 'text-gray-600 hover:text-rose-500'
+            }`}
         >
           🎬 İzlenecekler Listesi ({watchlistMovies.length})
         </button>
@@ -2157,9 +2149,8 @@ function CinemaWidget({ couple }: { couple: CoupleConfig }) {
                     type="button"
                     key={star}
                     onClick={() => setMarkRating(star)}
-                    className={`text-2xl transition-transform ${
-                      star <= markRating ? 'text-amber-400 scale-110' : 'text-gray-300'
-                    }`}
+                    className={`text-2xl transition-transform ${star <= markRating ? 'text-amber-400 scale-110' : 'text-gray-300'
+                      }`}
                   >
                     ★
                   </button>
@@ -2254,7 +2245,7 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
         try {
           const parsed = JSON.parse(stored);
           if (parsed.role) return parsed.role;
-        } catch (e) {}
+        } catch (e) { }
       }
     }
     return 'partner1';
@@ -2436,21 +2427,19 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
       <div className="flex rounded-2xl bg-white p-1.5 shadow-md border border-gray-100 gap-1 max-w-sm mx-auto">
         <button
           onClick={() => setTab('free')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-            tab === 'free'
-              ? 'bg-rose-500 text-white shadow-sm'
-              : 'text-gray-600 hover:text-rose-500'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${tab === 'free'
+            ? 'bg-rose-500 text-white shadow-sm'
+            : 'text-gray-600 hover:text-rose-500'
+            }`}
         >
           🎨 Serbest Çizim
         </button>
         <button
           onClick={() => setTab('template')}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-            tab === 'template'
-              ? 'bg-rose-500 text-white shadow-sm'
-              : 'text-gray-600 hover:text-rose-500'
-          }`}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${tab === 'template'
+            ? 'bg-rose-500 text-white shadow-sm'
+            : 'text-gray-600 hover:text-rose-500'
+            }`}
         >
           🖼️ Hazır Şablon Çizim / Boyama
         </button>
@@ -2463,11 +2452,10 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
             <button
               key={key}
               onClick={() => setSelectedTemplateKey(key)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
-                selectedTemplateKey === key
-                  ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-rose-50/50'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${selectedTemplateKey === key
+                ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-xs'
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-rose-50/50'
+                }`}
             >
               <span>{t.icon}</span>
               <span>{t.title}</span>
@@ -2516,11 +2504,10 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
                 key={c.hex}
                 onClick={() => setSelectedColor(c.hex)}
                 title={c.name}
-                className={`h-7 w-7 rounded-full border-2 transition-transform ${
-                  selectedColor === c.hex
-                    ? 'scale-125 border-gray-900 shadow-md'
-                    : 'border-white hover:scale-110 shadow-2xs'
-                }`}
+                className={`h-7 w-7 rounded-full border-2 transition-transform ${selectedColor === c.hex
+                  ? 'scale-125 border-gray-900 shadow-md'
+                  : 'border-white hover:scale-110 shadow-2xs'
+                  }`}
                 style={{ backgroundColor: c.hex }}
               />
             ))}
@@ -2532,25 +2519,22 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
           <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
             <button
               onClick={() => setStrokeWidth(3)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
-                strokeWidth === 3 ? 'bg-rose-500 text-white' : 'text-gray-600'
-              }`}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${strokeWidth === 3 ? 'bg-rose-500 text-white' : 'text-gray-600'
+                }`}
             >
               İnce (3px)
             </button>
             <button
               onClick={() => setStrokeWidth(7)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
-                strokeWidth === 7 ? 'bg-rose-500 text-white' : 'text-gray-600'
-              }`}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${strokeWidth === 7 ? 'bg-rose-500 text-white' : 'text-gray-600'
+                }`}
             >
               Orta (7px)
             </button>
             <button
               onClick={() => setStrokeWidth(14)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
-                strokeWidth === 14 ? 'bg-rose-500 text-white' : 'text-gray-600'
-              }`}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${strokeWidth === 14 ? 'bg-rose-500 text-white' : 'text-gray-600'
+                }`}
             >
               Kalın (14px)
             </button>
