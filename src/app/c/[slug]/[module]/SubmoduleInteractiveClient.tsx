@@ -173,7 +173,7 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
   const partner2 = couple?.partner2_name || 'Partner 2';
   const slug = couple?.slug || 'demo';
 
-  const [activeTab, setActiveTab] = useState<'menu' | 'wheel' | 'quiz' | 'memory' | 'tod' | 'xox' | 'tkm'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'duel' | 'memory' | 'tod' | 'xox' | 'tkm'>('menu');
 
   // Read Session Auth for seamless uninterrupted play
   const authState = React.useMemo(() => {
@@ -215,29 +215,19 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
             <span className="text-3xl">🎮</span>
             <h3 className="text-xl font-black text-gray-900">Aşk Salonumuz & Mini Oyunlar</h3>
             <p className="text-xs text-gray-500 max-w-xs mx-auto">
-              Sevgilinizle birlikte eğlenin, yarışın, skorlarınızı Firestore veritabanına kaydedin! ❤️
+              Sevgilinizle birlikte eğlenin, düello yapın ve skorlarınızı kaydedin! ❤️
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3.5">
-            {/* Wheel */}
+            {/* Click Duel (Halat Çekme) */}
             <button
-              onClick={() => setActiveTab('wheel')}
-              className="flex flex-col items-center justify-center p-5 rounded-3xl bg-white border border-rose-100 shadow-md hover:shadow-xl transition text-center group active:scale-95"
+              onClick={() => setActiveTab('duel')}
+              className="col-span-2 flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition text-center group active:scale-98"
             >
-              <div className="text-4xl mb-2 group-hover:rotate-45 transition-transform duration-300">🎡</div>
-              <h4 className="text-xs font-black text-gray-900">Aşk Çarkıfeleği</h4>
-              <p className="text-[10px] text-rose-500 font-bold mt-0.5">Soru & Sürpriz</p>
-            </button>
-
-            {/* Quiz */}
-            <button
-              onClick={() => setActiveTab('quiz')}
-              className="flex flex-col items-center justify-center p-5 rounded-3xl bg-white border border-rose-100 shadow-md hover:shadow-xl transition text-center group active:scale-95"
-            >
-              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🧠</div>
-              <h4 className="text-xs font-black text-gray-900">Çift Bilgi Yarışması</h4>
-              <p className="text-[10px] text-purple-500 font-bold mt-0.5">Ne Kadar Tanıyorsun?</p>
+              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🤼</div>
+              <h4 className="text-sm font-black text-white">Tıklama & Halat Çekme Düellosu</h4>
+              <p className="text-xs text-white/90 font-bold mt-0.5">Kırmızı vs Mavi Hız Yarışı 🔴🔵</p>
             </button>
 
             {/* Memory Match */}
@@ -246,8 +236,8 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
               className="flex flex-col items-center justify-center p-5 rounded-3xl bg-white border border-rose-100 shadow-md hover:shadow-xl transition text-center group active:scale-95"
             >
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🃏</div>
-              <h4 className="text-xs font-black text-gray-900">Hafıza Kartları</h4>
-              <p className="text-[10px] text-indigo-500 font-bold mt-0.5">3D Kart Eşleştirme</p>
+              <h4 className="text-xs font-black text-gray-900">3D Hafıza Kartları</h4>
+              <p className="text-[10px] text-indigo-500 font-bold mt-0.5">Kart Eşleştirme</p>
             </button>
 
             {/* Truth or Dare */}
@@ -266,8 +256,8 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
               className="flex flex-col items-center justify-center p-5 rounded-3xl bg-white border border-rose-100 shadow-md hover:shadow-xl transition text-center group active:scale-95"
             >
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">❌⭕</div>
-              <h4 className="text-xs font-black text-gray-900">Neon XOX Düellosu</h4>
-              <p className="text-[10px] text-pink-500 font-bold mt-0.5">❤️ vs 💖</p>
+              <h4 className="text-xs font-black text-gray-900">Neon XOX Oyunu</h4>
+              <p className="text-[10px] text-pink-500 font-bold mt-0.5">X vs O Klasik</p>
             </button>
 
             {/* TKM */}
@@ -283,205 +273,131 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
         </div>
       )}
 
-      {/* 2. WHEEL OF QUESTIONS */}
-      {activeTab === 'wheel' && <LoveWheelGame slug={slug} playerName={authState.author} />}
+      {/* 2. CLICK DUEL (HALAT ÇEKME) */}
+      {activeTab === 'duel' && <ClickDuelGame partner1={partner1} partner2={partner2} slug={slug} playerName={authState.author} />}
 
-      {/* 3. LOVE QUIZ */}
-      {activeTab === 'quiz' && <LoveQuizGame slug={slug} playerName={authState.author} />}
-
-      {/* 4. MEMORY MATCH */}
+      {/* 3. 3D MEMORY MATCH */}
       {activeTab === 'memory' && <MemoryMatchGame slug={slug} playerName={authState.author} />}
 
-      {/* 5. TRUTH OR DARE */}
+      {/* 4. TRUTH OR DARE */}
       {activeTab === 'tod' && <TruthOrDareGame slug={slug} playerName={authState.author} />}
 
-      {/* 6. NEON XOX */}
+      {/* 5. NEON XOX */}
       {activeTab === 'xox' && <NeonXoxGame partner1={partner1} partner2={partner2} slug={slug} playerName={authState.author} />}
 
-      {/* 7. ROCK PAPER SCISSORS (TKM) */}
+      {/* 6. ROCK PAPER SCISSORS (TKM) */}
       {activeTab === 'tkm' && <RockPaperScissorsGame slug={slug} playerName={authState.author} />}
     </div>
   );
 }
 
-/* --- SUB-GAME 1: LOVE WHEEL --- */
-function LoveWheelGame({ slug, playerName }: { slug: string; playerName: string }) {
-  const questions = [
-    "Birbirinizin en sevdiği yemeği söyleyin 🍕",
-    "İlk görüşte aşık oldun mu? 💘",
-    "Partnerine 10 saniye boyunca sımsıkı sarıl 🤗",
-    "Birlikte geçirdiğiniz en komik anınızı anlatın 🤣",
-    "Partnerine 3 tane romantik iltifat et 💖",
-    "Gelecekteki ortak hayalinizden bahsedin ✈️",
-    "Partnerinin yanağını sevgiyle öp 🥰",
-    "Sevgiline en çok uyan şarkıyı mırıldan 🎵",
-  ];
+/* --- SUB-GAME 1: CLICK DUEL / HALAT ÇEKME --- */
+function ClickDuelGame({ partner1, partner2, slug, playerName }: { partner1: string; partner2: string; slug: string; playerName: string }) {
+  const [redVal, setRedVal] = useState(50); // 0 to 100 scale, 50 is center
+  const [winner, setWinner] = useState<string | null>(null);
 
-  const [spinning, setSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
-  const [selectedResult, setSelectedResult] = useState<string | null>(null);
+  const handleRedClick = () => {
+    if (winner) return;
+    const next = redVal + 4;
+    if (next >= 100) {
+      setRedVal(100);
+      setWinner(partner1);
+      triggerConfetti({ particleCount: 80, spread: 90 });
+      saveGameScore(slug, 'Tıklama Düellosu', 100, partner1);
+    } else {
+      setRedVal(next);
+    }
+  };
 
-  const spin = () => {
-    if (spinning) return;
-    setSpinning(true);
-    setSelectedResult(null);
+  const handleBlueClick = () => {
+    if (winner) return;
+    const next = redVal - 4;
+    if (next <= 0) {
+      setRedVal(0);
+      setWinner(partner2);
+      triggerConfetti({ particleCount: 80, spread: 90 });
+      saveGameScore(slug, 'Tıklama Düellosu', 100, partner2);
+    } else {
+      setRedVal(next);
+    }
+  };
 
-    const randomDegrees = Math.floor(1800 + Math.random() * 3600);
-    const newRotation = rotation + randomDegrees;
-    setRotation(newRotation);
-
-    setTimeout(async () => {
-      setSpinning(false);
-      const normalizedDegree = (360 - (newRotation % 360)) % 360;
-      const index = Math.floor((normalizedDegree / 360) * questions.length);
-      const result = questions[index];
-      setSelectedResult(result);
-      triggerConfetti({ particleCount: 60, spread: 70 });
-      await saveGameScore(slug, 'Aşk Çarkıfeleği', 100, playerName);
-    }, 4000);
+  const resetDuel = () => {
+    setRedVal(50);
+    setWinner(null);
   };
 
   return (
     <div className="rounded-3xl bg-white p-6 text-center shadow-xl border border-rose-100 space-y-5 animate-in zoom-in-95 duration-200">
-      <h3 className="text-lg font-black text-gray-900">🎡 Aşk & Soru Çarkıfeleği</h3>
-      <p className="text-xs text-gray-500">Çarkı çevirin ve çıkan soruyu veya romantik görevi birlikte yapın!</p>
+      <h3 className="text-lg font-black text-gray-900">🤼 Tıklama & Halat Çekme Düellosu</h3>
+      <p className="text-xs text-gray-500">
+        Ekrandaki kendi renginize olabildiğince hızlı tıklayın ve halatı kendi tarafınıza çekin!
+      </p>
 
-      <div className="relative mx-auto w-64 h-64 flex items-center justify-center">
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 text-2xl drop-shadow-md">
-          🔻
+      {/* Live Tug-of-war Progress Track */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-xs font-black">
+          <span className="text-rose-600 font-bold">🔴 {partner1}: %{redVal}</span>
+          <span className="text-indigo-600 font-bold">🔵 {partner2}: %{100 - redVal}</span>
         </div>
-        <div
-          className="w-full h-full rounded-full border-4 border-rose-400 shadow-2xl flex items-center justify-center overflow-hidden transition-transform duration-[4000ms] cubic-bezier(0.15, 0.9, 0.2, 1.0)"
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            background: 'conic-gradient(#ff4d6d 0deg 45deg, #a29bfe 45deg 90deg, #fd79a8 90deg 135deg, #00b894 135deg 180deg, #ffeaa7 180deg 225deg, #0984e3 225deg 270deg, #e84393 270deg 315deg, #6c5ce7 315deg 360deg)',
-          }}
-        >
-          <div className="w-16 h-16 rounded-full bg-white shadow-inner flex items-center justify-center text-xl font-bold text-rose-600 z-10">
-            ❤️
+
+        <div className="relative h-6 w-full rounded-full bg-gray-100 overflow-hidden border border-gray-200 shadow-inner">
+          {/* Middle Indicator */}
+          <div className="absolute left-1/2 top-0 h-full w-0.5 bg-gray-400 z-10 opacity-70" />
+          
+          {/* Dynamic Tug Fill */}
+          <div
+            className="h-full bg-gradient-to-r from-rose-500 via-purple-500 to-indigo-600 transition-all duration-150 ease-out"
+            style={{ width: `${redVal}%` }}
+          />
+
+          {/* Tug Marker Icon */}
+          <div
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-7 w-7 rounded-full bg-white border-2 border-rose-500 shadow-md flex items-center justify-center text-xs z-20 transition-all duration-150"
+            style={{ left: `${redVal}%` }}
+          >
+            📍
           </div>
         </div>
       </div>
 
+      {/* Winner Display */}
+      {winner && (
+        <div className="p-3 bg-emerald-50 text-emerald-700 font-extrabold text-sm rounded-2xl animate-bounce border border-emerald-200">
+          🏆 Düelloyu Kazanan: <span className="text-rose-600">{winner}</span>! 🎉
+        </div>
+      )}
+
+      {/* Mobile-Responsive Side-by-Side Click Buttons */}
+      <div className="grid grid-cols-2 gap-3.5 pt-2">
+        <button
+          onClick={handleRedClick}
+          disabled={!!winner}
+          className="w-full py-5 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white font-black text-xs sm:text-sm shadow-lg hover:opacity-95 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+        >
+          🔴 {partner1} <br className="sm:hidden" /> Tıkla!
+        </button>
+
+        <button
+          onClick={handleBlueClick}
+          disabled={!!winner}
+          className="w-full py-5 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 text-white font-black text-xs sm:text-sm shadow-lg hover:opacity-95 active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+        >
+          🔵 {partner2} <br className="sm:hidden" /> Tıkla!
+        </button>
+      </div>
+
       <button
-        onClick={spin}
-        disabled={spinning}
-        className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition disabled:opacity-50"
+        onClick={resetDuel}
+        className="w-full rounded-2xl bg-gray-100 border border-gray-200 py-3 text-xs font-extrabold text-gray-700 hover:bg-gray-200 transition active:scale-95"
       >
-        {spinning ? 'Çark Dönüyor... 🌀' : 'Çarkı Çevir 🚀'}
+        Düelloyu Sıfırla 🔄
       </button>
-
-      {selectedResult && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-black text-rose-700 animate-in fade-in">
-          🎁 Çıkan Görev: <br />
-          <span className="text-sm font-extrabold mt-1 block text-gray-900">"{selectedResult}"</span>
-        </div>
-      )}
     </div>
   );
 }
 
-/* --- SUB-GAME 2: LOVE QUIZ --- */
-function LoveQuizGame({ slug, playerName }: { slug: string; playerName: string }) {
-  const quizItems = [
-    {
-      q: 'Tanışma yıl dönümünüz hangi mevsimde kutlanır? 🌸',
-      options: ['İlkbahar', 'Yaz', 'Sonbahar', 'Kış'],
-      correct: 0,
-    },
-    {
-      q: 'Sevgilinizin en çok seveceği akşam yemeği hangisidir? 🍝',
-      options: ['İtalyan Makarnası & Pizza', 'Burger & Patates', 'Ev Yemekleri', 'Suşi & Asya'],
-      correct: 0,
-    },
-    {
-      q: 'Birlikte yapmayı en çok sevdiğiniz aktivite hangisi? 🎬',
-      options: ['Film / Dizi İzlemek', 'Gezintiye Çıkmak', 'Müzik Dinlemek', 'Oyun Oynamak'],
-      correct: 0,
-    },
-    {
-      q: 'Sevgilinizin sabah ilk iş yaptığı şey nedir? ☕',
-      options: ['Kahve İçmek', 'Telefona Bakmak', 'Partnerine Sarılmak', 'Su İçmek'],
-      correct: 2,
-    },
-    {
-      q: 'Birlikte hayalini kurduğunuz en büyük tatil rotası neresi? ✈️',
-      options: ['Kapadokya Balon Turu', 'Maldivler Sahil', 'Paris Romantik Gezi', 'İtalya Turu'],
-      correct: 0,
-    },
-  ];
-
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [score, setScore] = useState(0);
-  const [finished, setFinished] = useState(false);
-
-  const handleSelectOption = async (optIdx: number) => {
-    let newScore = score;
-    if (optIdx === quizItems[currentIdx].correct) {
-      newScore += 20;
-      setScore(newScore);
-    }
-
-    if (currentIdx + 1 < quizItems.length) {
-      setCurrentIdx(currentIdx + 1);
-    } else {
-      setFinished(true);
-      triggerConfetti({ particleCount: 70, spread: 80 });
-      await saveGameScore(slug, 'Çift Bilgi Yarışması', newScore, playerName);
-    }
-  };
-
-  const restartQuiz = () => {
-    setCurrentIdx(0);
-    setScore(0);
-    setFinished(false);
-  };
-
-  return (
-    <div className="rounded-3xl bg-white p-6 text-center shadow-xl border border-rose-100 space-y-5 animate-in zoom-in-95 duration-200">
-      <h3 className="text-lg font-black text-gray-900">🧠 "Beni Ne Kadar Tanıyorsun?" Testi</h3>
-
-      {!finished ? (
-        <div className="space-y-4">
-          <div className="text-xs font-extrabold text-rose-500 bg-rose-50 py-1 px-3 rounded-full inline-block">
-            Soru {currentIdx + 1} / {quizItems.length}
-          </div>
-          <h4 className="text-sm font-extrabold text-gray-900 leading-snug">
-            {quizItems[currentIdx].q}
-          </h4>
-
-          <div className="space-y-2 pt-2">
-            {quizItems[currentIdx].options.map((opt, i) => (
-              <button
-                key={i}
-                onClick={() => handleSelectOption(i)}
-                className="w-full text-left rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-bold text-gray-800 hover:bg-rose-50 hover:border-rose-300 transition active:scale-98"
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4 py-4 animate-in fade-in">
-          <div className="text-4xl">🏆</div>
-          <h4 className="text-xl font-black text-gray-900">Yarışma Tamamlandı!</h4>
-          <p className="text-sm font-bold text-rose-600">
-            Skorunuz: %{score} Uyum Puanı ✨
-          </p>
-          <button
-            onClick={restartQuiz}
-            className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 py-3 text-xs font-black text-white shadow-md hover:scale-102 active:scale-95 transition"
-          >
-            Yeniden Yarış 🔄
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* --- SUB-GAME 3: 3D MEMORY MATCH --- */
+/* --- SUB-GAME 2: 3D MEMORY MATCH (WITH PERSPECTIVE FLIP) --- */
 function MemoryMatchGame({ slug, playerName }: { slug: string; playerName: string }) {
   const initialCards = ['❤️', '❤️', '💖', '💖', '🌹', '🌹', '🍿', '🍿', '💍', '💍', '🎨', '🎨', '✈️', '✈️', '💌', '💌'];
 
@@ -529,27 +445,52 @@ function MemoryMatchGame({ slug, playerName }: { slug: string; playerName: strin
       <h3 className="text-lg font-black text-gray-900">🃏 3D Hafıza Kartı Oyunu</h3>
       <p className="text-xs text-gray-500">Kartları çevirin ve aynı aşk sembollerini eşleştirin. Hamle: {moves}</p>
 
+      {/* 3D Flip Grid */}
       <div className="grid grid-cols-4 gap-2.5 max-w-xs mx-auto">
         {cards.map((emoji, idx) => {
           const isFlipped = flipped.includes(idx) || matched.includes(idx);
           return (
-            <button
+            <div
               key={idx}
               onClick={() => handleCardClick(idx)}
-              className={`h-16 rounded-2xl text-2xl font-bold transition-all duration-300 flex items-center justify-center border ${
-                isFlipped
-                  ? 'bg-rose-50 border-rose-300 scale-102 shadow-sm'
-                  : 'bg-gradient-to-br from-rose-500 to-purple-600 text-white border-transparent hover:opacity-90 active:scale-95'
-              }`}
+              className="h-16 w-full cursor-pointer"
+              style={{ perspective: '1000px' }}
             >
-              {isFlipped ? emoji : '❓'}
-            </button>
+              <div
+                className="relative h-full w-full rounded-2xl transition-transform duration-500 shadow-sm"
+                style={{
+                  transformStyle: 'preserve-3d',
+                  transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                }}
+              >
+                {/* Front face (Face Down) */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-purple-600 text-white text-xl font-bold border-2 border-white/80 shadow-sm"
+                  style={{ backfaceVisibility: 'hidden' }}
+                >
+                  ❓
+                </div>
+
+                {/* Back face (Revealed Emoji) */}
+                <div
+                  className={`absolute inset-0 flex items-center justify-center rounded-2xl text-2xl font-bold border-2 shadow-inner ${
+                    matched.includes(idx) ? 'bg-emerald-50 border-emerald-400' : 'bg-white border-rose-300'
+                  }`}
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    transform: 'rotateY(180deg)',
+                  }}
+                >
+                  {emoji}
+                </div>
+              </div>
+            </div>
           );
         })}
       </div>
 
       {matched.length === cards.length && (
-        <div className="p-3 bg-emerald-50 text-emerald-700 font-extrabold text-xs rounded-xl animate-bounce">
+        <div className="p-3 bg-emerald-50 text-emerald-700 font-extrabold text-xs rounded-xl animate-bounce border border-emerald-200">
           🎉 Tebrikler! Tüm kartları {moves} hamlede eşleştirdiniz!
         </div>
       )}
@@ -564,7 +505,7 @@ function MemoryMatchGame({ slug, playerName }: { slug: string; playerName: strin
   );
 }
 
-/* --- SUB-GAME 4: TRUTH OR DARE --- */
+/* --- SUB-GAME 3: TRUTH OR DARE --- */
 function TruthOrDareGame({ slug, playerName }: { slug: string; playerName: string }) {
   const truths = [
     "Beni ilk gördüğünde aklından geçen ilk düşünce neydi? 💭",
@@ -629,10 +570,10 @@ function TruthOrDareGame({ slug, playerName }: { slug: string; playerName: strin
   );
 }
 
-/* --- SUB-GAME 5: NEON XOX --- */
+/* --- SUB-GAME 4: NEON XOX (CLASSIC X & O) --- */
 function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: string; partner2: string; slug: string; playerName: string }) {
-  const [board, setBoard] = useState<Array<string | null>>(Array(9).fill(null));
-  const [turn, setTurn] = useState<'❤️' | '💖'>('❤️');
+  const [board, setBoard] = useState<Array<'X' | 'O' | null>>(Array(9).fill(null));
+  const [turn, setTurn] = useState<'X' | 'O'>('X');
   const [winner, setWinner] = useState<string | null>(null);
 
   const handleCellClick = (idx: number) => {
@@ -649,7 +590,8 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
 
     for (const [a, b, c] of winningCombos) {
       if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
-        setWinner(newBoard[a]);
+        const winningName = newBoard[a] === 'X' ? partner1 : partner2;
+        setWinner(winningName);
         triggerConfetti({ particleCount: 50, spread: 70 });
         saveGameScore(slug, 'Neon XOX', 100, playerName);
         return;
@@ -661,12 +603,12 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
       return;
     }
 
-    setTurn(turn === '❤️' ? '💖' : '❤️');
+    setTurn(turn === 'X' ? 'O' : 'X');
   };
 
   const resetGame = () => {
     setBoard(Array(9).fill(null));
-    setTurn('❤️');
+    setTurn('X');
     setWinner(null);
   };
 
@@ -674,7 +616,7 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
     <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200">
       <h3 className="text-lg font-black text-gray-900">❌⭕ Neon XOX Aşk Oyunu</h3>
       <p className="text-xs text-gray-500">
-        {partner1} (❤️) vs {partner2} (💖)
+        <span className="text-rose-600 font-extrabold">{partner1} (X)</span> vs <span className="text-indigo-600 font-extrabold">{partner2} (O)</span>
       </p>
 
       <div className="mx-auto grid grid-cols-3 gap-3 max-w-[250px]">
@@ -682,9 +624,18 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
           <button
             key={i}
             onClick={() => handleCellClick(i)}
-            className="flex h-20 items-center justify-center rounded-2xl bg-rose-50 border-2 border-rose-100 text-3xl font-bold shadow-xs transition hover:bg-rose-100 active:scale-95"
+            className="flex h-20 items-center justify-center rounded-2xl bg-gray-50 border-2 border-gray-200 text-3xl font-black shadow-xs transition hover:bg-rose-50 active:scale-95"
           >
-            {cell}
+            {cell === 'X' && (
+              <span className="text-rose-500 font-extrabold text-3xl drop-shadow-[0_0_10px_rgba(244,63,94,0.6)]">
+                X
+              </span>
+            )}
+            {cell === 'O' && (
+              <span className="text-indigo-500 font-extrabold text-3xl drop-shadow-[0_0_10px_rgba(99,102,241,0.6)]">
+                O
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -705,7 +656,7 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
   );
 }
 
-/* --- SUB-GAME 6: ROCK PAPER SCISSORS (TKM) --- */
+/* --- SUB-GAME 5: ROCK PAPER SCISSORS (TKM) --- */
 function RockPaperScissorsGame({ slug, playerName }: { slug: string; playerName: string }) {
   const choices = ['✊ Taş', '✋ Kağıt', '✌️ Makas'];
   const [userChoice, setUserChoice] = useState<string | null>(null);
