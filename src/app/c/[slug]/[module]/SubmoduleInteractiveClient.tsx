@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Component, ReactNode, useState, useEffect } from 'react';
+import React, { Component, ReactNode, useState, useEffect, useRef, useMemo } from 'react';
 import {
   Gamepad2,
   Ticket,
@@ -41,6 +41,8 @@ import {
   saveGameScore,
   getXoxScore,
   saveXoxScore,
+  getDinoHighScores,
+  saveDinoHighScore,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -175,16 +177,16 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
   const partner2 = couple?.partner2_name || 'Partner 2';
   const slug = couple?.slug || 'demo';
 
-  const [activeTab, setActiveTab] = useState<'menu' | 'duel' | 'memory' | 'tod' | 'xox' | 'tkm'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'dino' | 'duel' | 'memory' | 'tod' | 'xox' | 'tkm'>('menu');
 
   // Read Session Auth for seamless uninterrupted play
-  const authState = React.useMemo(() => {
+  const authState = useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('asksite_auth_' + slug) || localStorage.getItem('asksite_auth_' + slug);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          const role = parsed.role as 'partner1' | 'partner2' | 'guest';
+          const role: 'partner1' | 'partner2' | 'guest' = parsed.role === 'partner1' || parsed.role === 'partner2' ? parsed.role : 'guest';
           const author = role === 'partner1' ? partner1 : role === 'partner2' ? partner2 : 'Partner';
           return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
         } catch (e) { }
@@ -222,6 +224,16 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3.5">
+            {/* Dino Runner (Sonsuz Aşk Koşusu) */}
+            <button
+              onClick={() => setActiveTab('dino')}
+              className="col-span-2 flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition text-center group active:scale-98"
+            >
+              <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🦖🏃‍♂️</div>
+              <h4 className="text-sm font-black text-white">Sonsuz Aşk Koşusu (Dino Runner)</h4>
+              <p className="text-xs text-white/90 font-bold mt-0.5">Asenkron Partner Rekor Yarışı 🏆</p>
+            </button>
+
             {/* Click Duel (Halat Çekme) */}
             <button
               onClick={() => setActiveTab('duel')}
@@ -275,25 +287,311 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
         </div>
       )}
 
-      {/* 2. CLICK DUEL (HALAT ÇEKME) */}
+      {/* 2. DINO RUNNER */}
+      {activeTab === 'dino' && (
+        <DinoRunnerGame
+          partner1={partner1}
+          partner2={partner2}
+          slug={slug}
+          playerName={authState.author}
+          role={authState.role}
+        />
+      )}
+
+      {/* 3. CLICK DUEL (HALAT ÇEKME) */}
       {activeTab === 'duel' && <ClickDuelGame partner1={partner1} partner2={partner2} slug={slug} playerName={authState.author} />}
 
-      {/* 3. 3D MEMORY MATCH */}
+      {/* 4. 3D MEMORY MATCH */}
       {activeTab === 'memory' && <MemoryMatchGame slug={slug} playerName={authState.author} />}
 
-      {/* 4. TRUTH OR DARE */}
+      {/* 5. TRUTH OR DARE */}
       {activeTab === 'tod' && <TruthOrDareGame slug={slug} playerName={authState.author} />}
 
-      {/* 5. NEON XOX */}
+      {/* 6. NEON XOX */}
       {activeTab === 'xox' && <NeonXoxGame partner1={partner1} partner2={partner2} slug={slug} playerName={authState.author} />}
 
-      {/* 6. ROCK PAPER SCISSORS (TKM) */}
+      {/* 7. ROCK PAPER SCISSORS (TKM) */}
       {activeTab === 'tkm' && <RockPaperScissorsGame slug={slug} playerName={authState.author} />}
     </div>
   );
 }
 
-/* --- SUB-GAME 1: CLICK DUEL / HALAT ÇEKME --- */
+/* --- SUB-GAME 1: DINO RUNNER (2D CANVAS ENDLESS RUNNER & ASYNC LEADERBOARD) --- */
+function DinoRunnerGame({
+  partner1,
+  partner2,
+  slug,
+  playerName,
+  role,
+}: {
+  partner1: string;
+  partner2: string;
+  slug: string;
+  playerName: string;
+  role: 'partner1' | 'partner2' | 'guest';
+}) {
+  const [highScores, setHighScores] = useState<{ p1Score: number; p2Score: number }>({ p1Score: 0, p2Score: 0 });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [currentScore, setCurrentScore] = useState(0);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animationFrameId = useRef<number | null>(null);
+
+  // Load existing high scores from Firestore on mount
+  useEffect(() => {
+    async function loadScores() {
+      if (slug) {
+        const fetched = await getDinoHighScores(slug);
+        setHighScores(fetched);
+      }
+    }
+    loadScores();
+  }, [slug]);
+
+  // Determine current champion
+  const championName = useMemo(() => {
+    if (highScores.p1Score === 0 && highScores.p2Score === 0) return 'Henüz Rekor Yok 🎯';
+    if (highScores.p1Score > highScores.p2Score) return `🌸 Kız Partner (${partner1})`;
+    if (highScores.p2Score > highScores.p1Score) return `🔵 Erkek Partner (${partner2})`;
+    return 'Berabere 🤝';
+  }, [highScores, partner1, partner2]);
+
+  // Game Engine logic
+  const startGame = () => {
+    setIsPlaying(true);
+    setGameOver(false);
+    setCurrentScore(0);
+  };
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let frameCount = 0;
+    let score = 0;
+
+    // Runner physics & state
+    const runner = {
+      x: 40,
+      y: 110,
+      width: 24,
+      height: 36,
+      vy: 0,
+      gravity: 0.65,
+      isJumping: false,
+      groundY: 110,
+    };
+
+    let obstacles: Array<{ x: number; y: number; width: number; height: number; emoji: string }> = [];
+
+    const jump = () => {
+      if (!runner.isJumping) {
+        runner.vy = -11.5;
+        runner.isJumping = true;
+      }
+    };
+
+    // Keyboard controls (Space / ArrowUp)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        jump();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    let isRunning = true;
+
+    const loop = () => {
+      frameCount++;
+      score += 1;
+      setCurrentScore(score);
+
+      const speed = 4 + Math.min(10, Math.floor(score / 300) * 0.5);
+
+      // Update runner
+      runner.y += runner.vy;
+      runner.vy += runner.gravity;
+
+      if (runner.y >= runner.groundY) {
+        runner.y = runner.groundY;
+        runner.vy = 0;
+        runner.isJumping = false;
+      }
+
+      // Spawn obstacles
+      if (frameCount % Math.max(50, Math.floor(100 - Math.min(40, score / 100))) === 0) {
+        const emojis = ['🌵', '💔', '🔥', '🚧'];
+        const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+        obstacles.push({
+          x: canvas.width,
+          y: 116,
+          width: 22,
+          height: 30,
+          emoji,
+        });
+      }
+
+      // Move obstacles
+      obstacles = obstacles.map((obs) => ({ ...obs, x: obs.x - speed })).filter((obs) => obs.x + obs.width > 0);
+
+      // Draw canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Ground Line
+      ctx.beginPath();
+      ctx.moveTo(0, 148);
+      ctx.lineTo(canvas.width, 148);
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Draw Runner
+      ctx.font = '28px sans-serif';
+      ctx.fillText('🏃‍♂️', runner.x - 4, runner.y + 28);
+
+      // Draw Obstacles & Check Collision
+      for (const obs of obstacles) {
+        ctx.font = '24px sans-serif';
+        ctx.fillText(obs.emoji, obs.x, obs.y + 24);
+
+        // AABB Collision check
+        const runnerBox = { x: runner.x, y: runner.y, width: runner.width, height: runner.height };
+        const obsBox = { x: obs.x, y: obs.y, width: obs.width, height: obs.height };
+
+        if (
+          runnerBox.x < obsBox.x + obsBox.width &&
+          runnerBox.x + runnerBox.width > obsBox.x &&
+          runnerBox.y < obsBox.y + obsBox.height &&
+          runnerBox.y + runnerBox.height > obsBox.y
+        ) {
+          // Collision Detected! Game Over
+          isRunning = false;
+          break;
+        }
+      }
+
+      if (isRunning) {
+        animationFrameId.current = requestAnimationFrame(loop);
+      } else {
+        // Handle Game Over
+        setIsPlaying(false);
+        setGameOver(true);
+
+        const currentFinalScore = score;
+        const isP1 = role === 'partner1';
+
+        const previousRecord = isP1 ? highScores.p1Score : highScores.p2Score;
+
+        if (currentFinalScore > previousRecord) {
+          triggerConfetti({ particleCount: 70, spread: 80 });
+          const updatedScores = {
+            p1Score: isP1 ? currentFinalScore : highScores.p1Score,
+            p2Score: !isP1 ? currentFinalScore : highScores.p2Score,
+          };
+          setHighScores(updatedScores);
+          saveDinoHighScore(slug, updatedScores.p1Score, updatedScores.p2Score);
+          saveGameScore(slug, 'Aşk Koşusu (Dino Runner)', currentFinalScore, playerName);
+        }
+      }
+    };
+
+    animationFrameId.current = requestAnimationFrame(loop);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, [isPlaying, role, slug, playerName, highScores]);
+
+  return (
+    <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200">
+      <h3 className="text-lg font-black text-gray-900">🦖 Sonsuz Aşk Koşusu (Dino Runner)</h3>
+
+      {/* Leaderboard Panel */}
+      <div className="rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border border-teal-200 p-4 shadow-sm space-y-2">
+        <div className="flex items-center justify-between text-xs font-black">
+          <div className="flex items-center gap-1.5 text-pink-600">
+            <span>🌸 Kız Partner ({partner1})</span>
+            <span className="rounded-lg bg-pink-100 px-2 py-0.5 text-xs font-black text-pink-700">
+              {highScores.p1Score} Puan
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-blue-600">
+            <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-xs font-black text-blue-700">
+              {highScores.p2Score} Puan
+            </span>
+            <span>🔵 Erkek Partner ({partner2})</span>
+          </div>
+        </div>
+
+        <div className="border-t border-teal-200/60 pt-1.5 text-xs font-extrabold text-gray-800">
+          🏆 Şampiyon: <span className="text-teal-700 font-black">{championName}</span>
+        </div>
+      </div>
+
+      {/* Game Canvas Container (Touch/Click Anywhere to Jump) */}
+      <div
+        className="relative mx-auto max-w-lg w-full bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-800 cursor-pointer touch-none select-none"
+        onClick={() => {
+          if (isPlaying) {
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+          }
+        }}
+      >
+        <canvas ref={canvasRef} width={500} height={160} className="w-full h-auto block" />
+
+        {/* Start / Game Over Overlay */}
+        {!isPlaying && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-xs flex flex-col items-center justify-center p-4 space-y-3 z-30">
+            {gameOver ? (
+              <>
+                <div className="text-3xl">💥</div>
+                <h4 className="text-lg font-black text-white">Oyun Bitti!</h4>
+                <p className="text-xs font-bold text-amber-400">Skorunuz: {currentScore} Puan</p>
+                <button
+                  onClick={startGame}
+                  className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-2.5 text-xs font-black text-white shadow-lg hover:scale-105 active:scale-95 transition"
+                >
+                  Tekrar Koş 🏃‍♂️
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="text-4xl">🦖</div>
+                <h4 className="text-lg font-black text-white">Sonsuz Aşk Koşusu</h4>
+                <p className="text-xs text-gray-300 max-w-xs">
+                  Masaüstünde <span className="font-bold text-emerald-400">Boşluk (Space)</span> tuşuna basın veya ekrana <span className="font-bold text-emerald-400">Dokunun (Tap)</span>!
+                </p>
+                <button
+                  onClick={startGame}
+                  className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 px-8 py-3 text-xs font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
+                >
+                  Yarışı Başlat 🚀
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <p className="text-[11px] text-gray-500 font-medium">
+        💡 En yüksek skorunuz otomatik olarak partner liderlik tablosuna kaydedilir!
+      </p>
+    </div>
+  );
+}
+
+/* --- SUB-GAME 2: CLICK DUEL / HALAT ÇEKME --- */
 function ClickDuelGame({ partner1, partner2, slug, playerName }: { partner1: string; partner2: string; slug: string; playerName: string }) {
   const [redVal, setRedVal] = useState(50); // 0 to 100 scale, 50 is center
   const [winner, setWinner] = useState<string | null>(null);

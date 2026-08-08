@@ -1161,3 +1161,43 @@ export async function saveXoxScore(slug: string, p1Wins: number, p2Wins: number)
   return false;
 }
 
+export async function getDinoHighScores(slug: string): Promise<{ p1Score: number; p2Score: number }> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/games_data`, 'dino_runner');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        return {
+          p1Score: data.p1Score || 0,
+          p2Score: data.p2Score || 0,
+        };
+      }
+    } catch (e) {
+      console.error('Error fetching Dino Runner scores:', e);
+    }
+  }
+  return { p1Score: 0, p2Score: 0 };
+}
+
+export async function saveDinoHighScore(slug: string, p1Score: number, p2Score: number): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/games_data`, 'dino_runner');
+      await setDoc(
+        docRef,
+        {
+          p1Score,
+          p2Score,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return true;
+    } catch (e) {
+      console.error('Error saving Dino Runner score:', e);
+    }
+  }
+  return false;
+}
+
