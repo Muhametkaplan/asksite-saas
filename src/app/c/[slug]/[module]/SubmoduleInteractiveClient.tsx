@@ -381,6 +381,7 @@ function DinoRunnerGame({
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [currentScore, setCurrentScore] = useState(0);
+  const [currentMultiplier, setCurrentMultiplier] = useState('1.0');
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -412,6 +413,7 @@ function DinoRunnerGame({
     setGameOver(false);
     setIsNewRecord(false);
     setCurrentScore(0);
+    setCurrentMultiplier('1.0');
   };
 
   useEffect(() => {
@@ -427,48 +429,49 @@ function DinoRunnerGame({
     let lastMilestone = 0;
 
     // Background Stars & Clouds for Parallax
-    const stars = Array.from({ length: 15 }, () => ({
+    const stars = Array.from({ length: 25 }, () => ({
       x: Math.random() * canvas.width,
-      y: Math.random() * 80,
-      size: Math.random() * 2 + 1,
+      y: Math.random() * 180,
+      size: Math.random() * 2.5 + 1,
+      opacity: Math.random() * 0.8 + 0.2,
     }));
 
-    const clouds = Array.from({ length: 4 }, () => ({
+    const clouds = Array.from({ length: 5 }, () => ({
       x: Math.random() * canvas.width,
-      y: Math.random() * 40 + 10,
-      size: Math.random() * 20 + 25,
+      y: Math.random() * 90 + 20,
+      size: Math.random() * 30 + 35,
     }));
 
-    // Runner physics & state
+    // Runner physics & state (Expansive 380px Canvas height)
     const runner = {
-      x: 50,
-      y: 110,
-      width: 26,
-      height: 38,
+      x: 70,
+      y: 290,
+      width: 32,
+      height: 50,
       vy: 0,
-      gravity: 0.65,
+      gravity: 0.72,
       isJumping: false,
-      groundY: 110,
+      groundY: 290,
     };
 
-    let particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; emoji: string }> = [];
+    let particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; emoji: string; size?: number }> = [];
     let obstacles: Array<{ x: number; y: number; width: number; height: number; emoji: string; isAir: boolean }> = [];
 
     const jump = () => {
       if (!runner.isJumping) {
-        runner.vy = -11.5;
+        runner.vy = -14.5;
         runner.isJumping = true;
         playDinoSFX('jump', isMuted);
 
-        // Spawn Jump Sparkles
-        for (let i = 0; i < 5; i++) {
+        // Spawn Jump Sparkles & Dust
+        for (let i = 0; i < 7; i++) {
           particles.push({
-            x: runner.x + 10,
-            y: runner.y + 30,
-            vx: (Math.random() - 0.5) * 3,
-            vy: Math.random() * -2 - 1,
+            x: runner.x + 12,
+            y: runner.y + 45,
+            vx: (Math.random() - 0.5) * 4,
+            vy: Math.random() * -3 - 1,
             life: 1,
-            emoji: Math.random() > 0.5 ? '✨' : '💖',
+            emoji: Math.random() > 0.4 ? '✨' : '💖',
           });
         }
       }
@@ -497,8 +500,10 @@ function DinoRunnerGame({
         playDinoSFX('milestone', isMuted);
       }
 
-      const multiplier = (1 + Math.min(1.5, Math.floor(score / 300) * 0.2)).toFixed(1);
-      const speed = 4.5 * parseFloat(multiplier);
+      // Progressive Speed Scaling: increases every 100 points
+      const multVal = (1.0 + Math.min(2.0, Math.floor(score / 100) * 0.1)).toFixed(1);
+      setCurrentMultiplier(multVal);
+      const speed = 3.6 * parseFloat(multVal);
 
       // Update runner position
       runner.y += runner.vy;
@@ -510,14 +515,26 @@ function DinoRunnerGame({
         runner.isJumping = false;
       }
 
+      // Spawn Footprint Dust when running on ground
+      if (!runner.isJumping && frameCount % 7 === 0) {
+        particles.push({
+          x: runner.x - 4,
+          y: runner.y + 42,
+          vx: -speed * 0.4,
+          vy: (Math.random() - 0.5) * 0.5,
+          life: 0.7,
+          emoji: '💨',
+        });
+      }
+
       // Update Parallax Backgrounds
       stars.forEach((star) => {
-        star.x -= speed * 0.25;
+        star.x -= speed * 0.2;
         if (star.x < 0) star.x = canvas.width;
       });
 
       clouds.forEach((cloud) => {
-        cloud.x -= speed * 0.45;
+        cloud.x -= speed * 0.4;
         if (cloud.x < -cloud.size) cloud.x = canvas.width + cloud.size;
       });
 
@@ -525,20 +542,21 @@ function DinoRunnerGame({
       particles.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
-        p.life -= 0.05;
+        p.life -= 0.04;
       });
       particles = particles.filter((p) => p.life > 0);
 
-      // Spawn obstacles
-      if (frameCount % Math.max(45, Math.floor(95 - Math.min(40, score / 80))) === 0) {
-        const isAir = Math.random() < 0.3;
-        const emojis = isAir ? ['🕊️', '⚡', '🎈'] : ['🌵', '💔', '🔥', '🚧'];
+      // Spawn obstacles with progressive interval
+      const spawnInterval = Math.max(38, Math.floor(90 - Math.min(45, score / 70)));
+      if (frameCount % spawnInterval === 0) {
+        const isAir = Math.random() < 0.35;
+        const emojis = isAir ? ['🕊️', '⚡', '🎈', '🦅'] : ['🌵', '💔', '🔥', '🚧', '🪨'];
         const emoji = emojis[Math.floor(Math.random() * emojis.length)];
         obstacles.push({
           x: canvas.width,
-          y: isAir ? 75 : 116,
-          width: 24,
-          height: 30,
+          y: isAir ? 210 : 300,
+          width: 30,
+          height: 38,
           emoji,
           isAir,
         });
@@ -547,79 +565,114 @@ function DinoRunnerGame({
       // Move obstacles
       obstacles = obstacles.map((obs) => ({ ...obs, x: obs.x - speed })).filter((obs) => obs.x + obs.width > 0);
 
-      // --- CANVAS DRAWING ---
+      // --- CANVAS DRAWING (800x380 High Res) ---
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Pastel Twilight Sky Gradient
+      // 1. Rich Sunset/Twilight Sky Gradient
       const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      skyGrad.addColorStop(0, '#31103f');
-      skyGrad.addColorStop(0.5, '#701a75');
-      skyGrad.addColorStop(0.8, '#d946ef');
-      skyGrad.addColorStop(1, '#fbcfe8');
+      skyGrad.addColorStop(0, '#2e1065');
+      skyGrad.addColorStop(0.4, '#581c87');
+      skyGrad.addColorStop(0.7, '#c026d3');
+      skyGrad.addColorStop(0.9, '#f472b6');
+      skyGrad.addColorStop(1, '#fde047');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 2. Draw Parallax Stars
-      ctx.fillStyle = '#ffffff';
+      // 2. Parallax Stars
       stars.forEach((star) => {
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // 3. Draw Parallax Clouds
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      // 3. Parallax Soft Clouds
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
       clouds.forEach((cloud) => {
         ctx.beginPath();
         ctx.arc(cloud.x, cloud.y, cloud.size, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // 4. Draw Rolling Pastel Ground Hills
-      ctx.fillStyle = '#be185d';
+      // 4. Distant Rolling Mountains / Skyline
+      ctx.fillStyle = 'rgba(157, 23, 77, 0.5)';
       ctx.beginPath();
-      ctx.arc(100 - (frameCount * 0.5) % 300, 220, 120, 0, Math.PI * 2);
-      ctx.arc(350 - (frameCount * 0.5) % 300, 230, 140, 0, Math.PI * 2);
-      ctx.arc(600 - (frameCount * 0.5) % 300, 220, 130, 0, Math.PI * 2);
+      ctx.arc(150 - (frameCount * 0.4) % 400, 480, 220, 0, Math.PI * 2);
+      ctx.arc(500 - (frameCount * 0.4) % 400, 490, 240, 0, Math.PI * 2);
+      ctx.arc(850 - (frameCount * 0.4) % 400, 480, 230, 0, Math.PI * 2);
       ctx.fill();
 
-      // 5. Solid Ground Track
-      ctx.fillStyle = '#9d174d';
-      ctx.fillRect(0, 148, canvas.width, canvas.height - 148);
+      // 5. Solid Ground Track (Height: 40px)
+      ctx.fillStyle = '#831843';
+      ctx.fillRect(0, 340, canvas.width, 40);
 
+      // Top Ground Border Line
       ctx.beginPath();
-      ctx.moveTo(0, 148);
-      ctx.lineTo(canvas.width, 148);
+      ctx.moveTo(0, 340);
+      ctx.lineTo(canvas.width, 340);
       ctx.strokeStyle = '#f472b6';
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 5;
       ctx.stroke();
 
-      // 6. Draw Particles
+      // 6. Draw Dust & Sparkle Particles
       particles.forEach((p) => {
-        ctx.font = '14px sans-serif';
-        ctx.globalAlpha = p.life;
+        ctx.font = '16px sans-serif';
+        ctx.globalAlpha = Math.max(0, p.life);
         ctx.fillText(p.emoji, p.x, p.y);
         ctx.globalAlpha = 1.0;
       });
 
-      // 7. Draw Animated Runner Character (Leg movement animation)
-      const legOffset = runner.isJumping ? 0 : Math.sin(frameCount * 0.4) * 4;
+      // 7. Draw Detailed Animated Vector Runner Character
       ctx.save();
       ctx.translate(runner.x, runner.y);
 
-      // Character body: Cute Heart/Runner Frame
-      ctx.font = '30px sans-serif';
-      ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', 0, 28 + legOffset);
+      // Shadow underneath feet
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(16, 46, 14, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Running Legs Animation (Sine wave)
+      const legPhase = runner.isJumping ? 0.8 : Math.sin(frameCount * 0.35);
+      ctx.strokeStyle = role === 'partner1' ? '#be185d' : '#1d4ed8';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+
+      // Left Leg
+      ctx.beginPath();
+      ctx.moveTo(12, 32);
+      ctx.lineTo(12 + legPhase * 10, 44);
+      ctx.stroke();
+
+      // Right Leg
+      ctx.beginPath();
+      ctx.moveTo(20, 32);
+      ctx.lineTo(20 - legPhase * 10, 44);
+      ctx.stroke();
+
+      // Scarf / Hair Trailing in wind
+      const scarfWiggle = Math.cos(frameCount * 0.3) * 5;
+      ctx.fillStyle = role === 'partner1' ? '#f472b6' : '#60a5fa';
+      ctx.beginPath();
+      ctx.moveTo(8, 14);
+      ctx.quadraticCurveTo(-10, 14 + scarfWiggle, -18, 20 + scarfWiggle);
+      ctx.lineTo(-8, 18);
+      ctx.closePath();
+      ctx.fill();
+
+      // Character Body & Head Sprite Frame
+      ctx.font = '36px sans-serif';
+      ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', -2, 34);
       ctx.restore();
 
       // 8. Draw Obstacles & Check Collision
       for (const obs of obstacles) {
-        ctx.font = '24px sans-serif';
-        ctx.fillText(obs.emoji, obs.x, obs.y + 24);
+        ctx.font = '32px sans-serif';
+        ctx.fillText(obs.emoji, obs.x, obs.y + 32);
 
-        // Bounding Box Collision Check
-        const runnerBox = { x: runner.x + 4, y: runner.y + 6, width: runner.width - 6, height: runner.height - 8 };
-        const obsBox = { x: obs.x + 2, y: obs.y + 4, width: obs.width - 4, height: obs.height - 6 };
+        // Precise Bounding Box Collision Check
+        const runnerBox = { x: runner.x + 6, y: runner.y + 8, width: runner.width - 8, height: runner.height - 10 };
+        const obsBox = { x: obs.x + 4, y: obs.y + 6, width: obs.width - 6, height: obs.height - 8 };
 
         if (
           runnerBox.x < obsBox.x + obsBox.width &&
@@ -633,13 +686,17 @@ function DinoRunnerGame({
         }
       }
 
-      // 9. HUD Overlay: Score & Multiplier
+      // 9. Premium HUD Overlay (Score & Dynamic Speed Level)
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 13px sans-serif';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 4;
-      ctx.fillText(`Puan: ${score}`, canvas.width - 120, 22);
-      ctx.fillText(`Hız: ${multiplier}x`, canvas.width - 120, 38);
+      ctx.font = '900 15px sans-serif';
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(`🏆 Skor: ${score}`, canvas.width - 150, 30);
+
+      // Speed level badge color shifts with multiplier
+      const speedColor = parseFloat(multVal) >= 2.0 ? '#facc15' : parseFloat(multVal) >= 1.5 ? '#38bdf8' : '#4ade80';
+      ctx.fillStyle = speedColor;
+      ctx.fillText(`⚡ Hız: ${multVal}x`, canvas.width - 150, 52);
 
       if (isRunning) {
         animationFrameId.current = requestAnimationFrame(loop);
@@ -655,7 +712,7 @@ function DinoRunnerGame({
 
         if (currentFinalScore > previousRecord) {
           setIsNewRecord(true);
-          triggerConfetti({ particleCount: 90, spread: 90 });
+          triggerConfetti({ particleCount: 100, spread: 100 });
           const updatedScores = {
             p1Score: isP1 ? currentFinalScore : highScores.p1Score,
             p2Score: !isP1 ? currentFinalScore : highScores.p2Score,
@@ -678,12 +735,15 @@ function DinoRunnerGame({
   }, [isPlaying, role, slug, playerName, highScores, isMuted]);
 
   return (
-    <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200">
+    <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-black text-gray-900">🦖 Sonsuz Aşk Koşusu (Dino Runner)</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">🦖</span>
+          <h3 className="text-xl font-black text-gray-900">Sonsuz Aşk Koşusu (Dino Runner)</h3>
+        </div>
         <button
           onClick={() => setIsMuted(!isMuted)}
-          className="p-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition"
+          className="p-2.5 rounded-2xl bg-gray-100 text-gray-700 text-xs font-black hover:bg-gray-200 transition active:scale-95 border border-gray-200"
           title={isMuted ? 'Sesi Aç' : 'Sesi Kapat'}
         >
           {isMuted ? '🔇 Ses Kapalı' : '🔊 Ses Açık'}
@@ -693,87 +753,88 @@ function DinoRunnerGame({
       {/* Leaderboard Panel */}
       <div className="rounded-2xl bg-gradient-to-r from-purple-50 via-pink-50 to-rose-50 border border-pink-200 p-4 shadow-sm space-y-2">
         <div className="flex items-center justify-between text-xs font-black">
-          <div className="flex items-center gap-1.5 text-pink-600">
+          <div className="flex items-center gap-2 text-pink-600">
             <span>🌸 Kız Partner ({partner1})</span>
-            <span className="rounded-lg bg-pink-100 px-2 py-0.5 text-xs font-black text-pink-700">
+            <span className="rounded-xl bg-pink-100 px-3 py-1 text-xs font-black text-pink-700 shadow-2xs">
               {highScores.p1Score} Puan
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-blue-600">
-            <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-xs font-black text-blue-700">
+          <div className="flex items-center gap-2 text-blue-600">
+            <span className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-black text-blue-700 shadow-2xs">
               {highScores.p2Score} Puan
             </span>
             <span>🔵 Erkek Partner ({partner2})</span>
           </div>
         </div>
 
-        <div className="border-t border-pink-200/60 pt-1.5 text-xs font-extrabold text-gray-800">
-          🏆 Şampiyon: <span className="text-purple-700 font-black">{championName}</span>
+        <div className="border-t border-pink-200/60 pt-2 text-xs font-extrabold text-gray-800 flex items-center justify-center gap-1">
+          <span>🏆 Şampiyon:</span> <span className="text-purple-700 font-black text-sm">{championName}</span>
         </div>
       </div>
 
-      {/* Game Canvas Container (Touch/Click Anywhere to Jump) */}
+      {/* Expanded Game Canvas Container (800x380 High-Res Canvas) */}
       <div
-        className="relative mx-auto max-w-lg w-full bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-purple-300 cursor-pointer touch-none select-none"
+        className="relative mx-auto w-full max-w-4xl bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-purple-300 cursor-pointer touch-none select-none"
         onClick={() => {
           if (isPlaying) {
             window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
           }
         }}
       >
-        <canvas ref={canvasRef} width={500} height={165} className="w-full h-auto block" />
+        <canvas ref={canvasRef} width={800} height={380} className="w-full h-auto block" />
 
         {/* Start / Game Over Overlay Modal */}
         {!isPlaying && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center p-4 space-y-3 z-30 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-4 z-30 animate-in fade-in duration-200">
             {gameOver ? (
-              <div className="w-full max-w-xs rounded-2xl bg-white/95 backdrop-blur-md p-5 text-center shadow-2xl space-y-3 border border-rose-200">
+              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-6 text-center shadow-2xl space-y-4 border border-rose-200 animate-in zoom-in-95">
                 {isNewRecord ? (
-                  <div className="space-y-1">
-                    <div className="text-4xl animate-bounce">🎉</div>
-                    <h4 className="text-base font-black text-rose-600">TEBRİKLER! YENİ REKOR!</h4>
-                    <p className="text-xs text-gray-600 font-bold">Harika koştunuz! En yüksek skorunuza ulaştınız.</p>
+                  <div className="space-y-1.5">
+                    <div className="text-5xl animate-bounce">🎉</div>
+                    <h4 className="text-lg font-black text-rose-600">TEBRİKLER! YENİ REKOR!</h4>
+                    <p className="text-xs text-gray-600 font-bold">Muhteşem bir koşu çıkardınız! Rekor kırıldı.</p>
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <div className="text-3xl">💥</div>
-                    <h4 className="text-base font-black text-gray-900">Oyun Bitti!</h4>
+                  <div className="space-y-1.5">
+                    <div className="text-4xl">💥</div>
+                    <h4 className="text-lg font-black text-gray-900">Oyun Bitti!</h4>
                   </div>
                 )}
 
-                <div className="py-2 bg-rose-50 rounded-xl border border-rose-100 text-xs font-black text-rose-700">
-                  Skorunuz: <span className="text-sm font-extrabold text-gray-900">{currentScore} Puan</span>
+                <div className="py-3 px-4 bg-rose-50 rounded-2xl border border-rose-100 text-xs font-black text-rose-700 flex items-center justify-around">
+                  <span>Skorunuz: <strong className="text-base text-gray-900">{currentScore}</strong></span>
+                  <span>Son Hız: <strong className="text-base text-purple-700">{currentMultiplier}x</strong></span>
                 </div>
 
                 <button
                   onClick={startGame}
-                  className="w-full rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 py-3 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
+                  className="w-full rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
                 >
                   Yeniden Koş 🏃‍♂️
                 </button>
               </div>
             ) : (
-              <>
-                <div className="text-4xl animate-bounce">🦖🏃‍♂️</div>
-                <h4 className="text-lg font-black text-white">Sonsuz Aşk Koşusu</h4>
-                <p className="text-xs text-purple-200 max-w-xs">
-                  Masaüstünde <span className="font-bold text-pink-300">Boşluk (Space)</span> tuşuna basın veya ekrana <span className="font-bold text-pink-300">Dokunun (Tap)</span>!
+              <div className="text-center space-y-4 max-w-md">
+                <div className="text-5xl animate-bounce">🦖🏃‍♂️</div>
+                <h4 className="text-2xl font-black text-white drop-shadow-md">Sonsuz Aşk Koşusu</h4>
+                <p className="text-xs text-purple-200 leading-relaxed">
+                  Masaüstünde <span className="font-bold text-pink-300">Boşluk (Space)</span> veya <span className="font-bold text-pink-300">Yukarı Ok</span> tuşuna basın, mobilde ekrana <span className="font-bold text-pink-300">Dokunun (Tap)</span>!
                 </p>
                 <button
                   onClick={startGame}
-                  className="rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 px-8 py-3 text-xs font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
+                  className="rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 px-10 py-3.5 text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
                 >
                   Yarışı Başlat 🚀
                 </button>
-              </>
+              </div>
             )}
           </div>
         )}
       </div>
 
-      <p className="text-[11px] text-gray-500 font-medium">
-        💡 En yüksek skorunuz otomatik olarak partner liderlik tablosuna kaydedilir!
+      <p className="text-xs text-gray-500 font-medium">
+        💡 Her 100 puanda hızınız ve zorluk kademeli olarak artar. En yüksek skorunuz partner liderlik panosuna kaydedilir!
       </p>
     </div>
   );
