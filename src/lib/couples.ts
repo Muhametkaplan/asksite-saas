@@ -1097,3 +1097,27 @@ export async function connectPartnerWithPairCode(
 
   return { success: true, slug: couple.slug, message: 'Demo eşleşmesi sağlandı! 🎉' };
 }
+
+export async function saveGameScore(
+  slug: string,
+  gameName: string,
+  score: number,
+  playerName?: string
+): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const gamesRef = collection(db, `couples/${slug}/games_data`);
+      await addDoc(gamesRef, {
+        gameName,
+        score,
+        playerName: playerName || 'Partner',
+        createdAt: serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      console.error('Error saving game score to Firestore:', e);
+    }
+  }
+  return false;
+}
+
