@@ -10,6 +10,7 @@ import {
   deleteDoc,
   onSnapshot,
   query,
+  where,
   orderBy,
   limit,
   serverTimestamp,
@@ -18,6 +19,7 @@ import {
 export const DEMO_COUPLE: CoupleConfig = {
   id: 'irem-muhammet',
   slug: 'irem-muhammet',
+  pair_code: 'ASK-X79B2',
   partner1_name: 'Partner 1',
   partner2_name: 'Partner 2',
   subtitle: 'Bizim Dünyamız ❤️',
@@ -921,4 +923,94 @@ export function formatDiaryDate(dateStr?: string): string {
   } catch (e) {
     return dateStr;
   }
+}
+
+export async function getCoupleByPairCode(pairCode: string): Promise<CoupleConfig | null> {
+  const cleanCode = pairCode.trim().toUpperCase();
+  if (cleanCode === 'ASK-X79B2') {
+    return DEMO_COUPLE;
+  }
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const q = query(collection(db, 'couples'), where('pair_code', '==', cleanCode));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          slug: data.slug || docSnap.id,
+          partner1_name: data.partner1_name || 'Partner 1',
+          partner2_name: data.partner2_name || 'Partner 2',
+          subtitle: data.subtitle || 'Bizim Dünyamız ❤️',
+          start_date: data.start_date || '2023-01-01T00:00:00.000Z',
+          theme_color_primary: data.theme_color_primary || '#ff4d6d',
+          theme_color_tech: data.theme_color_tech || '#6c5ce7',
+          bg_music_url: data.bg_music_url || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+          whatsapp_number: data.whatsapp_number || '905524185530',
+          whatsapp_message: data.whatsapp_message || 'Seni çok seviyorum 💖',
+          love_reasons: data.love_reasons || DEMO_COUPLE.love_reasons,
+          pair_code: data.pair_code || cleanCode,
+          co_owners: data.co_owners || [],
+          allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
+        };
+      }
+    } catch (e) {
+      console.error('Error fetching couple by pair code:', e);
+    }
+  }
+  return null;
+}
+
+export async function connectPartnerWithPairCode(
+  userUid: string,
+  userEmail: string,
+  pairCode: string
+): Promise<{ success: boolean; slug?: string; message?: string }> {
+  const couple = await getCoupleByPairCode(pairCode);
+  if (!couple) {
+    return { success: false, message: 'Geçersiz eşleşme kodu! Lütfen kodunuzu kontrol edin.' };
+  }
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const coupleRef = doc(db, 'couples', couple.slug);
+      const currentCoOwners = couple.co_owners || [];
+      if (!currentCoOwners.includes(userUid)) {
+        currentCoOwners.push(userUid);
+      }
+
+      await setDoc(
+        coupleRef,
+        {
+          co_owners: currentCoOwners,
+          allowed_users: {
+            ...(couple.allowed_users || {}),
+            partner2_email: userEmail,
+          },
+        },
+        { merge: true }
+      );
+
+      const userRef = doc(db, 'users', userUid);
+      await setDoc(
+        userRef,
+        {
+          coupleSlug: couple.slug,
+          hasPurchasedSite: true,
+          hasActiveSubscription: true,
+          pairedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      return { success: true, slug: couple.slug, message: 'Partneriniz ile başarıyla eşleştiniz! 🎉' };
+    } catch (e: any) {
+      console.error('Error connecting partner:', e);
+      return { success: false, message: e.message || 'Eşleşme kurulurken hata oluştu.' };
+    }
+  }
+
+  return { success: true, slug: couple.slug, message: 'Demo eşleşmesi sağlandı! 🎉' };
 }

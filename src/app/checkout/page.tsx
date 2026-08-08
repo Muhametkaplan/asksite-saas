@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import {
   Heart,
   Sparkles,
@@ -18,6 +19,10 @@ import {
   ChevronDown,
   LayoutDashboard,
   LogIn,
+  QrCode,
+  Users,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -38,17 +43,37 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
 
-  // Auth User & Profile Dropdown State
+  // Auth User & Subscription State
   const [currentUser, setCurrentUser] = useState<{ displayName?: string; email?: string } | null>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
+  const [hasPurchased, setHasPurchased] = useState<boolean | null>(null);
+  const [userCoupleSlug, setUserCoupleSlug] = useState<string>('demo');
+  const [forceShowPurchaseForm, setForceShowPurchaseForm] = useState(false);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setCurrentUser({
           displayName: firebaseUser.displayName || '',
           email: firebaseUser.email || '',
         });
+
+        if (db) {
+          try {
+            const userRef = doc(db, 'users', firebaseUser.uid);
+            const snap = await getDoc(userRef);
+            if (snap.exists()) {
+              const data = snap.data();
+              if (data.hasPurchasedSite === true || data.coupleSlug) {
+                setHasPurchased(true);
+                setUserCoupleSlug(data.coupleSlug || 'demo');
+                return;
+              }
+            }
+          } catch (e) {}
+        }
+        setHasPurchased(false);
       } else if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('asksite_user');
         if (stored) {
@@ -56,6 +81,7 @@ export default function CheckoutPage() {
             setCurrentUser(JSON.parse(stored));
           } catch (e) {}
         }
+        setHasPurchased(false);
       }
     });
     return () => unsubscribe();
@@ -138,7 +164,7 @@ export default function CheckoutPage() {
           </Link>
 
           <div className="flex items-center gap-3">
-            {currentUser ? (
+            {currentUser && (hasPurchased !== false) ? (
               <>
                 <Link
                   href="/dashboard"
@@ -190,6 +216,13 @@ export default function CheckoutPage() {
                   )}
                 </div>
               </>
+            ) : currentUser ? (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-1.5 rounded-2xl bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-200 transition"
+              >
+                <LogOut className="h-3.5 w-3.5 text-rose-500" /> Çıkış Yap
+              </button>
             ) : (
               <Link
                 href="/login?redirect=checkout"
@@ -204,42 +237,65 @@ export default function CheckoutPage() {
 
       {/* Main Container */}
       <div className="mx-auto max-w-3xl pt-8 px-4 sm:px-6">
-        {/* Prominent Quick Dashboard Shortcut Bar for Logged-In Users */}
-        {currentUser && (
-          <div className="mb-6 rounded-2xl bg-white p-4 shadow-md border border-rose-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center font-bold shrink-0">
-                ✨
+        {/* Satın Alım Yapmış Kullanıcı İçin Özel Portal Kartı */}
+        {hasPurchased === true && !forceShowPurchaseForm ? (
+          <div className="mx-auto max-w-xl text-center space-y-6 pt-4">
+            <div className="rounded-3xl bg-white p-8 shadow-2xl border border-gray-100 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-500 border border-emerald-100 shadow-sm text-3xl">
+                💖
               </div>
               <div>
-                <span className="text-xs font-bold text-gray-900 block">
-                  Zaten Aktif Hesabınız Var Mı?
+                <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full mb-2 border border-emerald-200">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> VIP Paketiniz Aktif & Siteniz Yayında 🟢
                 </span>
-                <span className="text-[11px] text-gray-500 block">
-                  Ödeme yapmadan doğrudan sitenizin yönetim paneline geçiş yapabilirsiniz.
-                </span>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">
+                  Zaten Aktif Bir Çift Siteniz Bulunmaktadır! 🎉
+                </h1>
+                <p className="mt-2 text-xs text-gray-500 leading-relaxed max-w-md mx-auto">
+                  Siteniz hazır ve yayında. Aşağıdaki butonlarla doğrudan web sitenize gidebilir veya yönetim panelinizden içeriğinizi düzenleyebilirsiniz.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a
+                  href={`/c/${userCoupleSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-8 py-3.5 text-sm font-extrabold text-white shadow-xl hover:scale-105 transition active:scale-95"
+                >
+                  <ExternalLink className="h-4 w-4" /> Siteme Git 🔗
+                </a>
+                <Link
+                  href={`/dashboard?slug=${userCoupleSlug}`}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-3.5 text-sm font-extrabold text-white shadow-xl hover:scale-105 transition active:scale-95"
+                >
+                  <LayoutDashboard className="h-4 w-4" /> Yönetim Paneline Geç ⚙️
+                </Link>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <button
+                  onClick={() => setForceShowPurchaseForm(true)}
+                  className="text-xs font-semibold text-gray-500 hover:text-rose-600 underline transition"
+                >
+                  Başka bir paket almak veya yeni bir site daha oluşturmak için tıklayın 🛒
+                </button>
               </div>
             </div>
-            <Link
-              href="/dashboard"
-              className="shrink-0 rounded-xl bg-rose-50 px-4 py-2 text-xs font-extrabold text-rose-600 border border-rose-200 hover:bg-rose-100 transition active:scale-95 flex items-center gap-1"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" /> Paneli Aç ➔
-            </Link>
           </div>
-        )}
-
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-4 py-1 text-xs font-bold text-rose-600 mb-3">
-            <Sparkles className="h-4 w-4" /> Güvenli Ödeme & Otomatik Kurulum
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
-            Aşk Sitenizi Şimdi Oluşturun ❤️
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Paketinizi seçin, 1 dakikada kişisel sitenize kavuşun.
-          </p>
-        </div>
+        ) : (
+          <>
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-4 py-1 text-xs font-bold text-rose-600 mb-3">
+                <Sparkles className="h-4 w-4" /> Güvenli Ödeme & Otomatik Kurulum
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
+                Aşk Sitenizi Şimdi Oluşturun ❤️
+              </h1>
+              <p className="mt-2 text-sm text-gray-600">
+                Paketinizi seçin, 1 dakikada kişisel sitenize kavuşun.
+              </p>
+            </div>
 
         {/* Package Selector */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -482,6 +538,8 @@ export default function CheckoutPage() {
               )}
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

@@ -133,6 +133,8 @@ export interface CoupleConfig {
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;
   is_active?: boolean;
+  pair_code?: string;
+  co_owners?: string[];
   created_at?: string;
 }
 

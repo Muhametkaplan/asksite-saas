@@ -30,14 +30,16 @@ import {
   Lock,
   Shield,
   ChevronDown,
-  Copy
+  Copy,
+  Users,
+  Link2,
 } from 'lucide-react';
 
 import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
-import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
+import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate, connectPartnerWithPairCode, getCoupleByPairCode } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
@@ -533,6 +535,49 @@ function DashboardContent() {
   const [accountStatusMsg, setAccountStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [accountUpdating, setAccountUpdating] = useState(false);
 
+  // Partner Pairing State
+  const [pairCodeInput, setPairCodeInput] = useState('');
+  const [pairConnecting, setPairConnecting] = useState(false);
+  const [pairStatusMsg, setPairStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [copiedPairCode, setCopiedPairCode] = useState(false);
+
+  const handleConnectPartner = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!pairCodeInput.trim()) {
+      setPairStatusMsg({ type: 'error', text: 'Lütfen eşleşme kodunu girin (Örn: ASK-X79B2).' });
+      return;
+    }
+    setPairConnecting(true);
+    setPairStatusMsg(null);
+    try {
+      const res = await connectPartnerWithPairCode(
+        auth.currentUser?.uid || 'demo-user',
+        auth.currentUser?.email || 'partner2@example.com',
+        pairCodeInput
+      );
+      if (res.success && res.slug) {
+        setPairStatusMsg({ type: 'success', text: res.message || 'Eşleşme başarıyla tamamlandı!' });
+        setPairCodeInput('');
+        setTimeout(() => {
+          window.location.href = `/dashboard?slug=${res.slug}`;
+        }, 1500);
+      } else {
+        setPairStatusMsg({ type: 'error', text: res.message || 'Eşleşme yapılamadı.' });
+      }
+    } catch (err: any) {
+      setPairStatusMsg({ type: 'error', text: err.message || 'Bir hata oluştu.' });
+    } finally {
+      setPairConnecting(false);
+    }
+  };
+
+  const copyPairCode = () => {
+    const code = config.pair_code || 'ASK-X79B2';
+    navigator.clipboard.writeText(code);
+    setCopiedPairCode(true);
+    setTimeout(() => setCopiedPairCode(false), 2000);
+  };
+
   const [hasPurchased, setHasPurchased] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -894,6 +939,76 @@ function DashboardContent() {
               }
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-purple-600 outline-none focus:border-purple-500"
             />
+          </div>
+        </div>
+
+        {/* Çift Eşleşme Kodu & QR Davet Protokolü */}
+        <div className="mt-5 border-t border-gray-100 pt-5 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center bg-gradient-to-r from-rose-50/70 via-purple-50/70 to-pink-50/70 p-5 rounded-2xl border border-rose-100/80">
+            {/* Left: Current Couple Pair Code & QR */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500 text-white font-black text-xs">
+                  🤝
+                </span>
+                <div>
+                  <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">
+                    Sitenizin Çift Eşleşme Kodu & QR Davetiyesi
+                  </h4>
+                  <p className="text-[11px] text-gray-500">
+                    Partneriniz bu kodu girerek aynı sitenin eş yöneticisi (co-owner) olabilir.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-xl bg-white border border-rose-200 px-4 py-2.5 font-mono text-sm font-black text-rose-600 tracking-widest shadow-inner text-center">
+                  {config.pair_code || 'ASK-X79B2'}
+                </div>
+                <button
+                  type="button"
+                  onClick={copyPairCode}
+                  className="rounded-xl bg-rose-500 px-4 py-2.5 text-xs font-extrabold text-white shadow-md hover:bg-rose-600 transition shrink-0 active:scale-95 flex items-center gap-1"
+                >
+                  <Copy className="h-3.5 w-3.5" /> {copiedPairCode ? 'Kopyalandı! ✓' : 'Kodu Kopyala'}
+                </button>
+              </div>
+            </div>
+
+            {/* Right: Partner 2 Connect Form */}
+            <form onSubmit={handleConnectPartner} className="space-y-2.5 border-t md:border-t-0 md:border-l border-rose-200/60 pt-3 md:pt-0 md:pl-6">
+              <label className="block text-xs font-extrabold text-gray-800 flex items-center gap-1.5">
+                <Link2 className="h-4 w-4 text-purple-600" /> Başka Bir Çift Koduna Bağlan (Partner Girişi)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Örn: ASK-X79B2"
+                  value={pairCodeInput}
+                  onChange={(e) => setPairCodeInput(e.target.value.toUpperCase())}
+                  className="flex-1 rounded-xl border border-purple-200 bg-white px-3.5 py-2 text-xs font-mono font-bold uppercase tracking-wider text-purple-700 outline-none focus:border-purple-500"
+                />
+                <button
+                  type="submit"
+                  disabled={pairConnecting}
+                  className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2 text-xs font-extrabold text-white shadow-md hover:opacity-95 transition disabled:opacity-50 shrink-0"
+                >
+                  {pairConnecting ? 'Bağlanıyor...' : 'Eşleş ve Bağlan 🚀'}
+                </button>
+              </div>
+
+              {pairStatusMsg && (
+                <div
+                  className={`rounded-xl p-2.5 text-[11px] font-bold border ${
+                    pairStatusMsg.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border-rose-200'
+                  }`}
+                >
+                  {pairStatusMsg.text}
+                </div>
+              )}
+            </form>
           </div>
         </div>
       </div>
@@ -2368,6 +2483,25 @@ function DashboardContent() {
                     onChange={(e) => setConfirmAccountPassword(e.target.value)}
                     className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-purple-500"
                   />
+                </div>
+              </div>
+
+              {/* Çift Eşleşme Kodu & QR Okut Modülü */}
+              <div className="border-t border-gray-100 pt-3 space-y-2">
+                <label className="block text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-rose-500" /> Çift Eşleşme Kodu (Davet Kodu)
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2 text-xs font-mono font-bold text-rose-600">
+                    {config.pair_code || 'ASK-X79B2'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyPairCode}
+                    className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition shrink-0"
+                  >
+                    {copiedPairCode ? 'Kopyalandı! ✓' : 'Kodu Kopyala'}
+                  </button>
                 </div>
               </div>
 

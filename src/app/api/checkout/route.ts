@@ -28,9 +28,11 @@ export async function POST(req: NextRequest) {
     const baseSlug = `${slugify(partner1_name)}-${slugify(partner2_name)}`;
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const slug = `${baseSlug}-${randomSuffix}`;
+    const pair_code = `ASK-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
     const newCouple = {
       slug,
+      pair_code,
       partner1_name,
       partner2_name,
       subtitle: 'Bizim Dünyamız ❤️',
