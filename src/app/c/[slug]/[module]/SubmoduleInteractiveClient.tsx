@@ -605,7 +605,7 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
     for (const [a, b, c] of winningCombos) {
       if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
         const isP1 = newBoard[a] === 'X';
-        const winningName = isP1 ? partner1 : partner2;
+        const winningName = isP1 ? `🔵 ${partner1} (X)` : `🌸 ${partner2} (O)`;
         setWinner(winningName);
         triggerConfetti({ particleCount: 60, spread: 80 });
 
@@ -615,7 +615,7 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
         };
         setScores(updatedScores);
         await saveXoxScore(slug, updatedScores.p1Wins, updatedScores.p2Wins);
-        await saveGameScore(slug, 'Neon XOX', 100, winningName);
+        await saveGameScore(slug, 'Neon XOX', 100, isP1 ? partner1 : partner2);
         return;
       }
     }
@@ -641,13 +641,13 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
       {/* Scoreboard Panel */}
       <div className="flex items-center justify-between rounded-2xl bg-gray-50 border border-gray-200 p-3 shadow-inner text-xs font-black">
         <div className="flex items-center gap-1.5 text-blue-600">
-          <span>🔵 {partner1} (X)</span>
+          <span>🔵 Erkek Partner ({partner1}) - X</span>
           <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-sm font-extrabold text-blue-700">{scores.p1Wins}</span>
         </div>
         <span className="text-gray-400 font-extrabold text-sm">-</span>
         <div className="flex items-center gap-1.5 text-pink-600">
           <span className="rounded-lg bg-pink-100 px-2 py-0.5 text-sm font-extrabold text-pink-700">{scores.p2Wins}</span>
-          <span>🌸 {partner2} (O)</span>
+          <span>🌸 Kız Partner ({partner2}) - O</span>
         </div>
       </div>
 
@@ -656,11 +656,11 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
         <div className="py-1">
           {turn === 'X' ? (
             <div className="rounded-xl bg-blue-50 border border-blue-200 py-1.5 px-4 text-xs font-black text-blue-700 inline-flex items-center gap-1.5 animate-pulse">
-              <span>Sıra:</span> 🔵 Mavi Partner ({partner1}) - X
+              <span>Sıra:</span> 🔵 Erkek Partner ({partner1}) - (X)
             </div>
           ) : (
             <div className="rounded-xl bg-pink-50 border border-pink-200 py-1.5 px-4 text-xs font-black text-pink-700 inline-flex items-center gap-1.5 animate-pulse">
-              <span>Sıra:</span> 🌸 Pembe Partner ({partner2}) - O
+              <span>Sıra:</span> 🌸 Kız Partner ({partner2}) - (O)
             </div>
           )}
         </div>
