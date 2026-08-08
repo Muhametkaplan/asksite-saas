@@ -18,8 +18,8 @@ import {
 export const DEMO_COUPLE: CoupleConfig = {
   id: 'irem-muhammet',
   slug: 'irem-muhammet',
-  partner1_name: 'İrem',
-  partner2_name: 'Muhammet',
+  partner1_name: 'Partner 1',
+  partner2_name: 'Partner 2',
   subtitle: 'Bizim Dünyamız ❤️',
   start_date: '2023-01-01T00:00:00.000Z',
   theme_color_primary: '#ff4d6d',
