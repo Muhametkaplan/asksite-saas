@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import { Heart, Sparkles, Shield, Rocket, ArrowRight, Smartphone, Gift } from 'lucide-react';
+import HomeNavbar from '@/components/HomeNavbar';
 
 export default function SaaSPlatformHome() {
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-gray-900 overflow-hidden">
+      {/* Top Shared Navbar */}
+      <HomeNavbar />
+
       {/* Hero Header */}
       <header className="container mx-auto max-w-5xl px-6 py-12 text-center relative z-10">
         <div className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-4 py-1.5 text-xs font-bold text-rose-600 mb-6 shadow-sm">
