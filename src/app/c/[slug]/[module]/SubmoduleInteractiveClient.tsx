@@ -605,7 +605,7 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
     for (const [a, b, c] of winningCombos) {
       if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
         const isP1 = newBoard[a] === 'X';
-        const winningName = isP1 ? `🔵 ${partner1} (X)` : `🌸 ${partner2} (O)`;
+        const winningName = isP1 ? `🔵 Erkek Partner (${partner1})` : `🌸 Kız Partner (${partner2})`;
         setWinner(winningName);
         triggerConfetti({ particleCount: 60, spread: 80 });
 
@@ -656,11 +656,11 @@ function NeonXoxGame({ partner1, partner2, slug, playerName }: { partner1: strin
         <div className="py-1">
           {turn === 'X' ? (
             <div className="rounded-xl bg-blue-50 border border-blue-200 py-1.5 px-4 text-xs font-black text-blue-700 inline-flex items-center gap-1.5 animate-pulse">
-              <span>Sıra:</span> 🔵 Erkek Partner ({partner1}) - (X)
+              <span>Sıra:</span> 🔵 Erkek Partner ({partner1}) - X
             </div>
           ) : (
             <div className="rounded-xl bg-pink-50 border border-pink-200 py-1.5 px-4 text-xs font-black text-pink-700 inline-flex items-center gap-1.5 animate-pulse">
-              <span>Sıra:</span> 🌸 Kız Partner ({partner2}) - (O)
+              <span>Sıra:</span> 🌸 Kız Partner ({partner2}) - O
             </div>
           )}
         </div>
