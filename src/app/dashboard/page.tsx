@@ -498,6 +498,7 @@ function DashboardContent() {
   }, []);
 
   const [currentUser, setCurrentUser] = useState<{ displayName?: string; email?: string; phone?: string } | null>(null);
+  const [authProvider, setAuthProvider] = useState<'google' | 'password'>('password');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -507,6 +508,8 @@ function DashboardContent() {
           email: firebaseUser.email || '',
           phone: firebaseUser.phoneNumber || '',
         });
+        const isGoogle = firebaseUser.providerData.some((p) => p.providerId === 'google.com');
+        setAuthProvider(isGoogle ? 'google' : 'password');
       } else if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('asksite_user');
         if (stored) {
@@ -644,10 +647,10 @@ function DashboardContent() {
 
     try {
       if (auth.currentUser) {
-        if (accountName) {
+        if (authProvider !== 'google' && accountName) {
           await updateProfile(auth.currentUser, { displayName: accountName });
         }
-        if (newAccountPassword) {
+        if (authProvider !== 'google' && newAccountPassword) {
           if (newAccountPassword.length < 6) {
             setAccountStatusMsg({ type: 'error', text: 'Yeni şifreniz en az 6 karakter olmalıdır.' });
             setAccountUpdating(false);
@@ -2518,16 +2521,49 @@ function DashboardContent() {
             </div>
 
             <form onSubmit={handleSaveAccountProfile} className="space-y-4">
+              {/* E-Posta & Giriş Sağlayıcısı (Salt Okunur) */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Ad Soyad</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-gray-700">E-Posta Adresi</label>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-black border ${
+                      authProvider === 'google'
+                        ? 'bg-blue-50 text-blue-600 border-blue-200'
+                        : 'bg-rose-50 text-rose-600 border-rose-200'
+                    }`}
+                  >
+                    {authProvider === 'google' ? '🌐 Google Auth' : '🔑 E-Posta / Şifre'}
+                  </span>
+                </div>
                 <input
-                  type="text"
-                  value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-rose-500"
+                  type="email"
+                  readOnly
+                  disabled
+                  value={auth.currentUser?.email || currentUser?.email || ''}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-100 px-3.5 py-2.5 text-xs text-gray-600 font-semibold cursor-not-allowed outline-none"
                 />
               </div>
 
+              {/* Ad Soyad */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Ad Soyad {authProvider === 'google' && <span className="text-[10px] text-gray-400 font-normal">(Google Tarafından Sağlandı)</span>}
+                </label>
+                <input
+                  type="text"
+                  disabled={authProvider === 'google'}
+                  readOnly={authProvider === 'google'}
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  className={`w-full rounded-xl border px-3.5 py-2.5 text-xs outline-none ${
+                    authProvider === 'google'
+                      ? 'border-gray-200 bg-gray-100 text-gray-500 font-medium cursor-not-allowed'
+                      : 'border-gray-200 bg-white focus:border-rose-500'
+                  }`}
+                />
+              </div>
+
+              {/* Telefon Numarası */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Telefon Numarası</label>
                 <input
@@ -2539,26 +2575,34 @@ function DashboardContent() {
                 />
               </div>
 
+              {/* Şifre Değiştirme Modülü */}
               <div className="border-t border-gray-100 pt-3">
                 <label className="block text-xs font-bold text-gray-800 mb-1.5 flex items-center gap-1">
-                  <Key className="h-3.5 w-3.5 text-purple-600" /> Şifre Değiştir (İsteğe Bağlı)
+                  <Key className="h-3.5 w-3.5 text-purple-600" /> Şifre Değiştir
                 </label>
-                <div className="space-y-2">
-                  <input
-                    type="password"
-                    placeholder="Yeni Şifre (En az 6 karakter)"
-                    value={newAccountPassword}
-                    onChange={(e) => setNewAccountPassword(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-purple-500"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Yeni Şifre Tekrar"
-                    value={confirmAccountPassword}
-                    onChange={(e) => setConfirmAccountPassword(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-purple-500"
-                  />
-                </div>
+
+                {authProvider === 'google' ? (
+                  <div className="rounded-xl bg-blue-50/70 p-3 border border-blue-100 text-[11px] font-semibold text-blue-700 flex items-center gap-2">
+                    <span>🌐 Google hesabı ile giriş yapıldı (Şifre değiştirme kapalı).</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="password"
+                      placeholder="Yeni Şifre (En az 6 karakter)"
+                      value={newAccountPassword}
+                      onChange={(e) => setNewAccountPassword(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-purple-500"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Yeni Şifre Tekrar"
+                      value={confirmAccountPassword}
+                      onChange={(e) => setConfirmAccountPassword(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-purple-500"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Çift Eşleşme Kodu & QR Okut Modülü */}
