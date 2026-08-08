@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Heart,
   Palette,
@@ -21,11 +21,20 @@ import {
   Hourglass,
   Film,
   Disc,
-  Brain
+  Brain,
+  User,
+  LogOut,
+  Key,
+  ExternalLink,
+  Lock,
+  Shield,
+  ChevronDown,
+  Copy
 } from 'lucide-react';
 
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
@@ -502,6 +511,102 @@ function DashboardContent() {
     return () => unsubscribe();
   }, []);
 
+  const router = useRouter();
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Account Modal Form State
+  const [accountName, setAccountName] = useState('');
+  const [accountPhone, setAccountPhone] = useState('');
+  const [newAccountPassword, setNewAccountPassword] = useState('');
+  const [confirmAccountPassword, setConfirmAccountPassword] = useState('');
+  const [accountStatusMsg, setAccountStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [accountUpdating, setAccountUpdating] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      setAccountName(currentUser.displayName || '');
+      setAccountPhone(currentUser.phone || '');
+    }
+  }, [currentUser]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {}
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('asksite_user');
+    }
+    router.push('/login');
+  };
+
+  const handleSaveAccountProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountStatusMsg(null);
+    setAccountUpdating(true);
+
+    try {
+      if (auth.currentUser) {
+        if (accountName) {
+          await updateProfile(auth.currentUser, { displayName: accountName });
+        }
+        if (newAccountPassword) {
+          if (newAccountPassword.length < 6) {
+            setAccountStatusMsg({ type: 'error', text: 'Yeni şifreniz en az 6 karakter olmalıdır.' });
+            setAccountUpdating(false);
+            return;
+          }
+          if (newAccountPassword !== confirmAccountPassword) {
+            setAccountStatusMsg({ type: 'error', text: 'Şifreler birbiriyle eşleşmiyor.' });
+            setAccountUpdating(false);
+            return;
+          }
+          await updatePassword(auth.currentUser, newAccountPassword);
+        }
+
+        if (db) {
+          const userRef = doc(db, 'users', auth.currentUser.uid);
+          await setDoc(
+            userRef,
+            {
+              displayName: accountName,
+              phone: accountPhone,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      }
+
+      setCurrentUser((prev) => ({
+        ...prev,
+        displayName: accountName || prev?.displayName,
+        phone: accountPhone || prev?.phone,
+      }));
+
+      setAccountStatusMsg({ type: 'success', text: 'Profil ve şifre bilgileriniz başarıyla güncellendi!' });
+      setNewAccountPassword('');
+      setConfirmAccountPassword('');
+    } catch (err: any) {
+      console.error('Update Account Profile Error:', err);
+      if (err.code === 'auth/requires-recent-login') {
+        setAccountStatusMsg({ type: 'error', text: 'Şifre değişikliği için güvenlik gereği yeniden giriş yapmalısınız.' });
+      } else {
+        setAccountStatusMsg({ type: 'error', text: err.message || 'Güncelleme yapılırken bir sorun oluştu.' });
+      }
+    } finally {
+      setAccountUpdating(false);
+    }
+  };
+
+  const copyLiveLink = () => {
+    const fullUrl = baseUrl ? `${baseUrl}/c/${config.slug}` : `https://asksite-saas.vercel.app/c/${config.slug}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-pink-50 text-rose-600 font-bold">
@@ -512,7 +617,7 @@ function DashboardContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 p-4 sm:p-8">
-      {/* Top Banner */}
+      {/* Top Banner & Profile Dropdown Header */}
       <div className="mx-auto max-w-7xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white/90 shadow-md">
         <div>
           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -520,7 +625,7 @@ function DashboardContent() {
               <Sparkles className="h-3.5 w-3.5" /> SaaS Yönetim Paneli
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-purple-600 uppercase tracking-wider bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
-              {currentUser?.displayName || currentUser?.email || 'Müşteri Hesabı'} • ₺399 VIP Paket Aktif
+              ₺399 VIP Paket Aktif
             </span>
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900">
@@ -538,7 +643,7 @@ function DashboardContent() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition hover:scale-105 active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-md transition hover:scale-102 active:scale-95 disabled:opacity-50"
           >
             <Save className="h-4 w-4" /> Değişiklikleri Kaydet
           </button>
@@ -548,6 +653,161 @@ function DashboardContent() {
               <CheckCircle className="h-4 w-4" /> Kaydedildi!
             </span>
           )}
+
+          {/* Sağ Üst Profil Menüsü Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="flex items-center gap-2 rounded-2xl bg-white border border-gray-200 px-3.5 py-2 text-xs font-bold text-gray-800 shadow-sm hover:bg-gray-50 transition"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white font-extrabold text-xs">
+                {(currentUser?.displayName || currentUser?.email || 'U')[0].toUpperCase()}
+              </div>
+              <span className="max-w-[110px] truncate">{currentUser?.displayName || currentUser?.email || 'Hesabım'}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+            </button>
+
+            {profileDropdownOpen && (
+              <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl bg-white p-2 shadow-2xl border border-gray-100 animate-in fade-in duration-150 text-left">
+                <div className="p-2 border-b border-gray-100">
+                  <div className="text-xs font-extrabold text-gray-900 truncate">
+                    {currentUser?.displayName || 'Müşteri Hesabı'}
+                  </div>
+                  <div className="text-[11px] text-gray-400 truncate">
+                    {currentUser?.email || ''}
+                  </div>
+                </div>
+
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      setAccountModalOpen(true);
+                    }}
+                    className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition"
+                  >
+                    <User className="h-4 w-4 text-rose-500" /> Profil & Şifre Ayarları
+                  </button>
+
+                  <a
+                    href={`/c/${config.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setProfileDropdownOpen(false)}
+                    className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition"
+                  >
+                    <ExternalLink className="h-4 w-4 text-purple-500" /> Sitemi Gör / İncele
+                  </a>
+
+                  <button
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      handleSignOut();
+                    }}
+                    className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition border-t border-gray-100 mt-1"
+                  >
+                    <LogOut className="h-4 w-4 text-rose-600" /> Oturumu Kapat
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Aktif Site Yönetim Kartı */}
+      <div className="mx-auto max-w-7xl mb-6 rounded-3xl bg-white p-6 shadow-xl border border-gray-100">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-gray-100 pb-4 mb-5">
+          <div className="space-y-1 text-left">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-500 flex items-center gap-1">
+              <Shield className="h-3.5 w-3.5" /> Aktif Çift Sitesi Yönetim Kartı
+            </span>
+            <h2 className="text-xl font-black text-gray-900">
+              {config.partner1_name} & {config.partner2_name}
+            </h2>
+            <p className="text-xs text-gray-500">
+              {baseUrl ? `${baseUrl}/c/${config.slug}` : `https://asksite-saas.vercel.app/c/${config.slug}`}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={copyLiveLink}
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 transition active:scale-95"
+            >
+              <Copy className="h-3.5 w-3.5" /> {copiedLink ? 'Kopyalandı! ✓' : 'Link Kopyala'}
+            </button>
+
+            <a
+              href={`/c/${config.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-4 py-2 text-xs font-extrabold text-white shadow-md hover:scale-102 transition active:scale-95"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Siteme Git 🔗
+            </a>
+          </div>
+        </div>
+
+        {/* Quick Edit Form: İsimler, Tarih & PIN Şifreleri */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
+          <div>
+            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 İsmi</label>
+            <input
+              type="text"
+              value={config.partner1_name}
+              onChange={(e) => setConfig((prev) => ({ ...prev, partner1_name: e.target.value }))}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 İsmi</label>
+            <input
+              type="text"
+              value={config.partner2_name}
+              onChange={(e) => setConfig((prev) => ({ ...prev, partner2_name: e.target.value }))}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Çift Giriş PIN (4 Haneli)</label>
+            <input
+              type="text"
+              maxLength={4}
+              value={config.allowed_users?.access_pin || '1234'}
+              onChange={(e) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  allowed_users: {
+                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234', visitor_pin: '1111' }),
+                    access_pin: e.target.value,
+                  },
+                }))
+              }
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-rose-600 outline-none focus:border-rose-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Ziyaretçi PIN (4 Haneli)</label>
+            <input
+              type="text"
+              maxLength={4}
+              value={config.allowed_users?.visitor_pin || '1111'}
+              onChange={(e) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  allowed_users: {
+                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234', visitor_pin: '1111' }),
+                    visitor_pin: e.target.value,
+                  },
+                }))
+              }
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-purple-600 outline-none focus:border-purple-500"
+            />
+          </div>
         </div>
       </div>
 
@@ -1963,6 +2223,99 @@ function DashboardContent() {
           <LivePreviewFrame slug={config.slug} previewUrl={`/c/${config.slug}`} refreshKey={previewRefreshKey} />
         </div>
       </div>
+
+      {/* Account Profile & Password Settings Modal */}
+      {accountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-gray-100 relative text-left">
+            <div className="flex items-center justify-between border-b pb-3 mb-4">
+              <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                <User className="h-5 w-5 text-rose-500" /> Profil & Şifre Ayarları
+              </h3>
+              <button
+                onClick={() => setAccountModalOpen(false)}
+                className="rounded-full bg-gray-100 p-1.5 text-gray-500 hover:bg-gray-200 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAccountProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Ad Soyad</label>
+                <input
+                  type="text"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Telefon Numarası</label>
+                <input
+                  type="tel"
+                  value={accountPhone}
+                  onChange={(e) => setAccountPhone(e.target.value)}
+                  placeholder="905520000000"
+                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="border-t border-gray-100 pt-3">
+                <label className="block text-xs font-bold text-gray-800 mb-1.5 flex items-center gap-1">
+                  <Key className="h-3.5 w-3.5 text-purple-600" /> Şifre Değiştir (İsteğe Bağlı)
+                </label>
+                <div className="space-y-2">
+                  <input
+                    type="password"
+                    placeholder="Yeni Şifre (En az 6 karakter)"
+                    value={newAccountPassword}
+                    onChange={(e) => setNewAccountPassword(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-purple-500"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Yeni Şifre Tekrar"
+                    value={confirmAccountPassword}
+                    onChange={(e) => setConfirmAccountPassword(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              {accountStatusMsg && (
+                <div
+                  className={`rounded-xl p-3 text-xs font-semibold text-center border ${
+                    accountStatusMsg.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                      : 'bg-rose-50 text-rose-700 border-rose-100'
+                  }`}
+                >
+                  {accountStatusMsg.text}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAccountModalOpen(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={accountUpdating}
+                  className="rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 px-5 py-2 text-xs font-extrabold text-white shadow-md hover:opacity-95 transition disabled:opacity-50"
+                >
+                  {accountUpdating ? 'Güncelleniyor...' : 'Hesabı Güncelle'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
