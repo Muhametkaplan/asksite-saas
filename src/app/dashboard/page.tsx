@@ -33,6 +33,7 @@ import {
   Copy,
   Users,
   Link2,
+  LayoutDashboard,
 } from 'lucide-react';
 
 import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
@@ -46,8 +47,11 @@ import QRCodeGenerator from '@/components/QRCodeGenerator';
 
 function DashboardContent() {
   const searchParams = useSearchParams();
-  const slugFromUrl = searchParams.get('slug') || 'irem-muhammet';
+  const slugFromUrl = searchParams.get('slug');
   const isNewAccount = searchParams.get('new') === 'true';
+
+  const [hasPurchased, setHasPurchased] = useState<boolean | null>(null);
+  const [userCoupleSlug, setUserCoupleSlug] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'quiz' | 'map' | 'qr'>('info');
   const [loading, setLoading] = useState(true);
@@ -57,7 +61,7 @@ function DashboardContent() {
 
   // Form State
   const [config, setConfig] = useState<CoupleConfig>({
-    slug: slugFromUrl,
+    slug: slugFromUrl || 'demo',
     partner1_name: 'Partner 1',
     partner2_name: 'Partner 2',
     subtitle: 'Bizim Dünyamız ❤️',
@@ -119,7 +123,8 @@ function DashboardContent() {
   useEffect(() => {
     async function loadData() {
       setLoading(true);
-      const data = await getCoupleBySlug(slugFromUrl);
+      const effectiveSlug = slugFromUrl || userCoupleSlug || 'demo';
+      const data = await getCoupleBySlug(effectiveSlug);
       if (data) {
         setConfig({
           ...data,
@@ -140,13 +145,13 @@ function DashboardContent() {
           },
         });
 
-        const existingMarkers = await getMapMarkers(data.id || slugFromUrl);
+        const existingMarkers = await getMapMarkers(data.id || effectiveSlug);
         setMarkers(existingMarkers);
       }
       setLoading(false);
     }
     loadData();
-  }, [slugFromUrl]);
+  }, [slugFromUrl, userCoupleSlug]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -578,8 +583,6 @@ function DashboardContent() {
     setTimeout(() => setCopiedPairCode(false), 2000);
   };
 
-  const [hasPurchased, setHasPurchased] = useState<boolean | null>(null);
-
   useEffect(() => {
     async function checkSubscription() {
       if (auth.currentUser && db) {
@@ -588,23 +591,34 @@ function DashboardContent() {
           const snap = await getDoc(userRef);
           if (snap.exists()) {
             const data = snap.data();
-            if (data.hasPurchasedSite === false || data.hasActiveSubscription === false) {
+            if (data.coupleSlug) {
+              setUserCoupleSlug(data.coupleSlug);
+              setHasPurchased(true);
+            } else if (data.hasPurchasedSite === false || data.hasActiveSubscription === false) {
               setHasPurchased(false);
+              setUserCoupleSlug(null);
             } else {
               setHasPurchased(true);
             }
-          } else {
-            setHasPurchased(true);
           }
-        } catch (e) {
-          setHasPurchased(true);
-        }
-      } else {
-        setHasPurchased(true);
+        } catch (e) {}
       }
     }
     checkSubscription();
   }, [currentUser]);
+
+  useEffect(() => {
+    async function loadCoupleData() {
+      setLoading(true);
+      const targetSlug = slugFromUrl || userCoupleSlug || 'demo';
+      const fetched = await getCoupleBySlug(targetSlug);
+      if (fetched) {
+        setConfig(fetched);
+      }
+      setLoading(false);
+    }
+    loadCoupleData();
+  }, [slugFromUrl, userCoupleSlug]);
 
   useEffect(() => {
     if (currentUser) {
@@ -771,15 +785,34 @@ function DashboardContent() {
                     <User className="h-4 w-4 text-rose-500" /> Profil & Şifre Ayarları
                   </button>
 
-                  <a
-                    href={`/c/${config.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setProfileDropdownOpen(false)}
-                    className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition"
-                  >
-                    <ExternalLink className="h-4 w-4 text-purple-500" /> Sitemi Gör / İncele
-                  </a>
+                  {hasPurchased === true && (userCoupleSlug || searchParams.get('slug')) ? (
+                    <>
+                      <Link
+                        href={`/dashboard?slug=${userCoupleSlug || searchParams.get('slug')}`}
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition"
+                      >
+                        <LayoutDashboard className="h-4 w-4 text-rose-500" /> Çift Sitem / Panel ➔
+                      </Link>
+                      <a
+                        href={`/c/${userCoupleSlug || searchParams.get('slug')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition"
+                      >
+                        <ExternalLink className="h-4 w-4 text-purple-500" /> Sitemi Gör 🔗
+                      </a>
+                    </>
+                  ) : (
+                    <Link
+                      href="/checkout"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
+                    >
+                      <Sparkles className="h-4 w-4 text-rose-500" /> Paket Seç / Satın Al 🚀
+                    </Link>
+                  )}
 
                   <button
                     onClick={() => {

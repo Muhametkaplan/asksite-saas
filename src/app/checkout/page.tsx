@@ -260,13 +260,34 @@ export default function CheckoutPage() {
                       </div>
 
                       <div className="py-1">
-                        <Link
-                          href="/dashboard"
-                          onClick={() => setProfileDropdownOpen(false)}
-                          className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition"
-                        >
-                          <LayoutDashboard className="h-4 w-4 text-rose-500" /> Yönetim Paneli
-                        </Link>
+                        {hasPurchased === true && userCoupleSlug ? (
+                          <>
+                            <Link
+                              href={`/dashboard?slug=${userCoupleSlug}`}
+                              onClick={() => setProfileDropdownOpen(false)}
+                              className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition"
+                            >
+                              <LayoutDashboard className="h-4 w-4 text-rose-500" /> Çift Sitem / Panel ➔
+                            </Link>
+                            <a
+                              href={`/c/${userCoupleSlug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setProfileDropdownOpen(false)}
+                              className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition"
+                            >
+                              <ExternalLink className="h-4 w-4 text-purple-500" /> Sitemi Gör 🔗
+                            </a>
+                          </>
+                        ) : (
+                          <Link
+                            href="/checkout"
+                            onClick={() => setProfileDropdownOpen(false)}
+                            className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
+                          >
+                            <Sparkles className="h-4 w-4 text-rose-500" /> Paket Seç / Satın Al 🚀
+                          </Link>
+                        )}
                         <button
                           onClick={handleSignOut}
                           className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition border-t border-gray-100 mt-1"
