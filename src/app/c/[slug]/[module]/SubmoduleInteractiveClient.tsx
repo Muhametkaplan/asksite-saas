@@ -328,26 +328,37 @@ function playDinoSFX(type: 'jump' | 'milestone' | 'gameover', isMuted: boolean) 
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(280, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(620, ctx.currentTime + 0.15);
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(650, ctx.currentTime + 0.12);
       gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.15);
+      osc.stop(ctx.currentTime + 0.12);
     } else if (type === 'milestone') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(523.25, ctx.currentTime);
-      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.28);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.28);
+      // Classic Chrome Dino 2-tone retro double beep
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'square';
+      osc1.frequency.setValueAtTime(800, ctx.currentTime);
+      gain1.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start();
+      osc1.stop(ctx.currentTime + 0.05);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'square';
+      osc2.frequency.setValueAtTime(1046.5, ctx.currentTime + 0.06);
+      gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.06);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(ctx.currentTime + 0.06);
+      osc2.stop(ctx.currentTime + 0.12);
     } else if (type === 'gameover') {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -388,6 +399,7 @@ function DinoRunnerGame({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameId = useRef<number | null>(null);
   const isDuckingRef = useRef(false);
+  const touchStartYRef = useRef(0);
 
   // Load existing high scores from Firestore on mount
   useEffect(() => {
@@ -428,6 +440,7 @@ function DinoRunnerGame({
     let frameCount = 0;
     let score = 0;
     let shakeTimer = 0;
+    let scoreFlashTimer = 0;
     let liveRecordBroken = false;
 
     const previousRecord = role === 'partner1' ? highScores.p1Score : highScores.p2Score;
@@ -452,8 +465,8 @@ function DinoRunnerGame({
       y: 290,
       normalWidth: 32,
       normalHeight: 50,
-      duckWidth: 42,
-      duckHeight: 28,
+      duckWidth: 46,
+      duckHeight: 26,
       vy: 0,
       gravity: 0.72,
       isJumping: false,
@@ -510,10 +523,11 @@ function DinoRunnerGame({
       score += 1;
       setCurrentScore(score);
 
-      // Milestone Popups & Screen Shake every 100 points
+      // Chrome Dino style 100-point milestone beep & HUD flash
       if (score > 0 && score % 100 === 0) {
         playDinoSFX('milestone', isMuted);
         shakeTimer = 6;
+        scoreFlashTimer = 14;
         particles.push({
           x: runner.x + 40,
           y: runner.y - 20,
@@ -527,12 +541,12 @@ function DinoRunnerGame({
       // Check Live Record Breaking
       if (!liveRecordBroken && previousRecord > 0 && score > previousRecord) {
         liveRecordBroken = true;
-        triggerConfetti({ particleCount: 70, spread: 80 });
+        triggerConfetti({ particleCount: 80, spread: 90 });
         playDinoSFX('milestone', isMuted);
       }
 
-      // Smooth Pacing: gradual speed increase every 280 points
-      const multVal = (1.0 + Math.min(1.8, Math.floor(score / 280) * 0.08)).toFixed(1);
+      // Smooth continuous acceleration curve (dinorunner.com standard)
+      const multVal = (1.0 + Math.min(2.0, score * 0.0012)).toFixed(1);
       setCurrentMultiplier(multVal);
       const speed = 3.2 * parseFloat(multVal);
 
@@ -546,11 +560,11 @@ function DinoRunnerGame({
         runner.isJumping = false;
       }
 
-      // Current Runner Bounding Height/Y
+      // Current Runner Dimensions
       const isDucking = isDuckingRef.current && !runner.isJumping;
       const currentHeight = isDucking ? runner.duckHeight : runner.normalHeight;
       const currentWidth = isDucking ? runner.duckWidth : runner.normalWidth;
-      const currentY = isDucking ? runner.groundY + 22 : runner.y;
+      const currentY = isDucking ? runner.groundY + 24 : runner.y;
 
       // Spawn Footprint Dust when running on ground
       if (!runner.isJumping && frameCount % 7 === 0) {
@@ -586,20 +600,20 @@ function DinoRunnerGame({
       // Spawn obstacles (Single, Clusters, Low Air Duckable, High Air)
       const spawnInterval = Math.max(42, Math.floor(100 - Math.min(50, score / 80)));
       if (frameCount % spawnInterval === 0) {
-        const canAir = score >= 400;
+        const canAir = score >= 350;
         const rand = Math.random();
 
-        if (canAir && rand < 0.28) {
+        if (canAir && rand < 0.3) {
           // Low Air Obstacle (Requires Ducking!)
           obstacles.push({
             x: canvas.width,
-            y: 268,
+            y: 265,
             width: 32,
             height: 34,
             emoji: Math.random() > 0.5 ? '🦅' : '⚡',
             isAir: true,
           });
-        } else if (canAir && rand < 0.4) {
+        } else if (canAir && rand < 0.42) {
           // High Air Obstacle (Passable by running)
           obstacles.push({
             x: canvas.width,
@@ -609,7 +623,7 @@ function DinoRunnerGame({
             emoji: '🎈',
             isAir: true,
           });
-        } else if (rand < 0.7) {
+        } else if (rand < 0.72) {
           // Double Obstacle Cluster
           const isHeart = Math.random() > 0.5;
           obstacles.push({
@@ -642,7 +656,7 @@ function DinoRunnerGame({
       ctx.save();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Screen Shake Effect
+      // Screen Shake Effect on milestone
       if (shakeTimer > 0) {
         shakeTimer--;
         ctx.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
@@ -694,7 +708,7 @@ function DinoRunnerGame({
       ctx.lineWidth = 5;
       ctx.stroke();
 
-      // 6. Draw Particles & Popups
+      // 6. Draw Particles & Milestone Popups
       particles.forEach((p) => {
         ctx.globalAlpha = Math.max(0, p.life);
         if (p.text) {
@@ -710,7 +724,7 @@ function DinoRunnerGame({
         ctx.globalAlpha = 1.0;
       });
 
-      // 7. Draw Animated Vector Runner Character (Standing or Ducking)
+      // 7. Draw 3-State Character Sprite (Running, Jumping, Ducking)
       ctx.save();
       ctx.translate(runner.x, currentY);
 
@@ -721,21 +735,42 @@ function DinoRunnerGame({
       ctx.fill();
 
       if (isDucking) {
-        // Ducking crouching pose
-        ctx.font = '30px sans-serif';
-        ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', -2, 26);
+        // --- STATE 3: DUCKING / CROUCHING POSE ---
+        ctx.fillStyle = role === 'partner1' ? '#f472b6' : '#60a5fa';
+        ctx.fillRect(-10, 10, 16, 4); // Flat horizontal scarf
+
+        ctx.font = '28px sans-serif';
+        ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', 4, 24);
+      } else if (runner.isJumping) {
+        // --- STATE 2: JUMPING / MID-AIR POSE ---
+        ctx.save();
+        ctx.rotate(-0.15); // Slight forward tilt in air
+
+        ctx.strokeStyle = role === 'partner1' ? '#be185d' : '#1d4ed8';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(12, 30);
+        ctx.lineTo(6, 42); // Tucked knees
+        ctx.stroke();
+
+        ctx.font = '36px sans-serif';
+        ctx.fillText(role === 'partner1' ? '🌸' : '🏃‍♂️', -2, 32);
+        ctx.restore();
       } else {
-        // Standing running pose with leg animation
-        const legPhase = runner.isJumping ? 0.8 : Math.sin(frameCount * 0.35);
+        // --- STATE 1: RUNNING POSE ---
+        const legPhase = Math.sin(frameCount * 0.35);
         ctx.strokeStyle = role === 'partner1' ? '#be185d' : '#1d4ed8';
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
 
+        // Left Leg
         ctx.beginPath();
         ctx.moveTo(12, 32);
         ctx.lineTo(12 + legPhase * 10, 44);
         ctx.stroke();
 
+        // Right Leg
         ctx.beginPath();
         ctx.moveTo(20, 32);
         ctx.lineTo(20 - legPhase * 10, 44);
@@ -756,14 +791,27 @@ function DinoRunnerGame({
       }
       ctx.restore();
 
-      // 8. Draw Obstacles & Check Collision
+      // 8. Draw Obstacles & Check Tightened 80% Hitbox Collision
       for (const obs of obstacles) {
         ctx.font = obs.width > 40 ? '26px sans-serif' : '32px sans-serif';
         ctx.fillText(obs.emoji, obs.x, obs.y + 30);
 
-        // Bounding Box Collision Check
-        const runnerBox = { x: runner.x + 4, y: currentY + 4, width: currentWidth - 6, height: currentHeight - 6 };
-        const obsBox = { x: obs.x + 3, y: obs.y + 4, width: obs.width - 6, height: obs.height - 6 };
+        // Tightened 80% Bounding Box Collision Check (Eliminates unfair deaths)
+        const rInsetX = currentWidth * 0.1;
+        const rInsetY = currentHeight * 0.1;
+        const runnerBox = {
+          x: runner.x + rInsetX,
+          y: currentY + rInsetY,
+          width: currentWidth * 0.8,
+          height: currentHeight * 0.8,
+        };
+
+        const obsBox = {
+          x: obs.x + obs.width * 0.1,
+          y: obs.y + obs.height * 0.1,
+          width: obs.width * 0.8,
+          height: obs.height * 0.8,
+        };
 
         if (
           runnerBox.x < obsBox.x + obsBox.width &&
@@ -777,8 +825,13 @@ function DinoRunnerGame({
         }
       }
 
-      // 9. Premium HUD Overlay (Score, Speed Level & Live Record Broken Banner)
-      ctx.fillStyle = '#ffffff';
+      // 9. Premium HUD Overlay (Flashing Score, Speed Level & Real-time Record Broken Banner)
+      if (scoreFlashTimer > 0) {
+        scoreFlashTimer--;
+        ctx.fillStyle = '#fde047'; // Flashing yellow glow on milestone
+      } else {
+        ctx.fillStyle = '#ffffff';
+      }
       ctx.font = '900 15px sans-serif';
       ctx.shadowColor = 'rgba(0,0,0,0.6)';
       ctx.shadowBlur = 6;
@@ -874,6 +927,23 @@ function DinoRunnerGame({
       {/* Expanded Game Canvas Container */}
       <div
         className="relative mx-auto w-full max-w-4xl bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-purple-300 cursor-pointer touch-none select-none"
+        onTouchStart={(e) => {
+          if (e.touches.length > 0) {
+            touchStartYRef.current = e.touches[0].clientY;
+          }
+        }}
+        onTouchMove={(e) => {
+          if (e.touches.length > 0) {
+            const deltaY = e.touches[0].clientY - touchStartYRef.current;
+            if (deltaY > 25) {
+              // Swipe Down -> Duck
+              isDuckingRef.current = true;
+            }
+          }
+        }}
+        onTouchEnd={() => {
+          isDuckingRef.current = false;
+        }}
         onClick={(e) => {
           if (isPlaying) {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -930,7 +1000,7 @@ function DinoRunnerGame({
                 <p className="text-xs text-purple-200 leading-relaxed">
                   Zıplama: <span className="font-bold text-pink-300">Space / Yukarı Ok</span> | Eğilme: <span className="font-bold text-pink-300">Aşağı Ok / S</span>
                   <br />
-                  Mobilde zıplamak için üst bölgeye, eğilmek için alt bölgeye veya butonlara dokunun!
+                  Mobilde zıplamak için üst bölgeye, eğilmek için aşağı kaydırın (Swipe Down) veya butonlara dokunun!
                 </p>
                 <button
                   onClick={startGame}
@@ -968,7 +1038,7 @@ function DinoRunnerGame({
       )}
 
       <p className="text-xs text-gray-500 font-medium">
-        💡 Hızınız her 280 puanda bir yumuşakça artar. 400+ puandan sonra uçan kuşlara karşı eğilin!
+        💡 DinoRunner.com standartlarında pürüzsüz hızlanma ve 350+ puandan sonra gelen alçak uçan engellere karşı eğilme!
       </p>
     </div>
   );
