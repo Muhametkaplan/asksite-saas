@@ -577,27 +577,58 @@ function DashboardContent() {
 
   useEffect(() => {
     async function checkSubscription() {
+      // 0. If partner has authorized PIN session for target slug, allow dashboard
+      const targetSlug = slugFromUrl || userCoupleSlug;
+      if (targetSlug && typeof window !== 'undefined') {
+        const storedAuth = sessionStorage.getItem(`asksite_auth_${targetSlug}`) || localStorage.getItem(`asksite_auth_${targetSlug}`);
+        if (storedAuth) {
+          try {
+            const parsed = JSON.parse(storedAuth);
+            if (parsed.isAuthenticated && (parsed.role === 'partner1' || parsed.role === 'partner2')) {
+              setHasPurchased(true);
+              return;
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 1. Check Firebase Auth User in Firestore
       if (auth.currentUser && db) {
         try {
           const userRef = doc(db, 'users', auth.currentUser.uid);
           const snap = await getDoc(userRef);
           if (snap.exists()) {
             const data = snap.data();
-            if (data.coupleSlug) {
-              setUserCoupleSlug(data.coupleSlug);
+            const isPaid =
+              data.hasPurchasedSite === true ||
+              data.hasActiveSubscription === true ||
+              data.isPaid === true ||
+              (data.coupleSlug && data.coupleSlug !== 'demo');
+
+            if (isPaid) {
+              if (data.coupleSlug) setUserCoupleSlug(data.coupleSlug);
               setHasPurchased(true);
-            } else if (data.hasPurchasedSite === false || data.hasActiveSubscription === false) {
+            } else {
               setHasPurchased(false);
               setUserCoupleSlug(null);
-            } else {
-              setHasPurchased(true);
+              router.push('/checkout');
             }
+          } else {
+            setHasPurchased(false);
+            router.push('/checkout');
           }
         } catch (e) {}
+      } else if (!auth.currentUser && typeof window !== 'undefined') {
+        const storedUser = localStorage.getItem('asksite_user');
+        if (!storedUser) {
+          router.push('/login?redirect=dashboard');
+        } else {
+          router.push('/checkout');
+        }
       }
     }
     checkSubscription();
-  }, [currentUser]);
+  }, [currentUser, slugFromUrl, userCoupleSlug, router]);
 
   useEffect(() => {
     async function loadCoupleData() {

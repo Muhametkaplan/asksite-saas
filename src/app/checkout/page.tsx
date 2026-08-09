@@ -233,12 +233,14 @@ export default function CheckoutPage() {
           <div className="flex items-center gap-3">
             {currentUser ? (
               <>
-                <Link
-                  href={userCoupleSlug && userCoupleSlug !== 'demo' ? `/dashboard?slug=${userCoupleSlug}` : '/dashboard'}
-                  className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-md hover:scale-102 transition active:scale-95"
-                >
-                  <LayoutDashboard className="h-4 w-4" /> Yönetim Paneline Git ➔
-                </Link>
+                {hasPurchased === true && (
+                  <Link
+                    href={userCoupleSlug && userCoupleSlug !== 'demo' ? `/dashboard?slug=${userCoupleSlug}` : '/dashboard'}
+                    className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-md hover:scale-102 transition active:scale-95"
+                  >
+                    <LayoutDashboard className="h-4 w-4" /> Yönetim Paneline Git ➔
+                  </Link>
+                )}
 
                 {/* Profile Dropdown (ALWAYS visible when user is logged in) */}
                 <div className="relative">
