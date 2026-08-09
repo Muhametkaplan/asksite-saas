@@ -146,7 +146,8 @@ export default function CheckoutPage() {
   };
 
   const copyPurchasedPairCode = () => {
-    const code = userCoupleConfig?.pair_code || 'ASK-X79B2';
+    const code = userCoupleConfig?.inviteCode || userCoupleConfig?.pair_code || '';
+    if (!code) return;
     navigator.clipboard.writeText(code);
     setCopiedPurchasedPairCode(true);
     setTimeout(() => setCopiedPurchasedPairCode(false), 2000);
@@ -356,7 +357,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 rounded-xl bg-white border border-rose-200 px-4 py-3 font-mono text-base font-black text-rose-600 tracking-widest text-center shadow-inner">
-                    {userCoupleConfig?.pair_code || 'ASK-X79B2'}
+                    {userCoupleConfig?.inviteCode || userCoupleConfig?.pair_code || ''}
                   </div>
                   <button
                     type="button"

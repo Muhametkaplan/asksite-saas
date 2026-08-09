@@ -16,6 +16,15 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, '');
 }
 
+function generateRandomInviteCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < 5; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `ASK-${result}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -28,7 +37,7 @@ export async function POST(req: NextRequest) {
     const baseSlug = `${slugify(partner1_name)}-${slugify(partner2_name)}`;
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const slug = `${baseSlug}-${randomSuffix}`;
-    const pair_code = `ASK-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const pair_code = generateRandomInviteCode();
 
     const p1Email = (partner1_email || '').toLowerCase().trim();
     const p2Email = (partner2_email || '').toLowerCase().trim();

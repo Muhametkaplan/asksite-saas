@@ -569,7 +569,8 @@ function DashboardContent() {
   };
 
   const copyPairCode = () => {
-    const code = config.pair_code || 'ASK-X79B2';
+    const code = config.inviteCode || config.pair_code || '';
+    if (!code) return;
     navigator.clipboard.writeText(code);
     setCopiedPairCode(true);
     setTimeout(() => setCopiedPairCode(false), 2000);

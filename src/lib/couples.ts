@@ -19,7 +19,8 @@ import {
 export const DEMO_COUPLE: CoupleConfig = {
   id: 'irem-muhammet',
   slug: 'irem-muhammet',
-  pair_code: 'ASK-X79B2',
+  pair_code: 'ASK-DEMO1',
+  inviteCode: 'ASK-DEMO1',
   partner1_name: 'Partner 1',
   partner2_name: 'Partner 2',
   partner1_score: 0,
@@ -988,7 +989,7 @@ export function formatDiaryDate(dateStr?: string): string {
 
 export async function getCoupleByPairCode(pairCode: string): Promise<CoupleConfig | null> {
   const cleanCode = pairCode.trim().toUpperCase();
-  if (cleanCode === 'ASK-X79B2') {
+  if (cleanCode === 'ASK-DEMO1') {
     return DEMO_COUPLE;
   }
 
@@ -1051,10 +1052,10 @@ export async function connectPartnerWithPairCode(
   const couple = await getCoupleByPairCode(pairCode);
   const normalizedEmail = (userEmail || '').toLowerCase().trim();
 
-  if (!couple) {
+  if (!couple || (couple.isPaid !== true && couple.slug !== 'irem-muhammet' && couple.slug !== 'demo')) {
     return {
       success: false,
-      message: 'Geçersiz veya kullanılmış davet kodu! Bir davet kodu maksimum 2 partner tarafından kullanılabilir.',
+      message: 'Geçersiz veya ödemesi bulunmayan davet kodu!',
     };
   }
 
