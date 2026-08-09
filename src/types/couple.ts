@@ -148,6 +148,10 @@ export interface CoupleConfig {
   feature_toggles?: FeatureToggles;
   is_active?: boolean;
   pair_code?: string;
+  pair_code_used?: boolean;
+  isUsed?: boolean;
+  partner1_uid?: string;
+  partner2_uid?: string;
   co_owners?: string[];
   authenticated_devices?: AuthenticatedDevice[];
   created_at?: string;

@@ -1012,6 +1012,10 @@ export async function getCoupleByPairCode(pairCode: string): Promise<CoupleConfi
           whatsapp_message: data.whatsapp_message || 'Seni çok seviyorum 💖',
           love_reasons: data.love_reasons || DEMO_COUPLE.love_reasons,
           pair_code: data.pair_code || cleanCode,
+          pair_code_used: data.pair_code_used || data.isUsed || false,
+          isUsed: data.isUsed || data.pair_code_used || false,
+          partner1_uid: data.partner1_uid || (data.co_owners && data.co_owners[0]) || null,
+          partner2_uid: data.partner2_uid || (data.co_owners && data.co_owners[1]) || null,
           co_owners: data.co_owners || [],
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
         };
@@ -1033,18 +1037,48 @@ export async function connectPartnerWithPairCode(
     return { success: false, message: 'Geçersiz eşleşme kodu! Lütfen kodunuzu kontrol edin.' };
   }
 
+  // Max 2 Accounts Limit & isUsed Lock Check
+  const currentCoOwners = Array.from(new Set(couple.co_owners || []));
+  const isAlreadyPartner =
+    currentCoOwners.includes(userUid) ||
+    couple.partner1_uid === userUid ||
+    couple.partner2_uid === userUid;
+
+  const isCodeUsedOrFull =
+    couple.isUsed === true ||
+    couple.pair_code_used === true ||
+    (currentCoOwners.length >= 2 && !isAlreadyPartner) ||
+    (Boolean(couple.partner1_uid) && Boolean(couple.partner2_uid) && !isAlreadyPartner);
+
+  if (isCodeUsedOrFull) {
+    return {
+      success: false,
+      message: 'Bu davet kodu zaten kullanılmış ve 2 partner eşleşmesi tamamlanmış.',
+    };
+  }
+
   if (isFirebaseConfigured && db) {
     try {
       const coupleRef = doc(db, 'couples', couple.slug);
-      const currentCoOwners = couple.co_owners || [];
+      
       if (!currentCoOwners.includes(userUid)) {
         currentCoOwners.push(userUid);
       }
 
+      const p1Uid = couple.partner1_uid || currentCoOwners[0] || userUid;
+      const p2Uid = p1Uid === userUid ? (couple.partner2_uid || currentCoOwners[1] || userUid) : userUid;
+
+      // Lock pair code state when 2 partner accounts are bound
+      const isNowFull = currentCoOwners.length >= 2 || (p1Uid && p2Uid && p1Uid !== p2Uid);
+
       await setDoc(
         coupleRef,
         {
+          partner1_uid: p1Uid,
+          partner2_uid: p2Uid,
           co_owners: currentCoOwners,
+          isUsed: isNowFull ? true : couple.isUsed || false,
+          pair_code_used: isNowFull ? true : couple.pair_code_used || false,
           allowed_users: {
             ...(couple.allowed_users || {}),
             partner2_email: userEmail,
