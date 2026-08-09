@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -145,9 +145,17 @@ export default function CheckoutPage() {
     }
   };
 
+  const fallbackInviteCode = useMemo(() => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 5; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return `ASK-${result}`;
+  }, []);
+
   const copyPurchasedPairCode = () => {
-    const code = userCoupleConfig?.inviteCode || userCoupleConfig?.pair_code || '';
-    if (!code) return;
+    const code = userCoupleConfig?.inviteCode || userCoupleConfig?.pair_code || fallbackInviteCode;
     navigator.clipboard.writeText(code);
     setCopiedPurchasedPairCode(true);
     setTimeout(() => setCopiedPurchasedPairCode(false), 2000);
@@ -243,12 +251,18 @@ export default function CheckoutPage() {
             {currentUser ? (
               <>
                 {hasPurchased === true && (
-                  <Link
+                  <a
                     href={userCoupleSlug && userCoupleSlug !== 'demo' ? `/dashboard?slug=${userCoupleSlug}` : '/dashboard'}
+                    onClick={() => {
+                      if (userCoupleSlug && typeof window !== 'undefined') {
+                        localStorage.setItem('activeCoupleSlug', userCoupleSlug);
+                        localStorage.setItem('asksite_couple_slug', userCoupleSlug);
+                      }
+                    }}
                     className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-md hover:scale-102 transition active:scale-95"
                   >
                     <LayoutDashboard className="h-4 w-4" /> Yönetim Paneline Git ➔
-                  </Link>
+                  </a>
                 )}
 
                 {/* Profile Dropdown (ALWAYS visible when user is logged in) */}
@@ -278,13 +292,19 @@ export default function CheckoutPage() {
                       <div className="py-1">
                         {hasPurchased === true && userCoupleSlug ? (
                           <>
-                            <Link
+                            <a
                               href={`/dashboard?slug=${userCoupleSlug}`}
-                              onClick={() => setProfileDropdownOpen(false)}
+                              onClick={() => {
+                                setProfileDropdownOpen(false);
+                                if (userCoupleSlug && typeof window !== 'undefined') {
+                                  localStorage.setItem('activeCoupleSlug', userCoupleSlug);
+                                  localStorage.setItem('asksite_couple_slug', userCoupleSlug);
+                                }
+                              }}
                               className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition"
                             >
                               <LayoutDashboard className="h-4 w-4 text-rose-500" /> Çift Sitem / Panel ➔
-                            </Link>
+                            </a>
                             <a
                               href={`/c/${userCoupleSlug}`}
                               target="_blank"
@@ -357,7 +377,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 rounded-xl bg-white border border-rose-200 px-4 py-3 font-mono text-base font-black text-rose-600 tracking-widest text-center shadow-inner">
-                    {userCoupleConfig?.inviteCode || userCoupleConfig?.pair_code || ''}
+                    {userCoupleConfig?.inviteCode || userCoupleConfig?.pair_code || fallbackInviteCode}
                   </div>
                   <button
                     type="button"
@@ -391,12 +411,22 @@ export default function CheckoutPage() {
                 >
                   <ExternalLink className="h-4 w-4" /> Siteme Git 🔗
                 </a>
-                <Link
-                  href={`/dashboard?slug=${userCoupleSlug}`}
+                <a
+                  href={userCoupleSlug ? `/dashboard?slug=${userCoupleSlug}` : '/dashboard'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const targetSlug = userCoupleSlug || '';
+                    if (targetSlug && typeof window !== 'undefined') {
+                      localStorage.setItem('activeCoupleSlug', targetSlug);
+                      localStorage.setItem('asksite_couple_slug', targetSlug);
+                    }
+                    const targetUrl = targetSlug ? `/dashboard?slug=${targetSlug}` : '/dashboard';
+                    window.location.href = targetUrl;
+                  }}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-3.5 text-sm font-extrabold text-white shadow-xl hover:scale-105 transition active:scale-95"
                 >
                   <LayoutDashboard className="h-4 w-4" /> Yönetim Paneline Geç ⚙️
-                </Link>
+                </a>
               </div>
 
               <div className="border-t border-gray-100 pt-4 text-center">

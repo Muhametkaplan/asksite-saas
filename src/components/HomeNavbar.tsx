@@ -79,12 +79,18 @@ export default function HomeNavbar() {
           {user ? (
             <div className="flex items-center gap-2">
               {hasPurchased ? (
-                <Link
+                <a
                   href={userCoupleSlug ? `/dashboard?slug=${userCoupleSlug}` : '/dashboard'}
+                  onClick={() => {
+                    if (userCoupleSlug && typeof window !== 'undefined') {
+                      localStorage.setItem('activeCoupleSlug', userCoupleSlug);
+                      localStorage.setItem('asksite_couple_slug', userCoupleSlug);
+                    }
+                  }}
                   className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-md hover:scale-105 transition active:scale-95"
                 >
                   <LayoutDashboard className="h-4 w-4" /> Yönetim Paneline Git ➔
-                </Link>
+                </a>
               ) : (
                 <Link
                   href="/checkout"
