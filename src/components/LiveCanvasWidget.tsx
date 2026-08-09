@@ -1,14 +1,19 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Palette, Trash2, Eraser, Sparkles, RefreshCw, Circle } from 'lucide-react';
+import { Palette, Trash2, Eraser, Sparkles, Circle, Image as ImageIcon } from 'lucide-react';
 import {
   sendCanvasStroke,
   subscribeToLiveCanvas,
   clearLiveCanvas,
   subscribeToPartnerPresence,
+  addCanvasDrawing,
+  getCanvasDrawings,
+  deleteCanvasDrawing,
   CanvasStrokeData,
 } from '@/lib/couples';
+import { CanvasDrawing } from '@/types/couple';
+import confetti from 'canvas-confetti';
 
 interface LiveCanvasWidgetProps {
   slug: string;
@@ -39,8 +44,17 @@ export default function LiveCanvasWidget({
   const [presence, setPresence] = useState<{ partner1?: any; partner2?: any }>({});
 
   const [currentRole, setCurrentRole] = useState<'partner1' | 'partner2' | 'guest'>('partner1');
+  const [drawings, setDrawings] = useState<CanvasDrawing[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const loadDrawings = async () => {
+    const list = await getCanvasDrawings(slug);
+    setDrawings(list);
+  };
 
   useEffect(() => {
+    loadDrawings();
+
     const storedAuth = typeof window !== 'undefined'
       ? sessionStorage.getItem(`asksite_auth_${slug}`) || localStorage.getItem(`asksite_auth_${slug}`)
       : null;
@@ -51,12 +65,10 @@ export default function LiveCanvasWidget({
       } catch {}
     }
 
-    // Subscribe to online presence
     const unsubPresence = subscribeToPartnerPresence(slug, (data) => {
       setPresence(data || {});
     });
 
-    // Subscribe to live canvas strokes in real-time
     const unsubCanvas = subscribeToLiveCanvas(slug, (strokes) => {
       drawAllStrokes(strokes);
     });
@@ -115,7 +127,6 @@ export default function LiveCanvasWidget({
     const newPath = [...currentPath, coords];
     setCurrentPath(newPath);
 
-    // Draw locally on canvas for zero latency
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -159,6 +170,46 @@ export default function LiveCanvasWidget({
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  };
+
+  const handleSaveDrawing = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    setSaving(true);
+    try {
+      // Composite canvas onto white background
+      const offscreen = document.createElement('canvas');
+      offscreen.width = canvas.width;
+      offscreen.height = canvas.height;
+      const offCtx = offscreen.getContext('2d');
+      if (offCtx) {
+        offCtx.fillStyle = '#ffffff';
+        offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
+        offCtx.drawImage(canvas, 0, 0);
+      }
+      const imageUrl = offscreen.toDataURL('image/png');
+      const drawnBy = currentRole === 'partner1' ? partner1Name : currentRole === 'partner2' ? partner2Name : 'Misafir Partner';
+
+      const success = await addCanvasDrawing(slug, { imageUrl, drawnBy });
+      if (success) {
+        await loadDrawings();
+        confetti({ particleCount: 70, spread: 80 });
+      }
+    } catch (e) {
+      console.error('Error saving canvas drawing:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteDrawing = async (drawingId: string) => {
+    if (confirm('Bu sanat eserini galerinizden silmek istediğinize emin misiniz?')) {
+      const success = await deleteCanvasDrawing(slug, drawingId);
+      if (success) {
+        setDrawings((prev) => prev.filter((d) => d.id !== drawingId));
       }
     }
   };
@@ -245,25 +296,90 @@ export default function LiveCanvasWidget({
           </button>
         </div>
 
-        {/* Thickness & Clear */}
-        <div className="flex items-center gap-3">
+        {/* Thickness & Clear & Save */}
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="range"
             min={2}
             max={14}
             value={strokeWidth}
             onChange={(e) => setStrokeWidth(Number(e.target.value))}
-            className="w-20 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-rose-500"
+            className="w-16 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-rose-500"
             title="Çizgi Kalınlığı"
           />
           <button
             onClick={handleClear}
-            className="flex items-center gap-1 rounded-xl bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 transition active:scale-95"
+            className="flex items-center gap-1 rounded-xl bg-gray-100 px-2.5 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200 transition active:scale-95"
             title="Tuvali Sıfırla"
           >
             <Trash2 className="h-3.5 w-3.5" /> Temizle
           </button>
+
+          <button
+            onClick={handleSaveDrawing}
+            disabled={saving}
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 px-3.5 py-1.5 text-xs font-extrabold text-white shadow-md hover:scale-102 active:scale-95 transition disabled:opacity-50"
+          >
+            🎨 {saving ? 'Kaydediliyor...' : 'Sanat Eserini Kaydet'}
+          </button>
         </div>
+      </div>
+
+      {/* Aşkımızın Çizim Galerisi 🎨 */}
+      <div className="mt-8 pt-6 border-t border-gray-100 text-left">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h4 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
+              <span>Aşkımızın Çizim Galerisi 🎨</span>
+              <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-600">
+                {drawings.length} Eser
+              </span>
+            </h4>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              Birlikte tuval üzerinde çizip mühürlediğiniz tüm özel sanat eserleri.
+            </p>
+          </div>
+        </div>
+
+        {drawings.length === 0 ? (
+          <div className="rounded-2xl bg-gray-50 p-6 text-center text-xs text-gray-400 italic border border-dashed border-gray-200">
+            Henüz kaydedilmiş bir çizim eseri bulunmuyor. İlk sanat eserinizi yukarıdaki tuvalde çizip kaydet butonuna basın! 🎨
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {drawings.map((drawing) => (
+              <div
+                key={drawing.id}
+                className="relative group overflow-hidden rounded-2xl bg-white p-3 border border-gray-200 shadow-md hover:shadow-xl transition text-left"
+              >
+                <button
+                  onClick={() => handleDeleteDrawing(drawing.id)}
+                  className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-rose-500 text-white shadow-md hover:bg-rose-600 transition active:scale-95 opacity-90 sm:opacity-0 group-hover:opacity-100"
+                  title="Çizimi Sil"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-900 border border-slate-800 mb-2.5">
+                  <img
+                    src={drawing.imageUrl}
+                    alt="Sanat Eseri"
+                    className="w-full h-full object-contain bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] font-semibold text-gray-700 pt-1">
+                  <span className="font-extrabold text-rose-600 flex items-center gap-1">
+                    🎨 {drawing.drawnBy}
+                  </span>
+                  <span className="text-[10px] font-mono text-gray-400">
+                    📅 {drawing.createdAt}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

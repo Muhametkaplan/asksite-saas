@@ -1,4 +1,4 @@
-import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion, CanvasDrawing } from '@/types/couple';
 import { db, isFirebaseConfigured } from './firebase';
 import {
   doc,
@@ -1282,6 +1282,7 @@ export async function resetDatabaseAndCollections(): Promise<{ success: boolean;
         'time_capsules',
         'movies',
         'quiz_questions',
+        'canvas_drawings',
       ];
       for (const sub of subCols) {
         try {
@@ -1311,5 +1312,67 @@ export async function resetDatabaseAndCollections(): Promise<{ success: boolean;
     console.error('Error in resetDatabaseAndCollections:', e);
     return { success: false, deletedCouples, deletedUsers };
   }
+}
+
+/* ================= CANVAS DRAWINGS ENGINE ================= */
+export async function addCanvasDrawing(
+  slug: string,
+  drawing: { imageUrl: string; drawnBy: string }
+): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const formattedDate = `${day}.${month}.${year} - ${hours}:${minutes}`;
+
+      const colRef = collection(db, `couples/${slug}/canvas_drawings`);
+      await addDoc(colRef, {
+        imageUrl: drawing.imageUrl,
+        createdAt: formattedDate,
+        drawnBy: drawing.drawnBy,
+        timestamp: serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      console.error('Error adding canvas drawing:', e);
+    }
+  }
+  return false;
+}
+
+export async function getCanvasDrawings(slug: string): Promise<CanvasDrawing[]> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const colRef = collection(db, `couples/${slug}/canvas_drawings`);
+      const q = query(colRef, orderBy('timestamp', 'desc'));
+      const snap = await getDocs(q);
+      return snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        imageUrl: docSnap.data().imageUrl || '',
+        createdAt: docSnap.data().createdAt || '',
+        drawnBy: docSnap.data().drawnBy || 'Partner',
+      }));
+    } catch (e) {
+      console.error('Error fetching canvas drawings:', e);
+    }
+  }
+  return [];
+}
+
+export async function deleteCanvasDrawing(slug: string, drawingId: string): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/canvas_drawings`, drawingId);
+      await deleteDoc(docRef);
+      return true;
+    } catch (e) {
+      console.error('Error deleting canvas drawing:', e);
+    }
+  }
+  return false;
 }
 

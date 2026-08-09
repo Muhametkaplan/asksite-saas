@@ -21,7 +21,7 @@ import {
   Star,
   ExternalLink
 } from 'lucide-react';
-import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
+import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion, CanvasDrawing } from '@/types/couple';
 import {
   useCoupon,
   sendCanvasStroke,
@@ -38,6 +38,9 @@ import {
   addQuizQuestion,
   deleteQuizQuestion,
   saveQuizScore,
+  addCanvasDrawing,
+  getCanvasDrawings,
+  deleteCanvasDrawing,
   saveGameScore,
   getXoxScore,
   saveXoxScore,
@@ -3911,6 +3914,7 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
   const [strokeWidth, setStrokeWidth] = useState<number>(7);
   const [savingMemory, setSavingMemory] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [drawings, setDrawings] = useState<CanvasDrawing[]>([]);
 
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = React.useRef<boolean>(false);
@@ -3929,15 +3933,20 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
     return 'partner1';
   }, [couple.slug]);
 
-  // Subscribe to live strokes from Firestore
+  const loadDrawings = React.useCallback(async () => {
+    const list = await getCanvasDrawings(couple.slug);
+    setDrawings(list);
+  }, [couple.slug]);
+
   React.useEffect(() => {
+    loadDrawings();
+
     const unsubscribe = subscribeToLiveCanvas(couple.slug, (strokes) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Redraw canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       strokes.forEach((s) => {
@@ -3957,7 +3966,7 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
     });
 
     return () => unsubscribe();
-  }, [couple.slug]);
+  }, [couple.slug, loadDrawings]);
 
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -4046,18 +4055,15 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
 
     setSavingMemory(true);
     try {
-      // Create offscreen canvas to composite background template + strokes
       const offscreen = document.createElement('canvas');
       offscreen.width = canvas.width;
       offscreen.height = canvas.height;
       const offCtx = offscreen.getContext('2d');
 
       if (offCtx) {
-        // Fill white background
         offCtx.fillStyle = '#ffffff';
         offCtx.fillRect(0, 0, offscreen.width, offscreen.height);
 
-        // Draw active template SVG if in template mode
         if (tab === 'template' && TEMPLATES[selectedTemplateKey]) {
           const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360">${TEMPLATES[selectedTemplateKey].svg}</svg>`;
           const img = new Image();
@@ -4068,33 +4074,32 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
           offCtx.drawImage(img, 0, 0);
         }
 
-        // Draw canvas strokes on top
         offCtx.drawImage(canvas, 0, 0);
-
         const dataUrl = offscreen.toDataURL('image/png');
 
-        const newMemory: MemoryItem = {
-          id: `m-${Date.now()}`,
-          photo_url: dataUrl,
-          date: new Date().toISOString().split('T')[0],
-          title: tab === 'template' ? `🎨 Sanat Terapisi: ${TEMPLATES[selectedTemplateKey]?.title || 'Boyama'}` : '🎨 Bizim Sanat Terapisi Çizimimiz',
-          note: `${couple.partner1_name} & ${couple.partner2_name} ortak tuval çalışması ❤️`,
-        };
+        const drawnBy = userRole === 'partner1' ? couple.partner1_name : userRole === 'partner2' ? couple.partner2_name : 'Misafir Partner';
+        const ok = await addCanvasDrawing(couple.slug, { imageUrl: dataUrl, drawnBy });
 
-        const updatedMemories = [newMemory, ...(couple.memories || [])];
-        await saveCoupleConfig({
-          ...couple,
-          memories: updatedMemories,
-        });
-
-        triggerConfetti({ particleCount: 70, spread: 80 });
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 4000);
+        if (ok) {
+          await loadDrawings();
+          triggerConfetti({ particleCount: 70, spread: 80 });
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 4000);
+        }
       }
     } catch (err) {
-      console.error('Error saving therapy image to gallery:', err);
+      console.error('Error saving canvas drawing:', err);
     }
     setSavingMemory(false);
+  };
+
+  const handleDeleteDrawing = async (drawingId: string) => {
+    if (confirm('Bu çizimi silmek istediğinizden emin misiniz?')) {
+      const ok = await deleteCanvasDrawing(couple.slug, drawingId);
+      if (ok) {
+        setDrawings((prev) => prev.filter((d) => d.id !== drawingId));
+      }
+    }
   };
 
   const activeSvg = tab === 'template' ? TEMPLATES[selectedTemplateKey]?.svg : null;
@@ -4144,7 +4149,6 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
 
       {/* Main Canvas & SVG Overlay Wrapper */}
       <div className="relative mx-auto w-[340px] sm:w-[360px] h-[340px] sm:h-[360px] rounded-3xl bg-white shadow-2xl border-4 border-rose-100 overflow-hidden touch-none select-none">
-        {/* SVG Background Layer for Templates */}
         {activeSvg && (
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none p-4 opacity-75"
@@ -4153,7 +4157,6 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
           />
         )}
 
-        {/* Interactive Drawing Canvas */}
         <canvas
           ref={canvasRef}
           width={360}
@@ -4171,7 +4174,6 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
 
       {/* Drawing Toolbar */}
       <div className="rounded-3xl bg-white/90 backdrop-blur-md p-4 shadow-lg border border-gray-100 space-y-3">
-        {/* Color Palette */}
         <div>
           <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 text-center">
             Fırça Renkleri 🎨
@@ -4192,7 +4194,6 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
           </div>
         </div>
 
-        {/* Stroke Thickness & Control Actions */}
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
           <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
             <button
@@ -4226,18 +4227,74 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
           </button>
         </div>
 
-        {/* Save to Memory Gallery Button */}
         <button
           onClick={handleSaveToGallery}
           disabled={savingMemory}
           className="w-full rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 py-3 text-xs font-extrabold text-white shadow-md hover:scale-[1.01] active:scale-98 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
         >
-          <Gift className="h-4 w-4" /> {savingMemory ? 'Anı Galerisine Kaydediliyor...' : 'Anı Galerisine Kaydet 📸'}
+          <Palette className="h-4 w-4" /> {savingMemory ? 'Kaydediliyor...' : '🎨 Sanat Eserini Kaydet'}
         </button>
 
         {saveSuccess && (
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-center text-xs font-bold text-emerald-700 animate-in fade-in">
-            ✨ Çiziminiz Anı Galerisine başarıyla eklendi!
+            ✨ Çiziminiz Aşkımızın Çizim Galerisi'ne başarıyla eklendi!
+          </div>
+        )}
+      </div>
+
+      {/* Aşkımızın Çizim Galerisi 🎨 */}
+      <div className="mt-8 pt-6 border-t border-rose-100 text-left space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
+              <span>Aşkımızın Çizim Galerisi 🎨</span>
+              <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-600">
+                {drawings.length} Eser
+              </span>
+            </h4>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              Ortak tuval üzerinde çizip mühürlediğiniz tüm özel çizimler.
+            </p>
+          </div>
+        </div>
+
+        {drawings.length === 0 ? (
+          <div className="rounded-2xl bg-white p-6 text-center text-xs text-gray-400 italic border border-dashed border-gray-200 shadow-sm">
+            Henüz kaydedilmiş bir çizim eseri bulunmuyor. İlk sanat eserinizi yukarıdaki tuvalde çizip "🎨 Sanat Eserini Kaydet" butonuna basın!
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {drawings.map((drawing) => (
+              <div
+                key={drawing.id}
+                className="relative group overflow-hidden rounded-2xl bg-white p-3 border border-gray-200 shadow-md hover:shadow-xl transition text-left"
+              >
+                <button
+                  onClick={() => handleDeleteDrawing(drawing.id)}
+                  className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-rose-500 text-white shadow-md hover:bg-rose-600 transition active:scale-95 opacity-90 sm:opacity-0 group-hover:opacity-100"
+                  title="Çizimi Sil"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+
+                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-900 border border-slate-800 mb-2.5">
+                  <img
+                    src={drawing.imageUrl}
+                    alt="Sanat Eseri"
+                    className="w-full h-full object-contain bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] font-semibold text-gray-700 pt-1">
+                  <span className="font-extrabold text-rose-600 flex items-center gap-1">
+                    🎨 {drawing.drawnBy}
+                  </span>
+                  <span className="text-[10px] font-mono text-gray-400">
+                    📅 {drawing.createdAt}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

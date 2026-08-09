@@ -196,3 +196,10 @@ export interface AskSiteAIResponse {
   remaining?: number;
   error?: string;
 }
+
+export interface CanvasDrawing {
+  id: string;
+  imageUrl: string;
+  createdAt: string;
+  drawnBy: string;
+}
