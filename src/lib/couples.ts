@@ -1267,7 +1267,21 @@ export async function resetDatabaseAndCollections(): Promise<{ success: boolean;
     const couplesSnap = await getDocs(collection(db, 'couples'));
     for (const d of couplesSnap.docs) {
       const slug = d.id;
-      const subCols = ['modules_memories', 'modules_bucket', 'modules_map_markers', 'modules_canvas', 'games_data', 'presence'];
+      const subCols = [
+        'modules_memories',
+        'modules_bucket',
+        'modules_map_markers',
+        'modules_canvas',
+        'games_data',
+        'presence',
+        'memories',
+        'bucket_list',
+        'coupons',
+        'diary_entries',
+        'time_capsules',
+        'movies',
+        'quiz_questions',
+      ];
       for (const sub of subCols) {
         try {
           const subSnap = await getDocs(collection(db, `couples/${slug}/${sub}`));
