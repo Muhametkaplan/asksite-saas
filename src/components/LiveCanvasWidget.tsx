@@ -8,11 +8,8 @@ import {
   clearLiveCanvas,
   subscribeToPartnerPresence,
   addCanvasDrawing,
-  getCanvasDrawings,
-  deleteCanvasDrawing,
   CanvasStrokeData,
 } from '@/lib/couples';
-import { CanvasDrawing } from '@/types/couple';
 import confetti from 'canvas-confetti';
 
 interface LiveCanvasWidgetProps {
@@ -44,17 +41,9 @@ export default function LiveCanvasWidget({
   const [presence, setPresence] = useState<{ partner1?: any; partner2?: any }>({});
 
   const [currentRole, setCurrentRole] = useState<'partner1' | 'partner2' | 'guest'>('partner1');
-  const [drawings, setDrawings] = useState<CanvasDrawing[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const loadDrawings = async () => {
-    const list = await getCanvasDrawings(slug);
-    setDrawings(list);
-  };
-
   useEffect(() => {
-    loadDrawings();
-
     const storedAuth = typeof window !== 'undefined'
       ? sessionStorage.getItem(`asksite_auth_${slug}`) || localStorage.getItem(`asksite_auth_${slug}`)
       : null;
@@ -195,22 +184,12 @@ export default function LiveCanvasWidget({
 
       const success = await addCanvasDrawing(slug, { imageUrl, drawnBy });
       if (success) {
-        await loadDrawings();
         confetti({ particleCount: 70, spread: 80 });
       }
     } catch (e) {
       console.error('Error saving canvas drawing:', e);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDeleteDrawing = async (drawingId: string) => {
-    if (confirm('Bu sanat eserini galerinizden silmek istediğinize emin misiniz?')) {
-      const success = await deleteCanvasDrawing(slug, drawingId);
-      if (success) {
-        setDrawings((prev) => prev.filter((d) => d.id !== drawingId));
-      }
     }
   };
 
@@ -323,63 +302,6 @@ export default function LiveCanvasWidget({
             🎨 {saving ? 'Kaydediliyor...' : 'Sanat Eserini Kaydet'}
           </button>
         </div>
-      </div>
-
-      {/* Aşkımızın Çizim Galerisi 🎨 */}
-      <div className="mt-8 pt-6 border-t border-gray-100 text-left">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
-              <span>Aşkımızın Çizim Galerisi 🎨</span>
-              <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-600">
-                {drawings.length} Eser
-              </span>
-            </h4>
-            <p className="text-[11px] text-gray-500 mt-0.5">
-              Birlikte tuval üzerinde çizip mühürlediğiniz tüm özel sanat eserleri.
-            </p>
-          </div>
-        </div>
-
-        {drawings.length === 0 ? (
-          <div className="rounded-2xl bg-gray-50 p-6 text-center text-xs text-gray-400 italic border border-dashed border-gray-200">
-            Henüz kaydedilmiş bir çizim eseri bulunmuyor. İlk sanat eserinizi yukarıdaki tuvalde çizip kaydet butonuna basın! 🎨
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {drawings.map((drawing) => (
-              <div
-                key={drawing.id}
-                className="relative group overflow-hidden rounded-2xl bg-white p-3 border border-gray-200 shadow-md hover:shadow-xl transition text-left"
-              >
-                <button
-                  onClick={() => handleDeleteDrawing(drawing.id)}
-                  className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-rose-500 text-white shadow-md hover:bg-rose-600 transition active:scale-95 opacity-90 sm:opacity-0 group-hover:opacity-100"
-                  title="Çizimi Sil"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-
-                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-900 border border-slate-800 mb-2.5">
-                  <img
-                    src={drawing.imageUrl}
-                    alt="Sanat Eseri"
-                    className="w-full h-full object-contain bg-white"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] font-semibold text-gray-700 pt-1">
-                  <span className="font-extrabold text-rose-600 flex items-center gap-1">
-                    🎨 {drawing.drawnBy}
-                  </span>
-                  <span className="text-[10px] font-mono text-gray-400">
-                    📅 {drawing.createdAt}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import {
   Lock,
   Play,
   RotateCcw,
+  Trash2,
   Gift,
   Film,
   Star,
@@ -4188,7 +4189,7 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
                   className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-rose-500 text-white shadow-md hover:bg-rose-600 transition active:scale-95 opacity-90 sm:opacity-0 group-hover:opacity-100"
                   title="Çizimi Sil"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
 
                 <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-900 border border-slate-800 mb-2.5">
