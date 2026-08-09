@@ -553,12 +553,12 @@ export default function CheckoutPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Sizin İsminiz (Partner 1) *
+                1. Partner İsmi (Kız Partner) *
               </label>
               <input
                 type="text"
                 required
-                placeholder="Örn: Ahmet"
+                placeholder="Örn: Ayşe"
                 value={partner1}
                 onChange={(e) => setPartner1(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
@@ -566,12 +566,12 @@ export default function CheckoutPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Sizin E-Posta Adresiniz (Partner 1) *
+                1. Partner E-Posta Adresi (Kız) *
               </label>
               <input
                 type="email"
                 required
-                placeholder="ahmet@example.com"
+                placeholder="ayse@example.com"
                 value={partner1Email}
                 onChange={(e) => setPartner1Email(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
@@ -582,12 +582,12 @@ export default function CheckoutPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Sevgilinizin İsmi (Partner 2) *
+                2. Partner İsmi (Erkek Partner) *
               </label>
               <input
                 type="text"
                 required
-                placeholder="Örn: Ayşe"
+                placeholder="Örn: Ahmet"
                 value={partner2}
                 onChange={(e) => setPartner2(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
@@ -595,12 +595,12 @@ export default function CheckoutPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Sevgilinizin E-Posta Adresi (Partner 2) *
+                2. Partner E-Posta Adresi (Erkek) *
               </label>
               <input
                 type="email"
                 required
-                placeholder="ayse@example.com"
+                placeholder="ahmet@example.com"
                 value={partner2Email}
                 onChange={(e) => setPartner2Email(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"

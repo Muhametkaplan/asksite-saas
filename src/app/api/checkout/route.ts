@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
       partner2_name,
       partner1_email: p1Email,
       partner2_email: p2Email,
+      partner1_score: 0,
+      partner2_score: 0,
       partner1_pin: '1234',
       partner2_pin: '5678',
       authorized_emails,
@@ -71,15 +73,8 @@ export async function POST(req: NextRequest) {
         'Gözlerinin içi parlayarak güldüğün an dünyadaki her şey güzelleşiyor.',
         'Senin sesin, duyduğum en huzurlu ve en tatlı melodi.'
       ],
-      memories: [
-        {
-          id: `m-${Date.now()}-1`,
-          photo_url: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=800&auto=format&fit=crop',
-          date: start_date ? new Date(start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          title: 'İlk Karşılaşmamız ✨',
-          note: 'Gözlerinin içine ilk baktığım an dünyadaki tüm sesler sustu.',
-        },
-      ],
+      memories: [],
+      diary_entries: [],
       bucket_list: [
         { id: `b-${Date.now()}-1`, title: 'Roma & Venedik Gezisi 🇮🇹', category: 'city' as const, completed: false },
         { id: `b-${Date.now()}-2`, title: 'Kapadokya Balon Turu 🎈', category: 'activity' as const, completed: false },
