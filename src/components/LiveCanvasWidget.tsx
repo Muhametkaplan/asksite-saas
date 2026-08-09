@@ -41,8 +41,9 @@ export default function LiveCanvasWidget({
   const [currentRole, setCurrentRole] = useState<'partner1' | 'partner2' | 'guest'>('partner1');
 
   useEffect(() => {
-    // Read current user role from localStorage
-    const storedAuth = localStorage.getItem(`asksite_auth_${slug}`);
+    const storedAuth = typeof window !== 'undefined'
+      ? sessionStorage.getItem(`asksite_auth_${slug}`) || localStorage.getItem(`asksite_auth_${slug}`)
+      : null;
     if (storedAuth) {
       try {
         const parsed = JSON.parse(storedAuth);

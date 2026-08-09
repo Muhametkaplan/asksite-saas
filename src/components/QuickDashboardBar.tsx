@@ -15,8 +15,9 @@ export default function QuickDashboardBar({ slug }: QuickDashboardBarProps) {
   const [isPartner, setIsPartner] = useState(false);
 
   useEffect(() => {
-    // 1. Check local storage auth & device token
-    const storedAuth = localStorage.getItem(`asksite_auth_${slug}`);
+    const storedAuth = typeof window !== 'undefined'
+      ? sessionStorage.getItem(`asksite_auth_${slug}`) || localStorage.getItem(`asksite_auth_${slug}`)
+      : null;
     const deviceToken = typeof window !== 'undefined' ? localStorage.getItem('asksite_device_token') : null;
 
     if (storedAuth || deviceToken) {

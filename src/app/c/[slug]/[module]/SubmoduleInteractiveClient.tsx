@@ -938,7 +938,7 @@ function DinoRunnerGame({
           }
         }}
       >
-        <canvas ref={canvasRef} width={800} height={380} className="w-full h-auto block" />
+        <canvas ref={canvasRef} width={800} height={380} className="w-full max-w-full h-auto block touch-none" />
 
         {/* Overlay Modal */}
         {!isPlaying && (
@@ -1781,7 +1781,7 @@ function FlappyBirdGame({
           }
         }}
       >
-        <canvas ref={canvasRef} width={800} height={420} className="w-full h-auto block" />
+        <canvas ref={canvasRef} width={800} height={420} className="w-full max-w-full h-auto block touch-none" />
 
         {!isPlaying && (
           <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-4 z-30 animate-in fade-in duration-200">
@@ -2365,7 +2365,7 @@ function TowerStackerGame({
       </div>
 
       <div className="relative mx-auto w-full max-w-4xl bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border-4 border-purple-300 cursor-pointer touch-none select-none">
-        <canvas ref={canvasRef} width={800} height={420} className="w-full h-auto block" />
+        <canvas ref={canvasRef} width={800} height={420} className="w-full max-w-full h-auto block touch-none" />
 
         {!isPlaying && (
           <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-4 z-30 animate-in fade-in duration-200">
@@ -2856,8 +2856,8 @@ function QuizWidget({ couple }: { couple: CoupleConfig }) {
   const partner1Name = couple?.partner1_name || 'Partner 1';
   const partner2Name = couple?.partner2_name || 'Partner 2';
 
-  const [p1Score, setP1Score] = useState<number>(couple?.partner1_score !== undefined ? couple.partner1_score : 120);
-  const [p2Score, setP2Score] = useState<number>(couple?.partner2_score !== undefined ? couple.partner2_score : 150);
+  const [p1Score, setP1Score] = useState<number>(couple?.partner1_score !== undefined ? couple.partner1_score : 0);
+  const [p2Score, setP2Score] = useState<number>(couple?.partner2_score !== undefined ? couple.partner2_score : 0);
 
   const [activePartnerTab, setActivePartnerTab] = useState<'partner1' | 'partner2'>('partner1');
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -3211,8 +3211,28 @@ function DiaryWidget({ couple }: { couple: CoupleConfig }) {
       {/* Diary Entries List */}
       <div className="space-y-4">
         {entries.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 text-center text-xs text-gray-500 shadow-md">
-            Henüz yazılmış bir anı bulunmuyor. İlk notu siz düşün! ❤️
+          <div className="rounded-3xl bg-white/95 backdrop-blur-md p-10 text-center shadow-xl border border-amber-100/80 space-y-4 my-4 animate-in fade-in zoom-in-95">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-50 text-amber-600 text-4xl shadow-inner border border-amber-200/60 animate-bounce">
+              📖
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-gray-900">Henüz kaydedilmiş bir anınız yok.</h3>
+              <p className="text-xs font-semibold text-gray-500 max-w-sm mx-auto leading-relaxed">
+                İlk anınızı ekleyerek defterinizi doldurmaya başlayın! ✨
+              </p>
+            </div>
+            {authState.isPartner && (
+              <button
+                onClick={() => {
+                  const textarea = document.querySelector('textarea');
+                  if (textarea) textarea.focus();
+                }}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 via-rose-500 to-pink-600 px-6 py-3 text-xs font-black text-white shadow-lg hover:scale-105 active:scale-95 transition"
+              >
+                <span>Anı Ekle</span>
+                <span>🖋️</span>
+              </button>
+            )}
           </div>
         ) : (
           entries.map((entry) => (

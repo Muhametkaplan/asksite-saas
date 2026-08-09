@@ -22,6 +22,8 @@ export const DEMO_COUPLE: CoupleConfig = {
   pair_code: 'ASK-X79B2',
   partner1_name: 'Partner 1',
   partner2_name: 'Partner 2',
+  partner1_score: 0,
+  partner2_score: 0,
   subtitle: 'Bizim Dünyamız ❤️',
   start_date: '2023-01-01T00:00:00.000Z',
   theme_color_primary: '#ff4d6d',
@@ -127,32 +129,7 @@ export const DEMO_COUPLE: CoupleConfig = {
       used_at: '2026-02-14T21:30:00.000Z',
     },
   ],
-  diary_entries: [
-    {
-      id: 'd1',
-      author: 'Partner 2',
-      role: 'partner2',
-      date: '2023-01-01T14:30:00.000Z',
-      content: 'Gözlerinin içine ilk baktığım an dünyadaki tüm gürültüler sustu. İyi ki geldin hayatıma sevgilim.',
-      mood: '❤️',
-    },
-    {
-      id: 'd2',
-      author: 'Partner 1',
-      role: 'partner1',
-      date: '2023-07-15T19:45:00.000Z',
-      content: 'Deniz kenarında gün batımını izlerken elimi tuttuğun o anı hiç unutmayacağım.',
-      mood: '🌅',
-    },
-    {
-      id: 'd3',
-      author: 'Partner 2',
-      role: 'partner2',
-      date: '2024-02-14T21:15:00.000Z',
-      content: 'Yağmurlu bir akşamda kahvelerimizi yudumlarken geleceğe dair hayaller kurmak harikaydı.',
-      mood: '☕',
-    },
-  ],
+  diary_entries: [],
   time_capsules: [
     {
       id: 'tc1',
