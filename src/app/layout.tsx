@@ -17,13 +17,18 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Aşk Dünyamız | Çiftlere Özel Dijital Anı ve Web Platformu",
-  description: "Çiftler için özel tasarlanmış romantik dijital dünya, anı galerisi, Spotify müzik çalar ve aşk oyunları platformu.",
-  manifest: "/manifest.json",
+  title: 'AskSite - Çift Siteniz & Dijital Anı Defteriniz',
+  description: 'Sevgilinizle özel anılarınızı biriktireceğiniz dijital çift platformu.',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png',
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "Aşk Dünyamız",
+    statusBarStyle: 'default',
+    title: 'AskSite',
   },
 };
 
