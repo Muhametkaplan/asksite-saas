@@ -56,29 +56,7 @@ export const DEMO_COUPLE: CoupleConfig = {
     'Sadece sevgilim değil, ruh eşim olduğunu her gün bana hissettiriyorsun.',
     'Dünyadaki en güzel, en yumuşak ve en huzurlu sarılmalara sahipsin.',
   ],
-  memories: [
-    {
-      id: 'm1',
-      photo_url: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=800&auto=format&fit=crop',
-      date: '2023-01-01',
-      title: 'İlk Karşılaşmamız ✨',
-      note: 'Gözlerinin içine ilk baktığım an dünyadaki tüm sesler sustu.',
-    },
-    {
-      id: 'm2',
-      photo_url: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=800&auto=format&fit=crop',
-      date: '2023-07-15',
-      title: 'Deniz Kenarı Gün Batımı 🌅',
-      note: 'Rüzgar saçlarını savururken gülüşünü unutmak imkansızdı.',
-    },
-    {
-      id: 'm3',
-      photo_url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=800&auto=format&fit=crop',
-      date: '2024-02-14',
-      title: 'Romantik Mum Işığı Akşamı 🍷',
-      note: 'Ellerimiz hiç ayrılmadı, saatlerce geleceğimizi düşledik.',
-    },
-  ],
+  memories: [],
   bucket_list: [
     { id: 'b1', title: 'Roma & Venedik Gezisi 🇮🇹', category: 'city', completed: false },
     { id: 'b2', title: 'Kapadokya Balon Turu 🎈', category: 'activity', completed: true },
@@ -1275,5 +1253,48 @@ export async function saveArcadeHighScore(
     }
   }
   return false;
+}
+
+export async function resetDatabaseAndCollections(): Promise<{ success: boolean; deletedCouples: number; deletedUsers: number }> {
+  if (!isFirebaseConfigured || !db) {
+    return { success: false, deletedCouples: 0, deletedUsers: 0 };
+  }
+
+  let deletedCouples = 0;
+  let deletedUsers = 0;
+
+  try {
+    const couplesSnap = await getDocs(collection(db, 'couples'));
+    for (const d of couplesSnap.docs) {
+      const slug = d.id;
+      const subCols = ['modules_memories', 'modules_bucket', 'modules_map_markers', 'modules_canvas', 'games_data', 'presence'];
+      for (const sub of subCols) {
+        try {
+          const subSnap = await getDocs(collection(db, `couples/${slug}/${sub}`));
+          for (const subDoc of subSnap.docs) {
+            await deleteDoc(subDoc.ref);
+          }
+        } catch (e) {}
+      }
+
+      await deleteDoc(d.ref);
+      deletedCouples++;
+    }
+
+    const usersSnap = await getDocs(collection(db, 'users'));
+    for (const uDoc of usersSnap.docs) {
+      await deleteDoc(uDoc.ref);
+      deletedUsers++;
+    }
+
+    localCouplesMemoryStore.clear();
+    localCouplesMemoryStore.set('irem-muhammet', DEMO_COUPLE);
+
+    console.log(`Database Reset Complete: ${deletedCouples} couples, ${deletedUsers} users deleted.`);
+    return { success: true, deletedCouples, deletedUsers };
+  } catch (e) {
+    console.error('Error in resetDatabaseAndCollections:', e);
+    return { success: false, deletedCouples, deletedUsers };
+  }
 }
 
