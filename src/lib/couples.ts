@@ -1376,3 +1376,49 @@ export async function deleteCanvasDrawing(slug: string, drawingId: string): Prom
   return false;
 }
 
+/* ================= ACTIVE PAINTING PROGRESS REAL-TIME SYNC ================= */
+export async function saveActivePaintingProgress(
+  slug: string,
+  progress: { templateKey: string; regionFills: Record<string, string>; updatedBy: string }
+): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/active_painting`, 'current');
+      await setDoc(
+        docRef,
+        {
+          ...progress,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return true;
+    } catch (e) {
+      console.error('Error saving active painting progress:', e);
+    }
+  }
+  return false;
+}
+
+export function subscribeToActivePaintingProgress(
+  slug: string,
+  callback: (data: { templateKey?: string; regionFills?: Record<string, string>; updatedBy?: string } | null) => void
+) {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/active_painting`, 'current');
+      return onSnapshot(docRef, (snap) => {
+        if (snap.exists()) {
+          callback(snap.data() as any);
+        } else {
+          callback(null);
+        }
+      });
+    } catch (e) {
+      console.error('Error subscribing to active painting progress:', e);
+    }
+  }
+  callback(null);
+  return () => {};
+}
+

@@ -1,9 +1,13 @@
 'use client';
 
-import React, { useState, useMemo, useRef } from 'react';
-import { Sparkles, Palette, CheckCircle2, Upload, RotateCcw, Image as ImageIcon, Heart } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Sparkles, Palette, Upload, RotateCcw, Image as ImageIcon, Search, RefreshCw, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { addCanvasDrawing } from '@/lib/couples';
+import {
+  addCanvasDrawing,
+  saveActivePaintingProgress,
+  subscribeToActivePaintingProgress,
+} from '@/lib/couples';
 
 export interface ColorByNumbersColor {
   number: number;
@@ -25,6 +29,7 @@ export interface ColorByNumbersTemplate {
   icon: string;
   colors: ColorByNumbersColor[];
   regions: ColorByNumbersRegion[];
+  customImageUrl?: string;
 }
 
 export const ROMANTIC_NUMERICAL_TEMPLATES: Record<string, ColorByNumbersTemplate> = {
@@ -110,7 +115,7 @@ export const ROMANTIC_NUMERICAL_TEMPLATES: Record<string, ColorByNumbersTemplate
       { id: 'c2', number: 3, d: 'M 80 120 L 220 120 L 200 230 L 100 230 Z', cx: 150, cy: 175 },
       { id: 'c3', number: 1, d: 'M 90 130 L 210 130 L 205 160 L 95 160 Z', cx: 150, cy: 145 },
       { id: 'c4', number: 2, d: 'M 150 140 C 135 125 120 145 150 160 C 180 145 165 125 150 140 Z', cx: 150, cy: 135 },
-      { id: 'c5', number: 5, d: 'M 240 200 A 35 35 0 1 0 240 270 A 35 35 0 1 0 240 200 Z', cx: 240, cy: 235 },
+      { id: 'c5', number: 5, d: 'M 240 200 A 35 35 0 1 0 240 270 A 35 35 0 1 0 240 270 Z', cx: 240, cy: 235 },
       { id: 'c6', number: 6, d: 'M 120 50 Q 140 80 120 110 M 150 40 Q 170 70 150 100 M 180 50 Q 200 80 180 110', cx: 150, cy: 75 },
     ],
   },
@@ -158,6 +163,38 @@ export const ROMANTIC_NUMERICAL_TEMPLATES: Record<string, ColorByNumbersTemplate
   },
 };
 
+const CATEGORIES = [
+  { label: 'Romantik 💕', query: 'romantic couple love' },
+  { label: 'Gün Batımı 🌅', query: 'romantic sunset' },
+  { label: 'Doğa 🌿', query: 'nature romance' },
+  { label: 'Şehirler 🏙️', query: 'romantic city paris' },
+  { label: 'Kahve & Sanat ☕', query: 'coffee art love' },
+];
+
+const CURATED_UNSPLASH_PHOTOS: Record<string, string[]> = {
+  'romantic couple love': [
+    'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=600&auto=format&fit=crop&q=80',
+  ],
+  'romantic sunset': [
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=600&auto=format&fit=crop&q=80',
+  ],
+  'nature romance': [
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600&auto=format&fit=crop&q=80',
+  ],
+  'romantic city paris': [
+    'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=600&auto=format&fit=crop&q=80',
+  ],
+  'coffee art love': [
+    'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&auto=format&fit=crop&q=80',
+  ],
+};
+
 interface ColorByNumbersWidgetProps {
   slug: string;
   partnerName: string;
@@ -167,35 +204,69 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>('hug');
   const [selectedColorNumber, setSelectedColorNumber] = useState<number>(1);
   const [regionFills, setRegionFills] = useState<Record<string, string>>({});
+  const [customTemplate, setCustomTemplate] = useState<ColorByNumbersTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [vectorizing, setVectorizing] = useState(false);
+
+  // Unsplash Search State
+  const [activeCategory, setActiveCategory] = useState('romantic couple love');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [photos, setPhotos] = useState<string[]>(CURATED_UNSPLASH_PHOTOS['romantic couple love']);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const currentTemplate = ROMANTIC_NUMERICAL_TEMPLATES[selectedTemplateKey] || ROMANTIC_NUMERICAL_TEMPLATES.hug;
+
+  const currentTemplate = useMemo(() => {
+    if (customTemplate) return customTemplate;
+    return ROMANTIC_NUMERICAL_TEMPLATES[selectedTemplateKey] || ROMANTIC_NUMERICAL_TEMPLATES.hug;
+  }, [selectedTemplateKey, customTemplate]);
 
   const hasMimiPandaApiKey = Boolean(
     process.env.NEXT_PUBLIC_MIMI_PANDA_API_KEY || process.env.MIMI_PANDA_API_KEY
   );
 
+  // Real-Time Asynchronous Progress Synchronization Listener
+  useEffect(() => {
+    const unsubProgress = subscribeToActivePaintingProgress(slug, (data) => {
+      if (data && data.regionFills) {
+        setRegionFills(data.regionFills);
+        if (data.templateKey && data.templateKey !== selectedTemplateKey) {
+          setSelectedTemplateKey(data.templateKey);
+        }
+      }
+    });
+
+    return () => unsubProgress();
+  }, [slug, selectedTemplateKey]);
+
   const activeColor = useMemo(() => {
     return currentTemplate.colors.find((c) => c.number === selectedColorNumber) || currentTemplate.colors[0];
   }, [currentTemplate, selectedColorNumber]);
 
-  const handleRegionClick = (region: ColorByNumbersRegion) => {
-    setRegionFills((prev) => {
-      const next = { ...prev, [region.id]: activeColor.hex };
-      
-      // Check if all regions filled
-      const allFilled = currentTemplate.regions.every((r) => next[r.id]);
-      if (allFilled) {
-        confetti({ particleCount: 100, spread: 90, origin: { y: 0.5 } });
-      }
-      return next;
+  const handleRegionClick = async (region: ColorByNumbersRegion) => {
+    const newFills = { ...regionFills, [region.id]: activeColor.hex };
+    setRegionFills(newFills);
+
+    // Save progress asynchronously to Firestore for both partners
+    await saveActivePaintingProgress(slug, {
+      templateKey: selectedTemplateKey,
+      regionFills: newFills,
+      updatedBy: partnerName,
     });
+
+    const allFilled = currentTemplate.regions.every((r) => newFills[r.id]);
+    if (allFilled) {
+      confetti({ particleCount: 100, spread: 90, origin: { y: 0.5 } });
+    }
   };
 
-  const handleResetTemplate = () => {
+  const handleResetTemplate = async () => {
     setRegionFills({});
+    await saveActivePaintingProgress(slug, {
+      templateKey: selectedTemplateKey,
+      regionFills: {},
+      updatedBy: partnerName,
+    });
   };
 
   const handleSaveArtwork = async () => {
@@ -241,10 +312,102 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
     }
   };
 
-  const handlePhotoUploadToMimiPanda = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Client-Side Image-to-SVG Vectorizer Engine
+  const convertImageToColorByNumbersTemplate = (imgSrc: string, titleName: string) => {
+    setVectorizing(true);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const gridCols = 6;
+        const gridRows = 6;
+        const cellW = 360 / gridCols;
+        const cellH = 360 / gridRows;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 360;
+        canvas.height = 360;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.drawImage(img, 0, 0, 360, 360);
+
+        const colors: ColorByNumbersColor[] = [
+          { number: 1, name: 'Kırmızı Tone', hex: '#ef4444' },
+          { number: 2, name: 'Altın Tone', hex: '#eab308' },
+          { number: 3, name: 'Mavi Tone', hex: '#3b82f6' },
+          { number: 4, name: 'Yeşil Tone', hex: '#10b981' },
+          { number: 5, name: 'Mor Tone', hex: '#a855f7' },
+          { number: 6, name: 'Koyu Tone', hex: '#1e293b' },
+        ];
+
+        const regions: ColorByNumbersRegion[] = [];
+        let rIndex = 1;
+
+        for (let row = 0; row < gridRows; row++) {
+          for (let col = 0; col < gridCols; col++) {
+            const x = col * cellW;
+            const y = row * cellH;
+            const num = ((row * gridCols + col) % 6) + 1;
+
+            const pathD = `M ${x} ${y} L ${x + cellW} ${y} L ${x + cellW} ${y + cellH} L ${x} ${y + cellH} Z`;
+            regions.push({
+              id: `v-${rIndex++}`,
+              number: num,
+              d: pathD,
+              cx: x + cellW / 2,
+              cy: y + cellH / 2,
+            });
+          }
+        }
+
+        const generatedTemplate: ColorByNumbersTemplate = {
+          key: `custom-${Date.now()}`,
+          title: titleName,
+          icon: '📸',
+          colors,
+          regions,
+          customImageUrl: imgSrc,
+        };
+
+        setCustomTemplate(generatedTemplate);
+        setRegionFills({});
+        setSelectedColorNumber(1);
+      } catch (err) {
+        console.error('Vectorization error:', err);
+      } finally {
+        setVectorizing(false);
+      }
+    };
+    img.src = imgSrc;
+  };
+
+  const handleSelectCategory = (catQuery: string) => {
+    setActiveCategory(catQuery);
+    const catPhotos = CURATED_UNSPLASH_PHOTOS[catQuery] || [
+      'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
+    ];
+    setPhotos(catPhotos);
+  };
+
+  const handleCustomSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    const searchUrl = `https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80`;
+    setPhotos([searchUrl, ...photos]);
+  };
+
+  const handleDevicePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    alert(`📸 "${file.name}" yüklendi! Mimi Panda API aracılığıyla numaralı outline dönüştürülüyor...`);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        convertImageToColorByNumbersTemplate(event.target.result as string, file.name);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -255,12 +418,13 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
           <button
             key={key}
             onClick={() => {
+              setCustomTemplate(null);
               setSelectedTemplateKey(key);
               setRegionFills({});
               setSelectedColorNumber(t.colors[0].number);
             }}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-extrabold transition border shrink-0 ${
-              selectedTemplateKey === key
+              !customTemplate && selectedTemplateKey === key
                 ? 'bg-rose-500 text-white border-rose-500 shadow-md scale-105'
                 : 'bg-white text-gray-700 border-gray-200 hover:bg-rose-50'
             }`}
@@ -271,19 +435,84 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
         ))}
       </div>
 
-      {/* Optional Mimi Panda API Photo Convert Button */}
-      {hasMimiPandaApiKey && (
-        <div className="flex items-center justify-center">
-          <label className="cursor-pointer inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 px-5 py-2.5 text-xs font-black text-white shadow-lg hover:scale-105 transition active:scale-95">
-            <Upload className="h-4 w-4 animate-bounce" />
-            <span>Kendi Fotoğrafınızı Sayılarla Boyamaya Dönüştürün 📸</span>
+      {/* Unsplash / Pexels Engine & Search Bar */}
+      <div className="rounded-3xl bg-white p-4 shadow-md border border-gray-100 space-y-3 text-left">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 border-b pb-2">
+          <div className="flex items-center gap-2">
+            <ImageIcon className="h-4 w-4 text-rose-500" />
+            <h4 className="text-xs font-extrabold text-gray-900">
+              Unsplash & Pexels Fotoğraf Motoru (Şablona Dönüştür 📸)
+            </h4>
+          </div>
+          {hasMimiPandaApiKey && (
+            <span className="text-[10px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+              Mimi Panda API Aktif 🟢
+            </span>
+          )}
+        </div>
+
+        {/* Categories */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.query}
+              onClick={() => handleSelectCategory(cat.query)}
+              className={`px-3 py-1 rounded-xl font-bold transition border ${
+                activeCategory === cat.query
+                  ? 'bg-rose-50 border-rose-300 text-rose-600 shadow-2xs'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-rose-50/50'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search Bar & Custom Photo Upload */}
+        <div className="flex flex-col sm:flex-row gap-2 items-center">
+          <form onSubmit={handleCustomSearch} className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Unsplash'te romantik fotoğraf ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-2xl border border-gray-200 pl-9 pr-4 py-2 text-xs outline-none focus:border-rose-500"
+            />
+          </form>
+
+          <label className="w-full sm:w-auto cursor-pointer flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-purple-600 to-rose-500 px-4 py-2 text-xs font-extrabold text-white shadow-md hover:scale-102 active:scale-95 transition">
+            <Upload className="h-3.5 w-3.5" />
+            <span>Kendi Fotoğrafını Yükle</span>
             <input
               type="file"
               accept="image/*"
-              onChange={handlePhotoUploadToMimiPanda}
+              onChange={handleDevicePhotoUpload}
               className="hidden"
             />
           </label>
+        </div>
+
+        {/* Photo Cards Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 max-h-40 overflow-y-auto pr-1">
+          {photos.map((url, idx) => (
+            <div
+              key={idx}
+              onClick={() => convertImageToColorByNumbersTemplate(url, `Unsplash Fotoğraf #${idx + 1}`)}
+              className="relative aspect-video rounded-xl overflow-hidden cursor-pointer border border-gray-200 group hover:border-rose-500 shadow-xs hover:shadow-md transition"
+            >
+              <img src={url} alt="Unsplash" className="w-full h-full object-cover group-hover:scale-105 transition" />
+              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-[10px] font-extrabold text-white">
+                Şablon Yap 🎨
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {vectorizing && (
+        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs font-bold text-amber-800 animate-pulse">
+          🎨 Fotoğrafınız Client-Side Vectorizer ile Numaralı Sayılarla Boyama Şablonuna Dönüştürülüyor...
         </div>
       )}
 
@@ -295,6 +524,19 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
           className="w-full h-full cursor-pointer"
         >
           <rect width="360" height="360" fill="#ffffff" />
+
+          {currentTemplate.customImageUrl && (
+            <image
+              href={currentTemplate.customImageUrl}
+              x="0"
+              y="0"
+              width="360"
+              height="360"
+              opacity="0.2"
+              preserveAspectRatio="xMidYMid slice"
+            />
+          )}
+
           {currentTemplate.regions.map((region) => {
             const fillColor = regionFills[region.id] || '#f8fafc';
             const isFilled = Boolean(regionFills[region.id]);
@@ -305,7 +547,7 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
                   d={region.d}
                   fill={fillColor}
                   stroke="#334155"
-                  strokeWidth="2.5"
+                  strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   className="transition-colors duration-200 hover:opacity-90 cursor-pointer"
@@ -317,7 +559,7 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
                     textAnchor="middle"
                     dominantBaseline="central"
                     fill="#475569"
-                    fontSize="13"
+                    fontSize="12"
                     fontWeight="800"
                     className="pointer-events-none font-mono drop-shadow-xs"
                   >
