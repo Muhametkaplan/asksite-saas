@@ -7,15 +7,14 @@ import {
   Upload,
   RotateCcw,
   Image as ImageIcon,
-  Search,
   CheckCircle2,
   ZoomIn,
   ZoomOut,
   Maximize2,
   Wand2,
   PaintBucket,
-  Target,
-  Download,
+  Hand,
+  Paintbrush,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -57,14 +56,14 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
   const [pixels, setPixels] = useState<PixelCell[]>([]);
   const [palette, setPalette] = useState<PixelColor[]>([]);
   const [selectedNumber, setSelectedNumber] = useState<number>(1);
-  const [selectedTool, setSelectedTool] = useState<'pen' | 'bucket' | 'hint'>('pen');
+  const [selectedTool, setSelectedTool] = useState<'paint' | 'pan' | 'bucket'>('paint');
   const [activePhotoUrl, setActivePhotoUrl] = useState<string>(SAMPLE_PHOTOS[0].url);
 
   // Zoom & Pan State
   const [scale, setScale] = useState<number>(1.5);
   const [panX, setPanX] = useState<number>(0);
   const [panY, setPanY] = useState<number>(0);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isPointerDown, setIsPointerDown] = useState<boolean>(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [loadingImage, setLoadingImage] = useState<boolean>(false);
@@ -73,6 +72,7 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
   const [highlightedHintPixelId, setHighlightedHintPixelId] = useState<number | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   // Real-Time Multi-Device Sync
   useEffect(() => {
@@ -127,13 +127,11 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
           rawColors[hex] = (rawColors[hex] || 0) + 1;
         }
 
-        // Sort by frequency & slice top 20
         const sortedHexes = Object.entries(rawColors)
           .sort((a, b) => b[1] - a[1])
           .slice(0, 20)
           .map((entry) => entry[0]);
 
-        // Color Palette Map
         const paletteList: PixelColor[] = sortedHexes.map((hex, index) => ({
           number: index + 1,
           hex,
@@ -141,7 +139,6 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
           count: 0,
         }));
 
-        // Helper to find closest palette color for RGB
         const findClosestPaletteNumber = (r: number, g: number, b: number) => {
           let minDistance = Infinity;
           let bestNumber = 1;
@@ -204,7 +201,7 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
     processImageToPixels(activePhotoUrl, gridSize);
   }, [activePhotoUrl, gridSize, processImageToPixels]);
 
-  // Main Canvas Render Loop
+  // Main Canvas Render Loop with RequestAnimationFrame Optimization
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || pixels.length === 0) return;
@@ -214,149 +211,177 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
     const width = canvas.width;
     const height = canvas.height;
 
-    ctx.save();
-    ctx.clearRect(0, 0, width, height);
+    const drawCanvas = () => {
+      ctx.save();
+      ctx.clearRect(0, 0, width, height);
 
-    // Apply Zoom & Pan Transformations
-    ctx.translate(width / 2 + panX, height / 2 + panY);
-    ctx.scale(scale, scale);
-    ctx.translate(-width / 2, -height / 2);
+      // Apply Zoom & Pan Transformations
+      ctx.translate(width / 2 + panX, height / 2 + panY);
+      ctx.scale(scale, scale);
+      ctx.translate(-width / 2, -height / 2);
 
-    const cellSize = width / gridSize;
+      const cellSize = width / gridSize;
 
-    // Render Each Pixel Cell
-    for (let i = 0; i < pixels.length; i++) {
-      const p = pixels[i];
-      const x = p.col * cellSize;
-      const y = p.row * cellSize;
+      for (let i = 0; i < pixels.length; i++) {
+        const p = pixels[i];
+        const x = p.col * cellSize;
+        const y = p.row * cellSize;
 
-      if (p.isFilled) {
-        ctx.fillStyle = p.targetHex;
-        ctx.fillRect(x, y, cellSize, cellSize);
-      } else {
-        // Grayscale / Light slate background for uncolored pixels
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(x, y, cellSize, cellSize);
+        if (p.isFilled) {
+          ctx.fillStyle = p.targetHex;
+          ctx.fillRect(x, y, cellSize, cellSize);
+        } else {
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(x, y, cellSize, cellSize);
 
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(x, y, cellSize, cellSize);
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(x, y, cellSize, cellSize);
 
-        // Render Numbers when zoomed in sufficiently
-        if (scale >= 1.2) {
-          ctx.fillStyle = p.targetNumber === selectedNumber ? '#ef4444' : '#475569';
-          ctx.font = `bold ${Math.max(8, cellSize * 0.55)}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(String(p.targetNumber), x + cellSize / 2, y + cellSize / 2);
+          if (scale >= 1.2) {
+            ctx.fillStyle = p.targetNumber === selectedNumber ? '#ef4444' : '#475569';
+            ctx.font = `bold ${Math.max(8, cellSize * 0.55)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(p.targetNumber), x + cellSize / 2, y + cellSize / 2);
+          }
+        }
+
+        if (highlightedHintPixelId === p.id) {
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(x, y, cellSize, cellSize);
         }
       }
 
-      // Hint / Highlight ring
-      if (highlightedHintPixelId === p.id) {
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(x, y, cellSize, cellSize);
-      }
-    }
+      ctx.restore();
+    };
 
-    ctx.restore();
+    const animId = requestAnimationFrame(drawCanvas);
+    return () => cancelAnimationFrame(animId);
   }, [pixels, gridSize, scale, panX, panY, selectedNumber, highlightedHintPixelId]);
 
-  // Handle Zoom Actions
-  const handleZoom = (delta: number) => {
-    setScale((prev) => Math.min(8.0, Math.max(0.6, prev + delta)));
-  };
+  // Exact Coordinate Conversion Formula (as requested)
+  const getPixelCoordsFromClient = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
 
-  const handleResetView = () => {
-    setScale(1.5);
-    setPanX(0);
-    setPanY(0);
-  };
+      const offsetX = canvas.width / 2 + panX;
+      const offsetY = canvas.height / 2 + panY;
+      const pixelSize = canvas.width / gridSize;
+      const zoomLevel = scale;
 
-  // Mouse & Touch Drag Pan Handlers
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    setIsDragging(true);
+      const x = Math.floor(((clientX - rect.left) * scaleX - offsetX) / (pixelSize * zoomLevel) + gridSize / 2);
+      const y = Math.floor(((clientY - rect.top) * scaleY - offsetY) / (pixelSize * zoomLevel) + gridSize / 2);
+
+      if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return null;
+      return { col: x, row: y };
+    },
+    [gridSize, panX, panY, scale]
+  );
+
+  // Paint pixel under cursor during Drag-to-Paint
+  const paintPixelAtClientCoords = useCallback(
+    (clientX: number, clientY: number) => {
+      const coords = getPixelCoordsFromClient(clientX, clientY);
+      if (!coords) return;
+
+      const pixelIndex = coords.row * gridSize + coords.col;
+      const targetPixel = pixels[pixelIndex];
+
+      if (targetPixel && !targetPixel.isFilled && targetPixel.targetNumber === selectedNumber) {
+        setPixels((prev) => {
+          if (prev[pixelIndex]?.isFilled) return prev;
+          const next = [...prev];
+          next[pixelIndex] = { ...next[pixelIndex], isFilled: true };
+          return next;
+        });
+      }
+    },
+    [getPixelCoordsFromClient, gridSize, pixels, selectedNumber]
+  );
+
+  // Event Handlers for Mouse & Touch
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsPointerDown(true);
     setDragStart({ x: e.clientX - panX, y: e.clientY - panY });
-  };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDragging) return;
-    setPanX(e.clientX - dragStart.x);
-    setPanY(e.clientY - dragStart.y);
-  };
-
-  const handlePointerUp = () => {
-    setIsDragging(false);
-  };
-
-  // Canvas Click & Painting Logic
-  const handleCanvasClick = async (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || pixels.length === 0) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
-
-    const width = canvas.width;
-    const height = canvas.height;
-    const cellSize = width / gridSize;
-
-    // Convert mouse position back through canvas transform
-    const canvasX = (clientX - (width / 2 + panX)) / scale + width / 2;
-    const canvasY = (clientY - (height / 2 + panY)) / scale + height / 2;
-
-    const col = Math.floor(canvasX / cellSize);
-    const row = Math.floor(canvasY / cellSize);
-
-    if (col < 0 || col >= gridSize || row < 0 || row >= gridSize) return;
-    const pixelIndex = row * gridSize + col;
-    const clickedPixel = pixels[pixelIndex];
-
-    if (!clickedPixel || clickedPixel.isFilled) return;
-
-    // Tool 1: Pen (Click to paint matching pixel)
-    if (selectedTool === 'pen') {
-      if (clickedPixel.targetNumber === selectedNumber) {
-        updateSinglePixel(clickedPixel.id);
-      }
-    }
-    // Tool 2: Flood Fill / Paint Bucket (Paint adjacent matching pixels in one tap)
-    else if (selectedTool === 'bucket') {
-      if (clickedPixel.targetNumber === selectedNumber) {
-        runFloodFill(col, row, selectedNumber);
+    if (selectedTool === 'paint') {
+      paintPixelAtClientCoords(e.clientX, e.clientY);
+    } else if (selectedTool === 'bucket') {
+      const coords = getPixelCoordsFromClient(e.clientX, e.clientY);
+      if (coords) {
+        runFloodFill(coords.col, coords.row, selectedNumber);
       }
     }
   };
 
-  const updateSinglePixel = async (pixelId: number) => {
-    let nextFills: Record<string, string> = {};
-    setPixels((prev) => {
-      const next = prev.map((p) => {
-        if (p.id === pixelId) {
-          return { ...p, isFilled: true };
-        }
-        return p;
-      });
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isPointerDown) return;
 
-      next.forEach((p) => {
+    if (selectedTool === 'pan') {
+      setPanX(e.clientX - dragStart.x);
+      setPanY(e.clientY - dragStart.y);
+    } else if (selectedTool === 'paint') {
+      paintPixelAtClientCoords(e.clientX, e.clientY);
+    }
+  };
+
+  const handleMouseUp = async () => {
+    if (isPointerDown) {
+      setIsPointerDown(false);
+
+      // Save progress to Firestore on mouseUp
+      let nextFills: Record<string, string> = {};
+      pixels.forEach((p) => {
         if (p.isFilled) nextFills[p.id] = p.targetHex;
       });
 
-      return next;
-    });
+      await saveActivePaintingProgress(slug, {
+        templateKey: activePhotoUrl,
+        regionFills: nextFills,
+        updatedBy: partnerName,
+      });
 
-    await saveActivePaintingProgress(slug, {
-      templateKey: activePhotoUrl,
-      regionFills: nextFills,
-      updatedBy: partnerName,
-    });
-
-    checkCompletion();
+      checkCompletion();
+    }
   };
 
-  // Power-up 1: Flood Fill Paint Bucket
+  // Mobile Touch Handlers
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setIsPointerDown(true);
+      setDragStart({ x: touch.clientX - panX, y: touch.clientY - panY });
+
+      if (selectedTool === 'paint') {
+        paintPixelAtClientCoords(touch.clientX, touch.clientY);
+      } else if (selectedTool === 'bucket') {
+        const coords = getPixelCoordsFromClient(touch.clientX, touch.clientY);
+        if (coords) {
+          runFloodFill(coords.col, coords.row, selectedNumber);
+        }
+      }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isPointerDown || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+
+    if (selectedTool === 'pan') {
+      setPanX(touch.clientX - dragStart.x);
+      setPanY(touch.clientY - dragStart.y);
+    } else if (selectedTool === 'paint') {
+      paintPixelAtClientCoords(touch.clientX, touch.clientY);
+    }
+  };
+
+  // Power-up: Flood Fill
   const runFloodFill = async (startCol: number, startRow: number, targetNum: number) => {
     const filledIds = new Set<number>();
     const queue: [number, number][] = [[startCol, startRow]];
@@ -398,21 +423,20 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
     }
   };
 
-  // Power-up 2: Magic Wand / Hint (Auto-focuses to an uncolored pixel of selected number)
+  // Power-up: Sihirli Değnek / İpucu
   const handleMagicWandHint = () => {
     const uncoloredTargetPixels = pixels.filter(
       (p) => !p.isFilled && p.targetNumber === selectedNumber
     );
 
     if (uncoloredTargetPixels.length === 0) {
-      alert(`🎉 #${selectedNumber} numaralı tüm pikseller zaten boyandı!`);
+      alert(`🎉 #${selectedNumber} numaralı tüm pikseller tamamlandı (100%)!`);
       return;
     }
 
     const randomHintPixel = uncoloredTargetPixels[Math.floor(Math.random() * uncoloredTargetPixels.length)];
     setHighlightedHintPixelId(randomHintPixel.id);
 
-    // Auto-center pan to target pixel
     const canvas = canvasRef.current;
     if (canvas) {
       const cellSize = canvas.width / gridSize;
@@ -422,6 +446,16 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
       setPanY((canvas.height / 2 - pxY) * scale);
       setScale(2.5);
     }
+  };
+
+  const handleZoom = (delta: number) => {
+    setScale((prev) => Math.min(8.0, Math.max(0.6, prev + delta)));
+  };
+
+  const handleResetView = () => {
+    setScale(1.5);
+    setPanX(0);
+    setPanY(0);
   };
 
   const checkCompletion = () => {
@@ -440,7 +474,7 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
       const imageUrl = canvas.toDataURL('image/png');
       const success = await addCanvasDrawing(slug, {
         imageUrl,
-        drawnBy: `${partnerName} (Pixel Color-by-Number 🎨)`,
+        drawnBy: `${partnerName} (RekorOyun Pixel Engine 🎨)`,
       });
 
       if (success) {
@@ -467,7 +501,6 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
     reader.readAsDataURL(file);
   };
 
-  // Compute progress percentage
   const filledCount = pixels.filter((p) => p.isFilled).length;
   const progressPct = pixels.length > 0 ? Math.round((filledCount / pixels.length) * 100) : 0;
 
@@ -528,13 +561,13 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
 
       {loadingImage && (
         <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs font-bold text-amber-800 animate-pulse">
-          🎨 Fotoğraftan Gerçek 20 Renkli Piksel Izgarası Üretiliyor...
+          🎨 Fotoğraftan RekorOyun Piksel Izgarası Üretiliyor...
         </div>
       )}
 
-      {/* Main Interactive Pixel Canvas Wrapper with Zoom & Pan Controls */}
+      {/* Main Interactive Pixel Canvas Wrapper */}
       <div className="relative mx-auto rounded-3xl bg-white shadow-2xl border-4 border-rose-100 overflow-hidden touch-none select-none p-1">
-        {/* Canvas Toolbar overlay */}
+        {/* Canvas Zoom Toolbar */}
         <div className="absolute top-3 right-3 z-20 flex items-center gap-1 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-md border border-gray-200 text-xs">
           <button
             onClick={() => handleZoom(0.3)}
@@ -559,58 +592,73 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
           </button>
         </div>
 
-        {/* Power-ups / Joker Bar */}
+        {/* Tools Toolbar: Drag-to-Paint, Pan, Paint Bucket, Hint */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-md border border-gray-200">
           <button
-            onClick={() => setSelectedTool('pen')}
+            onClick={() => setSelectedTool('paint')}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-extrabold transition ${
-              selectedTool === 'pen' ? 'bg-rose-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
+              selectedTool === 'paint' ? 'bg-rose-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
             }`}
-            title="Tek Piksel Kalemi"
+            title="Sürükleyerek Boya (Drag-to-Paint)"
           >
-            ✏️ Kalem
+            <Paintbrush className="h-3.5 w-3.5" /> Sürükle-Boya
+          </button>
+          <button
+            onClick={() => setSelectedTool('pan')}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-extrabold transition ${
+              selectedTool === 'pan' ? 'bg-rose-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
+            }`}
+            title="Kaydır & Gezin (Pan)"
+          >
+            <Hand className="h-3.5 w-3.5" /> Kaydır
           </button>
           <button
             onClick={() => setSelectedTool('bucket')}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-extrabold transition ${
               selectedTool === 'bucket' ? 'bg-rose-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
             }`}
-            title="Boya Kovası (Çoklu Boyama)"
+            title="Boya Kovası"
           >
             <PaintBucket className="h-3.5 w-3.5" /> Kova
           </button>
           <button
             onClick={handleMagicWandHint}
             className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-extrabold bg-amber-500 text-white hover:bg-amber-600 transition shadow-sm active:scale-95"
-            title="Sihirli Değnek / İpucu (Hedefe Odaklan)"
+            title="Sihirli Değnek / İpucu"
           >
             <Wand2 className="h-3.5 w-3.5" /> İpucu
           </button>
         </div>
 
-        {/* HTML5 Pixel Canvas */}
+        {/* RekorOyun HTML5 Pixel Canvas Engine */}
         <canvas
           ref={canvasRef}
           width={380}
           height={380}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onClick={handleCanvasClick}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleMouseUp}
           className="cursor-crosshair w-full max-w-[380px] h-[380px] block mx-auto bg-slate-50 touch-none"
         />
       </div>
 
-      {/* 15 to 25 Numbered Color Palette Bar */}
+      {/* Palette Bar with Live % Progress & Completion Badges (✓) */}
       <div className="rounded-3xl bg-white p-4 shadow-lg border border-gray-100 space-y-3">
         <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center justify-center gap-1.5">
-          <Palette className="h-4 w-4 text-rose-500" /> Numaralı Piksel Paleti ({palette.length} Renk)
+          <Palette className="h-4 w-4 text-rose-500" /> RekorOyun Canlı Renk Paleti ({palette.length} Renk)
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2 max-h-36 overflow-y-auto p-1">
+        <div className="flex flex-wrap justify-center gap-2 max-h-40 overflow-y-auto p-1">
           {palette.map((c) => {
             const isSelected = selectedNumber === c.number;
-            const remaining = pixels.filter((p) => p.targetNumber === c.number && !p.isFilled).length;
+            const totalCount = pixels.filter((p) => p.targetNumber === c.number).length;
+            const filledCount = pixels.filter((p) => p.targetNumber === c.number && p.isFilled).length;
+            const colorPct = totalCount > 0 ? Math.round((filledCount / totalCount) * 100) : 0;
+            const isCompleted = totalCount > 0 && filledCount === totalCount;
 
             return (
               <button
@@ -629,10 +677,12 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
                   {c.number}
                 </div>
                 <span className="text-[11px] font-extrabold text-gray-800">#{c.number}</span>
-                {remaining === 0 ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                {isCompleted ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 ) : (
-                  <span className="text-[9px] font-bold text-gray-400 font-mono">({remaining})</span>
+                  <span className="text-[10px] font-extrabold text-gray-500 font-mono">
+                    (%{colorPct})
+                  </span>
                 )}
               </button>
             );
@@ -658,7 +708,7 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
 
         {saveSuccess && (
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-center text-xs font-bold text-emerald-700 animate-in fade-in">
-            ✨ Piksel boyama eseriniz Aşkımızın Çizim Galerisi'ne başarıyla eklendi!
+            ✨ RekorOyun piksel boyama eseriniz Aşkımızın Çizim Galerisi'ne başarıyla eklendi!
           </div>
         )}
       </div>
