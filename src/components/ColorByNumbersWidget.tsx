@@ -381,8 +381,18 @@ export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbe
     }
   };
 
-  // Power-up: Flood Fill
+  // Power-up: Flood Fill (BFS Algorithm)
   const runFloodFill = async (startCol: number, startRow: number, targetNum: number) => {
+    if (startCol < 0 || startCol >= gridSize || startRow < 0 || startRow >= gridSize) return;
+
+    const startIdx = startRow * gridSize + startCol;
+    const startPixel = pixels[startIdx];
+
+    // If clicked pixel's targetNumber does not match selected color number, do NOTHING!
+    if (!startPixel || startPixel.targetNumber !== targetNum) {
+      return;
+    }
+
     const filledIds = new Set<number>();
     const queue: [number, number][] = [[startCol, startRow]];
     const visited = new Set<string>();
