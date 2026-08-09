@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import {
   Heart,
@@ -105,10 +105,31 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     async function loadCoupleConfig() {
-      if (hasPurchased === true && userCoupleSlug) {
+      if (hasPurchased === true && userCoupleSlug && userCoupleSlug !== 'demo') {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('activeCoupleSlug', userCoupleSlug);
+          localStorage.setItem('asksite_couple_slug', userCoupleSlug);
+        }
+
         const c = await getCoupleBySlug(userCoupleSlug);
         if (c) {
           setUserCoupleConfig(c);
+        }
+
+        if (auth.currentUser && db) {
+          try {
+            await setDoc(
+              doc(db, 'users', auth.currentUser.uid),
+              {
+                hasPurchasedSite: true,
+                hasActiveSubscription: true,
+                isPaid: true,
+                coupleSlug: userCoupleSlug,
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } catch (e) {}
         }
       }
     }
