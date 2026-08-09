@@ -1289,20 +1289,23 @@ function DashboardContent() {
 
               {/* Music upload */}
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Arka Plan Müziği (MP3 URL)</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Arka Plan Müziği (MP3 veya YouTube URL)</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
                     value={config.bg_music_url}
                     onChange={(e) => setConfig({ ...config, bg_music_url: e.target.value, custom_audio_url: e.target.value })}
-                    placeholder="https://..."
-                    className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2 text-xs outline-none"
+                    placeholder="https://www.youtube.com/watch?v=... veya MP3 adresi"
+                    className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2 text-xs outline-none focus:border-rose-500"
                   />
                   <label className="cursor-pointer flex items-center gap-1.5 rounded-xl bg-gray-100 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-200">
                     <Upload className="h-4 w-4" /> MP3 Yükle
                     <input type="file" accept="audio/*" onChange={handleMusicUpload} className="hidden" />
                   </label>
                 </div>
+                <p className="mt-1 text-[11px] text-gray-500 font-medium">
+                  💡 Doğrudan .mp3 adresi veya YouTube video linki (youtube.com/watch?v=... / youtu.be/...) yapıştırabilirsiniz.
+                </p>
               </div>
 
               {/* Love jar note editor */}
