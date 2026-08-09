@@ -1,727 +1,525 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import {
-  Sparkles,
-  Palette,
-  Upload,
-  RotateCcw,
-  Image as ImageIcon,
-  CheckCircle2,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Wand2,
-  PaintBucket,
-  Hand,
-  Paintbrush,
-} from 'lucide-react';
-import confetti from 'canvas-confetti';
-import {
-  addCanvasDrawing,
-  saveActivePaintingProgress,
-  subscribeToActivePaintingProgress,
-} from '@/lib/couples';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Upload, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { addCanvasDrawing, saveActivePaintingProgress, subscribeToActivePaintingProgress } from '@/lib/couples';
+import { processImage } from '@/lib/pbn-imageProcessor';
+import type { ProcessedImage, PbnPaintState, PbnDifficulty } from '@/lib/pbn-types';
+import PbnPaintCanvas from '@/components/pbn/PbnPaintCanvas';
+import PbnColorPalette from '@/components/pbn/PbnColorPalette';
+import PbnToolbar from '@/components/pbn/PbnToolbar';
+import PbnCelebrationOverlay from '@/components/pbn/PbnCelebrationOverlay';
 
-export interface PixelColor {
-  number: number;
-  hex: string;
-  name: string;
-  count: number;
-}
-
-export interface PixelCell {
-  id: number;
-  col: number;
-  row: number;
-  targetNumber: number;
-  targetHex: string;
-  isFilled: boolean;
-}
-
-const SAMPLE_PHOTOS = [
-  { title: 'Romantik Çift', url: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=300&auto=format&fit=crop&q=80' },
-  { title: 'Aşk Balkonu Sunset', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=300&auto=format&fit=crop&q=80' },
-  { title: 'Romantik Piknik', url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=300&auto=format&fit=crop&q=80' },
-  { title: 'Kahve & Kalpler', url: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=300&auto=format&fit=crop&q=80' },
+// ─── Romantic sample templates ───────────────────────────────────────────────
+const ROMANTIC_TEMPLATES = [
+  {
+    id: 'couple',
+    name: '💑 Romantik Çift',
+    thumbnail: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=200&q=70',
+    imageUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=700&q=85',
+    difficulty: 'medium' as PbnDifficulty,
+  },
+  {
+    id: 'sunset',
+    name: '🌅 Aşk Gün Batımı',
+    thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=200&q=70',
+    imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=700&q=85',
+    difficulty: 'medium' as PbnDifficulty,
+  },
+  {
+    id: 'picnic',
+    name: '🧺 Romantik Piknik',
+    thumbnail: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=200&q=70',
+    imageUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=700&q=85',
+    difficulty: 'easy' as PbnDifficulty,
+  },
+  {
+    id: 'coffee',
+    name: '☕ Kahve Anı',
+    thumbnail: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=200&q=70',
+    imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=700&q=85',
+    difficulty: 'easy' as PbnDifficulty,
+  },
+  {
+    id: 'night',
+    name: '🌙 Yıldızlı Gece',
+    thumbnail: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200&q=70',
+    imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=700&q=85',
+    difficulty: 'hard' as PbnDifficulty,
+  },
+  {
+    id: 'flower',
+    name: '🌸 Çiçek Bahçesi',
+    thumbnail: 'https://images.unsplash.com/photo-1490750967868-88df5691cc43?w=200&q=70',
+    imageUrl: 'https://images.unsplash.com/photo-1490750967868-88df5691cc43?w=700&q=85',
+    difficulty: 'easy' as PbnDifficulty,
+  },
 ];
 
+const DIFFICULTY_MAP: Record<PbnDifficulty, { label: string; colors: number; desc: string; color: string }> = {
+  easy: { label: 'Kolay', colors: 8, desc: '8 Renk', color: '#4ade80' },
+  medium: { label: 'Orta', colors: 16, desc: '16 Renk', color: '#facc15' },
+  hard: { label: 'Zor', colors: 24, desc: '24 Renk', color: '#f87171' },
+};
+
+function buildInitialState(totalRegions: number): PbnPaintState {
+  return {
+    coloredRegions: new Map(),
+    selectedColorId: null,
+    totalRegions,
+    completedRegions: 0,
+    hintsUsed: 0,
+    undoStack: [],
+  };
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 interface ColorByNumbersWidgetProps {
   slug: string;
   partnerName: string;
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function ColorByNumbersWidget({ slug, partnerName }: ColorByNumbersWidgetProps) {
-  const [gridSize, setGridSize] = useState<number>(64);
-  const [pixels, setPixels] = useState<PixelCell[]>([]);
-  const [palette, setPalette] = useState<PixelColor[]>([]);
-  const [selectedNumber, setSelectedNumber] = useState<number>(1);
-  const [selectedTool, setSelectedTool] = useState<'paint' | 'pan' | 'bucket'>('paint');
-  const [activePhotoUrl, setActivePhotoUrl] = useState<string>(SAMPLE_PHOTOS[0].url);
-
-  // Zoom & Pan State
-  const [scale, setScale] = useState<number>(1.5);
-  const [panX, setPanX] = useState<number>(0);
-  const [panY, setPanY] = useState<number>(0);
-  const [isPointerDown, setIsPointerDown] = useState<boolean>(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const [loadingImage, setLoadingImage] = useState<boolean>(false);
-  const [saving, setSaving] = useState<boolean>(false);
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
-  const [highlightedHintPixelId, setHighlightedHintPixelId] = useState<number | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(ROMANTIC_TEMPLATES[0]);
+  const [difficulty, setDifficulty] = useState<PbnDifficulty>('medium');
+  const [processedImage, setProcessedImage] = useState<ProcessedImage | null>(null);
+  const [paintState, setPaintState] = useState<PbnPaintState | null>(null);
+  const [showNumbers, setShowNumbers] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [activeImgUrl, setActiveImgUrl] = useState(ROMANTIC_TEMPLATES[0].imageUrl);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const celebrationSavedRef = useRef(false);
 
-  // Real-Time Multi-Device Sync
+  // ─── Load & process image ─────────────────────────────────────────────────
+  const loadAndProcess = useCallback(
+    async (imgUrl: string, diff: PbnDifficulty) => {
+      setIsLoading(true);
+      setLoadingProgress(0);
+      setShowCelebration(false);
+      celebrationSavedRef.current = false;
+
+      try {
+        const result = await processImage(imgUrl, diff, (pct) => setLoadingProgress(pct));
+        setProcessedImage(result);
+        setPaintState(buildInitialState(result.regions.length));
+      } catch (err) {
+        console.error('PBN processImage error:', err);
+      } finally {
+        setIsLoading(false);
+        setLoadingProgress(100);
+      }
+    },
+    []
+  );
+
+  // Initial load
+  useEffect(() => {
+    loadAndProcess(activeImgUrl, difficulty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeImgUrl, difficulty]);
+
+  // ─── Firestore real-time sync ─────────────────────────────────────────────
   useEffect(() => {
     const unsub = subscribeToActivePaintingProgress(slug, (data) => {
-      const fills = data?.regionFills;
-      if (fills) {
-        setPixels((prevPixels) => {
-          if (prevPixels.length === 0) return prevPixels;
-          let changed = false;
-          const next = prevPixels.map((p) => {
-            const isFilledInSync = Boolean(fills[p.id]);
-            if (p.isFilled !== isFilledInSync) {
-              changed = true;
-              return { ...p, isFilled: isFilledInSync };
-            }
-            return p;
-          });
-          return changed ? next : prevPixels;
-        });
-      }
-    });
+      if (!data || data.templateKey !== activeImgUrl) return;
+      const fills = data.regionFills as Record<string, number> | undefined;
+      if (!fills) return;
 
-    return () => unsub();
-  }, [slug]);
-
-  // Color Quantization & Pixel Grid Processor
-  const processImageToPixels = useCallback((imgUrl: string, size: number) => {
-    setLoadingImage(true);
-    setHighlightedHintPixelId(null);
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const offCanvas = document.createElement('canvas');
-        offCanvas.width = size;
-        offCanvas.height = size;
-        const ctx = offCanvas.getContext('2d');
-        if (!ctx) return;
-
-        ctx.drawImage(img, 0, 0, size, size);
-        const imgData = ctx.getImageData(0, 0, size, size);
-        const data = imgData.data;
-
-        // 1. Collect color frequencies and quantize into 20 dominant colors
-        const rawColors: Record<string, number> = {};
-        for (let i = 0; i < data.length; i += 4) {
-          const r = Math.round(data[i] / 32) * 32;
-          const g = Math.round(data[i + 1] / 32) * 32;
-          const b = Math.round(data[i + 2] / 32) * 32;
-          const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-          rawColors[hex] = (rawColors[hex] || 0) + 1;
+      setPaintState((prev) => {
+        if (!prev || !processedImage) return prev;
+        const newColored = new Map(prev.coloredRegions);
+        let changed = false;
+        for (const [key, colorId] of Object.entries(fills)) {
+          const regionId = Number(key);
+          if (newColored.get(regionId) !== colorId) {
+            newColored.set(regionId, colorId);
+            changed = true;
+          }
         }
-
-        const sortedHexes = Object.entries(rawColors)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 20)
-          .map((entry) => entry[0]);
-
-        const paletteList: PixelColor[] = sortedHexes.map((hex, index) => ({
-          number: index + 1,
-          hex,
-          name: `Renk #${index + 1}`,
-          count: 0,
-        }));
-
-        const findClosestPaletteNumber = (r: number, g: number, b: number) => {
-          let minDistance = Infinity;
-          let bestNumber = 1;
-
-          sortedHexes.forEach((hex, idx) => {
-            const pr = parseInt(hex.slice(1, 3), 16);
-            const pg = parseInt(hex.slice(3, 5), 16);
-            const pb = parseInt(hex.slice(5, 7), 16);
-            const dist = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
-            if (dist < minDistance) {
-              minDistance = dist;
-              bestNumber = idx + 1;
-            }
-          });
-          return bestNumber;
+        if (!changed) return prev;
+        return {
+          ...prev,
+          coloredRegions: newColored,
+          completedRegions: newColored.size,
         };
-
-        // 2. Generate Pixel Grid
-        const newPixels: PixelCell[] = [];
-        let pId = 0;
-        for (let row = 0; row < size; row++) {
-          for (let col = 0; col < size; col++) {
-            const idx = (row * size + col) * 4;
-            const r = data[idx];
-            const g = data[idx + 1];
-            const b = data[idx + 2];
-
-            const num = findClosestPaletteNumber(r, g, b);
-            const hex = paletteList[num - 1]?.hex || '#000000';
-
-            paletteList[num - 1].count++;
-
-            newPixels.push({
-              id: pId++,
-              col,
-              row,
-              targetNumber: num,
-              targetHex: hex,
-              isFilled: false,
-            });
-          }
-        }
-
-        setPalette(paletteList);
-        setPixels(newPixels);
-        setSelectedNumber(1);
-        setScale(1.8);
-        setPanX(0);
-        setPanY(0);
-      } catch (err) {
-        console.error('Error processing pixel image:', err);
-      } finally {
-        setLoadingImage(false);
-      }
-    };
-    img.src = imgUrl;
-  }, []);
-
-  useEffect(() => {
-    processImageToPixels(activePhotoUrl, gridSize);
-  }, [activePhotoUrl, gridSize, processImageToPixels]);
-
-  // Main Canvas Render Loop with RequestAnimationFrame Optimization
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || pixels.length === 0) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const width = canvas.width;
-    const height = canvas.height;
-
-    const drawCanvas = () => {
-      ctx.save();
-      ctx.clearRect(0, 0, width, height);
-
-      // Apply Zoom & Pan Transformations
-      ctx.translate(width / 2 + panX, height / 2 + panY);
-      ctx.scale(scale, scale);
-      ctx.translate(-width / 2, -height / 2);
-
-      const cellSize = width / gridSize;
-
-      for (let i = 0; i < pixels.length; i++) {
-        const p = pixels[i];
-        const x = p.col * cellSize;
-        const y = p.row * cellSize;
-
-        if (p.isFilled) {
-          ctx.fillStyle = p.targetHex;
-          ctx.fillRect(x, y, cellSize, cellSize);
-        } else {
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(x, y, cellSize, cellSize);
-
-          ctx.strokeStyle = '#e2e8f0';
-          ctx.lineWidth = 0.5;
-          ctx.strokeRect(x, y, cellSize, cellSize);
-
-          if (scale >= 1.2) {
-            ctx.fillStyle = p.targetNumber === selectedNumber ? '#ef4444' : '#475569';
-            ctx.font = `bold ${Math.max(8, cellSize * 0.55)}px sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(p.targetNumber), x + cellSize / 2, y + cellSize / 2);
-          }
-        }
-
-        if (highlightedHintPixelId === p.id) {
-          ctx.strokeStyle = '#f59e0b';
-          ctx.lineWidth = 2.5;
-          ctx.strokeRect(x, y, cellSize, cellSize);
-        }
-      }
-
-      ctx.restore();
-    };
-
-    const animId = requestAnimationFrame(drawCanvas);
-    return () => cancelAnimationFrame(animId);
-  }, [pixels, gridSize, scale, panX, panY, selectedNumber, highlightedHintPixelId]);
-
-  // Exact Coordinate Conversion Formula (as requested)
-  const getPixelCoordsFromClient = useCallback(
-    (clientX: number, clientY: number) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return null;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-
-      const offsetX = canvas.width / 2 + panX;
-      const offsetY = canvas.height / 2 + panY;
-      const pixelSize = canvas.width / gridSize;
-      const zoomLevel = scale;
-
-      const x = Math.floor(((clientX - rect.left) * scaleX - offsetX) / (pixelSize * zoomLevel) + gridSize / 2);
-      const y = Math.floor(((clientY - rect.top) * scaleY - offsetY) / (pixelSize * zoomLevel) + gridSize / 2);
-
-      if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return null;
-      return { col: x, row: y };
-    },
-    [gridSize, panX, panY, scale]
-  );
-
-  // Paint pixel under cursor during Drag-to-Paint
-  const paintPixelAtClientCoords = useCallback(
-    (clientX: number, clientY: number) => {
-      const coords = getPixelCoordsFromClient(clientX, clientY);
-      if (!coords) return;
-
-      const pixelIndex = coords.row * gridSize + coords.col;
-      const targetPixel = pixels[pixelIndex];
-
-      if (targetPixel && !targetPixel.isFilled && targetPixel.targetNumber === selectedNumber) {
-        setPixels((prev) => {
-          if (prev[pixelIndex]?.isFilled) return prev;
-          const next = [...prev];
-          next[pixelIndex] = { ...next[pixelIndex], isFilled: true };
-          return next;
-        });
-      }
-    },
-    [getPixelCoordsFromClient, gridSize, pixels, selectedNumber]
-  );
-
-  // Event Handlers for Mouse & Touch
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    setIsPointerDown(true);
-    setDragStart({ x: e.clientX - panX, y: e.clientY - panY });
-
-    if (selectedTool === 'paint') {
-      paintPixelAtClientCoords(e.clientX, e.clientY);
-    } else if (selectedTool === 'bucket') {
-      const coords = getPixelCoordsFromClient(e.clientX, e.clientY);
-      if (coords) {
-        runFloodFill(coords.col, coords.row, selectedNumber);
-      }
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isPointerDown) return;
-
-    if (selectedTool === 'pan') {
-      setPanX(e.clientX - dragStart.x);
-      setPanY(e.clientY - dragStart.y);
-    } else if (selectedTool === 'paint') {
-      paintPixelAtClientCoords(e.clientX, e.clientY);
-    }
-  };
-
-  const handleMouseUp = async () => {
-    if (isPointerDown) {
-      setIsPointerDown(false);
-
-      // Save progress to Firestore on mouseUp
-      let nextFills: Record<string, string> = {};
-      pixels.forEach((p) => {
-        if (p.isFilled) nextFills[p.id] = p.targetHex;
       });
+    });
+    return () => unsub();
+  }, [slug, activeImgUrl, processedImage]);
 
-      await saveActivePaintingProgress(slug, {
-        templateKey: activePhotoUrl,
-        regionFills: nextFills,
-        updatedBy: partnerName,
-      });
+  // ─── Region click handler ─────────────────────────────────────────────────
+  const handleRegionClick = useCallback(
+    (regionId: number) => {
+      setPaintState((prev) => {
+        if (!prev || !prev.selectedColorId) return prev;
+        const prevColorId = prev.coloredRegions.get(regionId) ?? null;
+        if (prevColorId === prev.selectedColorId) return prev;
 
-      checkCompletion();
-    }
-  };
+        const newColored = new Map(prev.coloredRegions);
+        newColored.set(regionId, prev.selectedColorId);
+        const newUndo = [...prev.undoStack, { regionId, prevColorId }];
+        const completed = newColored.size;
 
-  // Mobile Touch Handlers
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (e.touches.length === 1) {
-      const touch = e.touches[0];
-      setIsPointerDown(true);
-      setDragStart({ x: touch.clientX - panX, y: touch.clientY - panY });
+        const next = { ...prev, coloredRegions: newColored, completedRegions: completed, undoStack: newUndo };
 
-      if (selectedTool === 'paint') {
-        paintPixelAtClientCoords(touch.clientX, touch.clientY);
-      } else if (selectedTool === 'bucket') {
-        const coords = getPixelCoordsFromClient(touch.clientX, touch.clientY);
-        if (coords) {
-          runFloodFill(coords.col, coords.row, selectedNumber);
-        }
-      }
-    }
-  };
+        // Save to Firestore
+        const fills: Record<string, number> = {};
+        newColored.forEach((v, k) => { fills[String(k)] = v; });
+        saveActivePaintingProgress(slug, {
+          templateKey: activeImgUrl,
+          regionFills: fills as unknown as Record<string, string>,
+          updatedBy: partnerName,
+        }).catch(console.error);
 
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isPointerDown || e.touches.length !== 1) return;
-    const touch = e.touches[0];
-
-    if (selectedTool === 'pan') {
-      setPanX(touch.clientX - dragStart.x);
-      setPanY(touch.clientY - dragStart.y);
-    } else if (selectedTool === 'paint') {
-      paintPixelAtClientCoords(touch.clientX, touch.clientY);
-    }
-  };
-
-  // Power-up: Flood Fill (BFS Algorithm)
-  const runFloodFill = async (startCol: number, startRow: number, targetNum: number) => {
-    if (startCol < 0 || startCol >= gridSize || startRow < 0 || startRow >= gridSize) return;
-
-    const startIdx = startRow * gridSize + startCol;
-    const startPixel = pixels[startIdx];
-
-    // If clicked pixel's targetNumber does not match selected color number, do NOTHING!
-    if (!startPixel || startPixel.targetNumber !== targetNum) {
-      return;
-    }
-
-    const filledIds = new Set<number>();
-    const queue: [number, number][] = [[startCol, startRow]];
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const [c, r] = queue.shift()!;
-      const key = `${c},${r}`;
-      if (visited.has(key)) continue;
-      visited.add(key);
-
-      if (c < 0 || c >= gridSize || r < 0 || r >= gridSize) continue;
-      const idx = r * gridSize + c;
-      const p = pixels[idx];
-
-      if (p && !p.isFilled && p.targetNumber === targetNum) {
-        filledIds.add(p.id);
-        queue.push([c + 1, r], [c - 1, r], [c, r + 1], [c, r - 1]);
-      }
-    }
-
-    if (filledIds.size > 0) {
-      let nextFills: Record<string, string> = {};
-      setPixels((prev) => {
-        const next = prev.map((p) => (filledIds.has(p.id) ? { ...p, isFilled: true } : p));
-        next.forEach((p) => {
-          if (p.isFilled) nextFills[p.id] = p.targetHex;
-        });
         return next;
       });
+    },
+    [slug, activeImgUrl, partnerName]
+  );
 
-      await saveActivePaintingProgress(slug, {
-        templateKey: activePhotoUrl,
-        regionFills: nextFills,
-        updatedBy: partnerName,
-      });
-
-      checkCompletion();
+  // ─── Check completion ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!paintState || !processedImage) return;
+    if (
+      paintState.completedRegions > 0 &&
+      paintState.completedRegions >= paintState.totalRegions
+    ) {
+      const timer = setTimeout(() => setShowCelebration(true), 500);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [paintState?.completedRegions, paintState?.totalRegions, processedImage]);
 
-  // Power-up: Sihirli Değnek / İpucu
-  const handleMagicWandHint = () => {
-    const uncoloredTargetPixels = pixels.filter(
-      (p) => !p.isFilled && p.targetNumber === selectedNumber
-    );
+  // ─── Undo ────────────────────────────────────────────────────────────────
+  const handleUndo = useCallback(() => {
+    setPaintState((prev) => {
+      if (!prev || prev.undoStack.length === 0) return prev;
+      const newUndo = [...prev.undoStack];
+      const last = newUndo.pop()!;
+      const newColored = new Map(prev.coloredRegions);
+      if (last.prevColorId === null) {
+        newColored.delete(last.regionId);
+      } else {
+        newColored.set(last.regionId, last.prevColorId);
+      }
+      return { ...prev, coloredRegions: newColored, completedRegions: newColored.size, undoStack: newUndo };
+    });
+  }, []);
 
-    if (uncoloredTargetPixels.length === 0) {
-      alert(`🎉 #${selectedNumber} numaralı tüm pikseller tamamlandı (100%)!`);
-      return;
+  // ─── Hint ────────────────────────────────────────────────────────────────
+  const handleHint = useCallback(() => {
+    if (!paintState || !processedImage) return;
+    setPaintState((prev) => {
+      if (!prev) return prev;
+      const uncolored = processedImage.regions.find((r) => !prev.coloredRegions.has(r.id));
+      if (!uncolored) return prev;
+      const newColored = new Map(prev.coloredRegions);
+      newColored.set(uncolored.id, uncolored.colorId);
+      return {
+        ...prev,
+        coloredRegions: newColored,
+        completedRegions: newColored.size,
+        hintsUsed: prev.hintsUsed + 1,
+        undoStack: [...prev.undoStack, { regionId: uncolored.id, prevColorId: null }],
+      };
+    });
+  }, [paintState, processedImage]);
+
+  // ─── Reset ───────────────────────────────────────────────────────────────
+  const handleReset = useCallback(() => {
+    if (!processedImage) return;
+    if (confirm('Tüm ilerlemeyi sıfırlamak istediğinden emin misin?')) {
+      setPaintState(buildInitialState(processedImage.regions.length));
+      setShowCelebration(false);
+      celebrationSavedRef.current = false;
     }
+  }, [processedImage]);
 
-    const randomHintPixel = uncoloredTargetPixels[Math.floor(Math.random() * uncoloredTargetPixels.length)];
-    setHighlightedHintPixelId(randomHintPixel.id);
-
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const cellSize = canvas.width / gridSize;
-      const pxX = randomHintPixel.col * cellSize + cellSize / 2;
-      const pxY = randomHintPixel.row * cellSize + cellSize / 2;
-      setPanX((canvas.width / 2 - pxX) * scale);
-      setPanY((canvas.height / 2 - pxY) * scale);
-      setScale(2.5);
-    }
-  };
-
-  const handleZoom = (delta: number) => {
-    setScale((prev) => Math.min(8.0, Math.max(0.6, prev + delta)));
-  };
-
-  const handleResetView = () => {
-    setScale(1.5);
-    setPanX(0);
-    setPanY(0);
-  };
-
-  const checkCompletion = () => {
-    const allFilled = pixels.every((p) => p.isFilled);
-    if (allFilled) {
-      confetti({ particleCount: 120, spread: 100, origin: { y: 0.5 } });
-    }
-  };
-
-  const handleSaveToGallery = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // ─── Save to gallery ──────────────────────────────────────────────────────
+  const handleSaveToGallery = useCallback(async () => {
+    if (!processedImage || !paintState) return;
 
     setSaving(true);
     try {
-      const imageUrl = canvas.toDataURL('image/png');
-      const success = await addCanvasDrawing(slug, {
+      // Build final image on an offscreen canvas
+      const { width, height, regionMap, palette, outlineData } = processedImage;
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = width;
+      offCanvas.height = height;
+      const ctx = offCanvas.getContext('2d')!;
+      const imgData = ctx.createImageData(width, height);
+
+      for (let i = 0; i < width * height; i++) {
+        const regionId = regionMap[i];
+        const idx4 = i * 4;
+
+        if (outlineData.data[idx4] < 100) {
+          imgData.data[idx4] = 40;
+          imgData.data[idx4 + 1] = 38;
+          imgData.data[idx4 + 2] = 35;
+          imgData.data[idx4 + 3] = 255;
+          continue;
+        }
+
+        if (regionId === 0) {
+          imgData.data[idx4] = 255;
+          imgData.data[idx4 + 1] = 255;
+          imgData.data[idx4 + 2] = 255;
+          imgData.data[idx4 + 3] = 255;
+          continue;
+        }
+
+        const coloredId = paintState.coloredRegions.get(regionId);
+        const pal = coloredId !== undefined ? palette.find((p) => p.id === coloredId) : null;
+        if (pal) {
+          imgData.data[idx4] = pal.color.r;
+          imgData.data[idx4 + 1] = pal.color.g;
+          imgData.data[idx4 + 2] = pal.color.b;
+        } else {
+          imgData.data[idx4] = 248;
+          imgData.data[idx4 + 1] = 246;
+          imgData.data[idx4 + 2] = 242;
+        }
+        imgData.data[idx4 + 3] = 255;
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      const imageUrl = offCanvas.toDataURL('image/png');
+
+      const ok = await addCanvasDrawing(slug, {
         imageUrl,
-        drawnBy: `${partnerName} (RekorOyun Pixel Engine 🎨)`,
+        drawnBy: `${partnerName} (Sayılarla Boyama 🎨)`,
       });
 
-      if (success) {
-        confetti({ particleCount: 90, spread: 80 });
+      if (ok) {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 4000);
       }
     } catch (err) {
-      console.error('Error saving pixel artwork:', err);
+      console.error('Save error:', err);
     } finally {
       setSaving(false);
     }
-  };
+  }, [processedImage, paintState, slug, partnerName]);
 
-  const handleCustomPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ─── Custom photo upload ──────────────────────────────────────────────────
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setActivePhotoUrl(event.target.result as string);
-      }
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      if (url) setActiveImgUrl(url);
     };
     reader.readAsDataURL(file);
   };
 
-  const filledCount = pixels.filter((p) => p.isFilled).length;
-  const progressPct = pixels.length > 0 ? Math.round((filledCount / pixels.length) * 100) : 0;
+  // ─── Derived state ────────────────────────────────────────────────────────
+  const progress = paintState
+    ? (paintState.completedRegions / Math.max(1, paintState.totalRegions)) * 100
+    : 0;
+
+  const totalRegions = paintState?.totalRegions ?? 0;
+  const completedRegions = paintState?.completedRegions ?? 0;
 
   return (
-    <div className="pixel-color-by-number-engine space-y-5 text-center max-w-xl mx-auto">
-      {/* Sample Photos & Custom Upload Header */}
-      <div className="rounded-3xl bg-white p-4 shadow-md border border-gray-100 space-y-3 text-left">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5">
-            <ImageIcon className="h-4 w-4 text-rose-500" /> Numaralı Piksel Tabloları & Fotoğraflar
-          </h4>
-          <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
-            %{progressPct} Tamamlandı
-          </span>
+    <div className="space-y-4">
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center shadow text-lg"
+            style={{ background: 'linear-gradient(135deg, #f43f5e, #a855f7)' }}
+          >
+            🖌️
+          </div>
+          <div>
+            <p className="text-sm font-extrabold text-gray-900 leading-none">Sayılarla Boyama</p>
+            <p className="text-[10px] text-gray-500 font-medium">
+              {completedRegions}/{totalRegions} bölge · {Math.round(progress)}% tamamlandı
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {SAMPLE_PHOTOS.map((sample, idx) => (
+        {/* Difficulty selector */}
+        <div className="flex gap-1">
+          {(Object.keys(DIFFICULTY_MAP) as PbnDifficulty[]).map((d) => (
             <button
-              key={idx}
-              onClick={() => setActivePhotoUrl(sample.url)}
-              className={`relative aspect-video rounded-xl overflow-hidden border-2 transition ${
-                activePhotoUrl === sample.url ? 'border-rose-500 shadow-md scale-102' : 'border-gray-200 opacity-80 hover:opacity-100'
+              key={d}
+              onClick={() => setDifficulty(d)}
+              className={`px-2.5 py-1 rounded-xl text-[11px] font-black transition border ${
+                difficulty === d
+                  ? 'text-white border-transparent shadow'
+                  : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+              }`}
+              style={
+                difficulty === d
+                  ? { background: DIFFICULTY_MAP[d].color, borderColor: DIFFICULTY_MAP[d].color, color: '#1f2937' }
+                  : {}
+              }
+            >
+              {DIFFICULTY_MAP[d].label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Template picker ───────────────────────────────────────────────── */}
+      <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-3 space-y-2">
+        <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 flex items-center gap-1">
+          <ImageIcon className="h-3.5 w-3.5" /> Hazır Şablonlar
+        </p>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+          {ROMANTIC_TEMPLATES.map((tmpl) => (
+            <button
+              key={tmpl.id}
+              onClick={() => {
+                setSelectedTemplate(tmpl);
+                setActiveImgUrl(tmpl.imageUrl);
+              }}
+              className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all active:scale-90 ${
+                activeImgUrl === tmpl.imageUrl && selectedTemplate.id === tmpl.id
+                  ? 'border-rose-500 shadow-md ring-2 ring-rose-400/30'
+                  : 'border-gray-200 hover:border-gray-300 opacity-80 hover:opacity-100'
               }`}
             >
-              <img src={sample.url} alt={sample.title} className="w-full h-full object-cover" />
-              <span className="absolute bottom-0 inset-x-0 bg-black/60 text-[9px] font-bold text-white py-0.5 truncate px-1 text-center">
-                {sample.title}
+              <img src={tmpl.thumbnail} alt={tmpl.name} className="w-full h-full object-cover" />
+              <span className="absolute inset-x-0 bottom-0 bg-black/60 text-[8px] font-bold text-white text-center py-0.5 px-0.5 leading-tight truncate">
+                {tmpl.name}
               </span>
             </button>
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100">
-          <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 px-3.5 py-2 text-xs font-extrabold text-white shadow-md hover:scale-102 transition active:scale-95">
-            <Upload className="h-3.5 w-3.5" />
-            <span>Kendi Fotoğrafını Yükle 📸</span>
-            <input type="file" accept="image/*" onChange={handleCustomPhotoUpload} className="hidden" />
-          </label>
-
-          <div className="flex items-center gap-1 text-xs font-bold text-gray-700 bg-gray-50 px-2.5 py-1.5 rounded-xl border border-gray-200">
-            <span>Izgara:</span>
-            <button
-              onClick={() => setGridSize(64)}
-              className={`px-2 py-0.5 rounded-lg transition ${gridSize === 64 ? 'bg-rose-500 text-white' : 'text-gray-600'}`}
-            >
-              64x64
-            </button>
-            <button
-              onClick={() => setGridSize(80)}
-              className={`px-2 py-0.5 rounded-lg transition ${gridSize === 80 ? 'bg-rose-500 text-white' : 'text-gray-600'}`}
-            >
-              80x80
-            </button>
-          </div>
-        </div>
+        {/* Custom upload */}
+        <label className="flex items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-gray-200 hover:border-rose-300 bg-gray-50 hover:bg-rose-50 transition px-3 py-2 text-xs font-bold text-gray-500 hover:text-rose-500">
+          <Upload className="h-3.5 w-3.5" />
+          <span>Kendi fotoğrafını yükle</span>
+          <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+        </label>
       </div>
 
-      {loadingImage && (
-        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3 text-xs font-bold text-amber-800 animate-pulse">
-          🎨 Fotoğraftan RekorOyun Piksel Izgarası Üretiliyor...
+      {/* ── Loading indicator ─────────────────────────────────────────────── */}
+      {isLoading && (
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-rose-700">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 animate-spin" />
+              Fotoğraf analiz ediliyor… K-Means renk kuantizasyonu
+            </span>
+            <span>{loadingProgress}%</span>
+          </div>
+          <div className="h-2 bg-rose-200 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${loadingProgress}%`,
+                background: 'linear-gradient(90deg, #f43f5e, #a855f7)',
+              }}
+            />
+          </div>
         </div>
       )}
 
-      {/* Main Interactive Pixel Canvas Wrapper */}
-      <div className="relative mx-auto rounded-3xl bg-white shadow-2xl border-4 border-rose-100 overflow-hidden touch-none select-none p-1">
-        {/* Canvas Zoom Toolbar */}
-        <div className="absolute top-3 right-3 z-20 flex items-center gap-1 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-md border border-gray-200 text-xs">
-          <button
-            onClick={() => handleZoom(0.3)}
-            className="p-1.5 rounded-xl hover:bg-rose-50 text-gray-700 font-bold transition"
-            title="Yakınlaştır (+)"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleZoom(-0.3)}
-            className="p-1.5 rounded-xl hover:bg-rose-50 text-gray-700 font-bold transition"
-            title="Uzaklaştır (-)"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <button
-            onClick={handleResetView}
-            className="p-1.5 rounded-xl hover:bg-rose-50 text-gray-700 font-bold transition"
-            title="Görünümü Sıfırla"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </button>
-        </div>
+      {/* ── Game area ─────────────────────────────────────────────────────── */}
+      {processedImage && paintState && !isLoading && (
+        <>
+          {/* Toolbar */}
+          <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-3">
+            <PbnToolbar
+              onUndo={handleUndo}
+              onHint={handleHint}
+              onReset={handleReset}
+              onSave={handleSaveToGallery}
+              onToggleNumbers={() => setShowNumbers((s) => !s)}
+              showNumbers={showNumbers}
+              hintsUsed={paintState.hintsUsed}
+              canUndo={paintState.undoStack.length > 0}
+              progress={progress}
+            />
+          </div>
 
-        {/* Tools Toolbar: Drag-to-Paint, Pan, Paint Bucket, Hint */}
-        <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl shadow-md border border-gray-200">
-          <button
-            onClick={() => setSelectedTool('paint')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-extrabold transition ${
-              selectedTool === 'paint' ? 'bg-rose-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-            title="Sürükleyerek Boya (Drag-to-Paint)"
-          >
-            <Paintbrush className="h-3.5 w-3.5" /> Sürükle-Boya
-          </button>
-          <button
-            onClick={() => setSelectedTool('pan')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-extrabold transition ${
-              selectedTool === 'pan' ? 'bg-rose-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-            title="Kaydır & Gezin (Pan)"
-          >
-            <Hand className="h-3.5 w-3.5" /> Kaydır
-          </button>
-          <button
-            onClick={() => setSelectedTool('bucket')}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-extrabold transition ${
-              selectedTool === 'bucket' ? 'bg-rose-500 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-            title="Boya Kovası"
-          >
-            <PaintBucket className="h-3.5 w-3.5" /> Kova
-          </button>
-          <button
-            onClick={handleMagicWandHint}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-extrabold bg-amber-500 text-white hover:bg-amber-600 transition shadow-sm active:scale-95"
-            title="Sihirli Değnek / İpucu"
-          >
-            <Wand2 className="h-3.5 w-3.5" /> İpucu
-          </button>
-        </div>
+          {/* Main two-column layout */}
+          <div className="flex gap-3 flex-col lg:flex-row">
+            {/* Canvas */}
+            <div className="flex-1 min-w-0 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+              <div className="p-1.5">
+                <PbnPaintCanvas
+                  processedImage={processedImage}
+                  paintState={paintState}
+                  onRegionClick={handleRegionClick}
+                  showNumbers={showNumbers}
+                />
+              </div>
 
-        {/* RekorOyun HTML5 Pixel Canvas Engine */}
-        <canvas
-          ref={canvasRef}
-          width={380}
-          height={380}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleMouseUp}
-          className="cursor-crosshair w-full max-w-[380px] h-[380px] block mx-auto bg-slate-50 touch-none"
-        />
-      </div>
-
-      {/* Palette Bar with Live % Progress & Completion Badges (✓) */}
-      <div className="rounded-3xl bg-white p-4 shadow-lg border border-gray-100 space-y-3">
-        <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700 flex items-center justify-center gap-1.5">
-          <Palette className="h-4 w-4 text-rose-500" /> RekorOyun Canlı Renk Paleti ({palette.length} Renk)
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-2 max-h-40 overflow-y-auto p-1">
-          {palette.map((c) => {
-            const isSelected = selectedNumber === c.number;
-            const totalCount = pixels.filter((p) => p.targetNumber === c.number).length;
-            const filledCount = pixels.filter((p) => p.targetNumber === c.number && p.isFilled).length;
-            const colorPct = totalCount > 0 ? Math.round((filledCount / totalCount) * 100) : 0;
-            const isCompleted = totalCount > 0 && filledCount === totalCount;
-
-            return (
-              <button
-                key={c.number}
-                onClick={() => setSelectedNumber(c.number)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl border transition-all ${
-                  isSelected
-                    ? 'border-gray-900 shadow-md scale-105 ring-2 ring-rose-500/40 bg-rose-50/60'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
-              >
-                <div
-                  className="h-5 w-5 rounded-full border border-gray-300 shadow-inner flex items-center justify-center text-[10px] font-black text-white drop-shadow-md shrink-0"
-                  style={{ backgroundColor: c.hex }}
-                >
-                  {c.number}
-                </div>
-                <span className="text-[11px] font-extrabold text-gray-800">#{c.number}</span>
-                {isCompleted ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              {/* Selected color hint */}
+              <div className="px-3 pb-3 pt-1 border-t border-gray-50">
+                {paintState.selectedColorId ? (
+                  <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
+                    <span
+                      className="w-5 h-5 rounded-lg border border-black/10 shadow-inner shrink-0"
+                      style={{
+                        background: processedImage.palette.find(
+                          (p) => p.id === paintState.selectedColorId
+                        )?.hex ?? '#ccc',
+                      }}
+                    />
+                    <span>
+                      Renk {paintState.selectedColorId} seçili — tuvale tıkla!
+                    </span>
+                  </div>
                 ) : (
-                  <span className="text-[10px] font-extrabold text-gray-500 font-mono">
-                    (%{colorPct})
-                  </span>
+                  <p className="text-xs text-gray-400 text-center">
+                    ← Sağdan bir renk seç, sonra bölgeye tıkla
+                  </p>
                 )}
-              </button>
-            );
-          })}
-        </div>
+              </div>
+            </div>
 
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
-          <button
-            onClick={handleResetView}
-            className="flex items-center gap-1 rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-200 transition"
-          >
-            <RotateCcw className="h-3.5 w-3.5" /> Görünümü Sıfırla
-          </button>
+            {/* Color palette sidebar */}
+            <div className="w-full lg:w-44 rounded-2xl bg-white border border-gray-100 shadow-sm p-3">
+              <PbnColorPalette
+                palette={processedImage.palette}
+                selectedColorId={paintState.selectedColorId}
+                coloredRegions={paintState.coloredRegions}
+                regions={processedImage.regions}
+                onSelectColor={(id) =>
+                  setPaintState((prev) => prev ? { ...prev, selectedColorId: id } : prev)
+                }
+              />
+            </div>
+          </div>
 
+          {/* Save to gallery button */}
           <button
             onClick={handleSaveToGallery}
             disabled={saving}
-            className="flex-1 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 py-2.5 text-xs font-extrabold text-white shadow-md hover:scale-[1.01] active:scale-98 transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+            className="w-full py-3 rounded-2xl font-extrabold text-sm text-white shadow-lg transition hover:opacity-90 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ background: 'linear-gradient(135deg, #f43f5e, #a855f7)' }}
           >
-            🎨 {saving ? 'Kaydediliyor...' : 'Piksel Sanat Eserini Kaydet'}
+            🖼️ {saving ? 'Kaydediliyor...' : 'Sanat Eserini Galeriye Kaydet'}
           </button>
-        </div>
 
-        {saveSuccess && (
-          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-center text-xs font-bold text-emerald-700 animate-in fade-in">
-            ✨ RekorOyun piksel boyama eseriniz Aşkımızın Çizim Galerisi'ne başarıyla eklendi!
-          </div>
-        )}
-      </div>
+          {saveSuccess && (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-center text-xs font-bold text-emerald-700">
+              ✨ Boyama eseriniz Çizim Galerisi'ne başarıyla eklendi!
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Celebration Overlay ───────────────────────────────────────────── */}
+      {showCelebration && (
+        <PbnCelebrationOverlay
+          onClose={() => setShowCelebration(false)}
+          onSaveToGallery={handleSaveToGallery}
+        />
+      )}
     </div>
   );
 }
