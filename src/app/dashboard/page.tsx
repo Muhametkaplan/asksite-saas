@@ -730,24 +730,23 @@ function DashboardContent() {
         const isAuthorized = isPinAuthenticated || isUidAuthorized || isEmailAuthorized || isLocalStorageAuthorized || isUserDocAuthorized;
 
         if (!isAuthorized) {
-          // IMMEDIATE SCREEN RESET & CLEANUP
-          setConfig(DEMO_COUPLE);
-          setLoading(true);
-
-          if (activeUid && db) {
+          // Sign out unauthorized email immediately & clear session
+          if (auth.currentUser) {
             try {
-              const uSnap = await getDoc(doc(db, 'users', activeUid));
-              if (uSnap.exists()) {
-                const uData = uSnap.data();
-                if (uData.coupleSlug && uData.coupleSlug !== targetSlug && (uData.isPaid === true || uData.hasActiveSubscription === true)) {
-                  router.push(`/dashboard?slug=${uData.coupleSlug}`);
-                  return;
-                }
-              }
+              await signOut(auth);
             } catch (e) {}
           }
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('asksite_user');
+            sessionStorage.removeItem(`asksite_auth_${targetSlug}`);
+            localStorage.removeItem(`asksite_auth_${targetSlug}`);
+          }
 
-          router.push('/checkout');
+          setConfig(DEMO_COUPLE);
+          setLoading(false);
+
+          const errMsg = encodeURIComponent("Girdiğiniz e-posta bu çift sitesinin yöneticisi değildir. Lütfen yetkili partner e-postanızla giriş yapın.");
+          window.location.href = `/login?slug=${targetSlug}&error=${errMsg}&redirect=dashboard`;
           return;
         }
       }

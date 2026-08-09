@@ -38,10 +38,12 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams?.get('redirect') || 'checkout';
+  const targetSlugParam = searchParams?.get('slug') || '';
+  const urlErrorMsg = searchParams?.get('error') || '';
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState(urlErrorMsg ? decodeURIComponent(urlErrorMsg) : '');
 
   // Form Fields
   const [fullName, setFullName] = useState('');
@@ -62,14 +64,23 @@ function LoginContent() {
       );
     }
 
-    // Auto-Claim Engine: Automatically link user account if email matches an authorized couple
     const matchedSlug = await autoClaimCoupleByEmail({ uid: userObj.uid, email: userObj.email });
 
-    if (matchedSlug) {
-      router.push(`/c/${matchedSlug}`);
+    if (targetSlugParam && targetSlugParam !== 'demo') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('activeCoupleSlug', targetSlugParam);
+        localStorage.setItem('asksite_couple_slug', targetSlugParam);
+      }
+      window.location.href = `/dashboard?slug=${targetSlugParam}`;
+    } else if (matchedSlug) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('activeCoupleSlug', matchedSlug);
+        localStorage.setItem('asksite_couple_slug', matchedSlug);
+      }
+      window.location.href = `/dashboard?slug=${matchedSlug}`;
     } else {
       const targetUrl = redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`;
-      router.push(targetUrl);
+      window.location.href = targetUrl;
     }
   };
 
