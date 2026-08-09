@@ -2095,11 +2095,17 @@ function DashboardContent() {
                                 </span>
                               ) : (
                                 <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                                  AÇILABİLİR 🔓
+                                  KİLİT AÇILDI 🔓
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-slate-300 italic font-serif">"{capsule.content}"</p>
+                            {isLocked ? (
+                              <p className="text-[11px] text-amber-300/80 italic font-serif flex items-center gap-1.5">
+                                🔒 Bu mesaj kilitlidir. Açılış tarihi geldiğinde görüntülenecektir.
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-slate-300 italic font-serif">"{capsule.content}"</p>
+                            )}
                             <p className="text-[10px] text-slate-400 font-mono">
                               Açılış Tarihi: {formatDiaryDate(capsule.open_date)} | Yazar: {capsule.creator}
                             </p>

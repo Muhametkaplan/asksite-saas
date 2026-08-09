@@ -3458,11 +3458,11 @@ function CapsuleWidget({ couple }: { couple: CoupleConfig }) {
                   <div className="flex items-center gap-2">
                     {isTimeReached ? (
                       <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                        🔓 Kilidi Açılabilir
+                        KİLİT AÇILDI 🔓
                       </span>
                     ) : (
                       <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30 flex items-center gap-1">
-                        <Lock className="h-3 w-3" /> Kilitli Kapsül
+                        <Lock className="h-3 w-3" /> KİLİTLİ 🔒
                       </span>
                     )}
                     <span className="text-xs text-slate-400 font-mono">Yazar: {capsule.creator}</span>
@@ -3476,13 +3476,13 @@ function CapsuleWidget({ couple }: { couple: CoupleConfig }) {
 
                 {!isTimeReached ? (
                   /* Locked View */
-                  <div className="text-center py-2">
+                  <div className="text-center py-2 space-y-2">
                     <p className="text-xs text-slate-300 font-medium">
-                      🔒 Bu kapsül kilitlidir. Açılmasına kalan süre:
+                      Açılmasına kalan süre:
                     </p>
                     <CapsuleCountdown targetDate={capsule.open_date} />
-                    <div className="rounded-2xl bg-slate-950/60 p-3 border border-slate-800 text-[11px] text-slate-400 italic">
-                      "Kapsül içeriği açılış zamanına kadar kilitli kasada güvenle saklanmaktadır."
+                    <div className="rounded-2xl bg-slate-950/80 p-3.5 border border-amber-500/30 text-xs text-amber-300 font-serif italic flex items-center justify-center gap-1.5 shadow-inner">
+                      🔒 Bu mesaj kilitlidir. Açılış tarihi geldiğinde görüntülenecektir.
                     </div>
                   </div>
                 ) : isRevealed ? (
