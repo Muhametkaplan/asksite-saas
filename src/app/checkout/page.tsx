@@ -133,8 +133,8 @@ export default function CheckoutPage() {
         setInviteStatusMsg({ type: 'success', text: res.message || 'Davet kodu doğrulandı! Sitenize yönlendiriliyorsunuz...' });
         confetti({ particleCount: 80, spread: 100, origin: { y: 0.5 } });
         setTimeout(() => {
-          router.push(`/c/${res.slug}`);
-        }, 1500);
+          router.push(`/dashboard?slug=${res.slug}`);
+        }, 1200);
       } else {
         setInviteStatusMsg({ type: 'error', text: res.message || 'Geçersiz eşleşme kodu.' });
         setInviteConnecting(false);

@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
     const newCouple = {
       slug,
       pair_code,
+      inviteCode: pair_code,
+      isUsed: false,
+      pair_code_used: false,
       partner1_name,
       partner2_name,
       partner1_email: p1Email,

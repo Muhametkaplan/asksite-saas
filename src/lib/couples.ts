@@ -424,6 +424,7 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         packageType: 'digital',
         isActive: true,
         isPaid: config.isPaid !== undefined ? config.isPaid : true,
+        inviteCode: config.inviteCode || config.pair_code || null,
         owner_uid: config.owner_uid || (config.co_owners && config.co_owners[0]) || null,
         owner_email: config.owner_email || config.partner1_email || null,
         partner1_uid: config.partner1_uid || config.owner_uid || (config.co_owners && config.co_owners[0]) || null,
@@ -1015,10 +1016,19 @@ export async function getCoupleByPairCode(pairCode: string): Promise<CoupleConfi
 
   if (isFirebaseConfigured && db) {
     try {
-      const q = query(collection(db, 'couples'), where('pair_code', '==', cleanCode));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const docSnap = snap.docs[0];
+      const q1 = query(collection(db, 'couples'), where('pair_code', '==', cleanCode));
+      const snap1 = await getDocs(q1);
+      let docSnap = !snap1.empty ? snap1.docs[0] : null;
+
+      if (!docSnap) {
+        const q2 = query(collection(db, 'couples'), where('inviteCode', '==', cleanCode));
+        const snap2 = await getDocs(q2);
+        if (!snap2.empty) {
+          docSnap = snap2.docs[0];
+        }
+      }
+
+      if (docSnap) {
         const data = docSnap.data();
         return {
           id: docSnap.id,
@@ -1033,12 +1043,18 @@ export async function getCoupleByPairCode(pairCode: string): Promise<CoupleConfi
           whatsapp_number: data.whatsapp_number || '905524185530',
           whatsapp_message: data.whatsapp_message || 'Seni çok seviyorum 💖',
           love_reasons: data.love_reasons || DEMO_COUPLE.love_reasons,
-          pair_code: data.pair_code || cleanCode,
+          pair_code: data.pair_code || data.inviteCode || cleanCode,
+          inviteCode: data.inviteCode || data.pair_code || cleanCode,
           pair_code_used: data.pair_code_used || data.isUsed || false,
           isUsed: data.isUsed || data.pair_code_used || false,
-          partner1_uid: data.partner1_uid || (data.co_owners && data.co_owners[0]) || null,
+          owner_uid: data.owner_uid || null,
+          owner_email: data.owner_email || null,
+          partner1_uid: data.partner1_uid || data.owner_uid || (data.co_owners && data.co_owners[0]) || null,
           partner2_uid: data.partner2_uid || (data.co_owners && data.co_owners[1]) || null,
+          partner1_email: data.partner1_email || data.owner_email || null,
+          partner2_email: data.partner2_email || null,
           co_owners: data.co_owners || [],
+          authorized_emails: data.authorized_emails || [],
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
         };
       }
@@ -1055,8 +1071,13 @@ export async function connectPartnerWithPairCode(
   pairCode: string
 ): Promise<{ success: boolean; slug?: string; message?: string }> {
   const couple = await getCoupleByPairCode(pairCode);
+  const normalizedEmail = (userEmail || '').toLowerCase().trim();
+
   if (!couple) {
-    return { success: false, message: 'Geçersiz eşleşme kodu! Lütfen kodunuzu kontrol edin.' };
+    return {
+      success: false,
+      message: 'Geçersiz veya kullanılmış davet kodu! Bir davet kodu maksimum 2 partner tarafından kullanılabilir.',
+    };
   }
 
   // Max 2 Accounts Limit & isUsed Lock Check
@@ -1067,15 +1088,12 @@ export async function connectPartnerWithPairCode(
     couple.partner2_uid === userUid;
 
   const isCodeUsedOrFull =
-    couple.isUsed === true ||
-    couple.pair_code_used === true ||
-    (currentCoOwners.length >= 2 && !isAlreadyPartner) ||
-    (Boolean(couple.partner1_uid) && Boolean(couple.partner2_uid) && !isAlreadyPartner);
+    (couple.isUsed === true || couple.pair_code_used === true) && !isAlreadyPartner;
 
-  if (isCodeUsedOrFull) {
+  if (isCodeUsedOrFull || (currentCoOwners.length >= 2 && !isAlreadyPartner)) {
     return {
       success: false,
-      message: 'Bu davet kodu zaten kullanılmış ve 2 partner eşleşmesi tamamlanmış.',
+      message: 'Geçersiz veya kullanılmış davet kodu! Bir davet kodu maksimum 2 partner tarafından kullanılabilir.',
     };
   }
 
@@ -1090,20 +1108,27 @@ export async function connectPartnerWithPairCode(
       const p1Uid = couple.partner1_uid || currentCoOwners[0] || userUid;
       const p2Uid = p1Uid === userUid ? (couple.partner2_uid || currentCoOwners[1] || userUid) : userUid;
 
-      // Lock pair code state when 2 partner accounts are bound
-      const isNowFull = currentCoOwners.length >= 2 || (p1Uid && p2Uid && p1Uid !== p2Uid);
+      const authEmails = Array.from(
+        new Set([
+          ...(couple.authorized_emails || []),
+          (couple.partner1_email || '').toLowerCase().trim(),
+          normalizedEmail,
+        ].filter(Boolean))
+      );
 
       await setDoc(
         coupleRef,
         {
           partner1_uid: p1Uid,
           partner2_uid: p2Uid,
+          partner2_email: normalizedEmail,
           co_owners: currentCoOwners,
-          isUsed: isNowFull ? true : couple.isUsed || false,
-          pair_code_used: isNowFull ? true : couple.pair_code_used || false,
+          isUsed: true,
+          pair_code_used: true,
+          authorized_emails: authEmails,
           allowed_users: {
             ...(couple.allowed_users || {}),
-            partner2_email: userEmail,
+            partner2_email: normalizedEmail,
           },
         },
         { merge: true }
@@ -1116,6 +1141,8 @@ export async function connectPartnerWithPairCode(
           coupleSlug: couple.slug,
           hasPurchasedSite: true,
           hasActiveSubscription: true,
+          isPaid: true,
+          isPartner: true,
           pairedAt: new Date().toISOString(),
         },
         { merge: true }

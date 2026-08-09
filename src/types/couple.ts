@@ -151,6 +151,7 @@ export interface CoupleConfig {
   owner_uid?: string;
   owner_email?: string;
   pair_code?: string;
+  inviteCode?: string;
   pair_code_used?: boolean;
   isUsed?: boolean;
   partner1_uid?: string;

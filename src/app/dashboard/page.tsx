@@ -39,7 +39,7 @@ import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'fire
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
-import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate, connectPartnerWithPairCode, getCoupleByPairCode } from '@/lib/couples';
+import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate, connectPartnerWithPairCode, getCoupleByPairCode, DEMO_COUPLE } from '@/lib/couples';
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
@@ -630,18 +630,85 @@ function DashboardContent() {
     checkSubscription();
   }, [currentUser, slugFromUrl, userCoupleSlug, router]);
 
+  // Strict Dashboard Security Guard & Multi-Tab Auth Sync
   useEffect(() => {
     async function loadCoupleData() {
       setLoading(true);
       const targetSlug = slugFromUrl || userCoupleSlug || 'demo';
+
       const fetched = await getCoupleBySlug(targetSlug);
-      if (fetched) {
-        setConfig(fetched);
+      if (!fetched) {
+        setLoading(false);
+        router.push('/checkout');
+        return;
       }
+
+      // Security Guard for non-demo couples
+      if (targetSlug !== 'demo' && targetSlug !== 'irem-muhammet') {
+        const activeUid = auth.currentUser?.uid || (currentUser as any)?.uid;
+        const activeEmail = (auth.currentUser?.email || currentUser?.email || '').toLowerCase().trim();
+
+        // Check local/session PIN authorization
+        const storedAuth = typeof window !== 'undefined'
+          ? sessionStorage.getItem(`asksite_auth_${targetSlug}`) || localStorage.getItem(`asksite_auth_${targetSlug}`)
+          : null;
+        let isPinAuthenticated = false;
+        if (storedAuth) {
+          try {
+            const parsed = JSON.parse(storedAuth);
+            if (parsed.isAuthenticated && (parsed.role === 'partner1' || parsed.role === 'partner2')) {
+              isPinAuthenticated = true;
+            }
+          } catch (e) {}
+        }
+
+        const coOwners = fetched.co_owners || [];
+        const authEmails = (fetched.authorized_emails || []).map((e) => e.toLowerCase().trim());
+        
+        const isUidAuthorized = activeUid && (
+          activeUid === fetched.owner_uid ||
+          activeUid === fetched.partner1_uid ||
+          activeUid === fetched.partner2_uid ||
+          coOwners.includes(activeUid)
+        );
+
+        const isEmailAuthorized = activeEmail && (
+          authEmails.includes(activeEmail) ||
+          activeEmail === (fetched.owner_email || '').toLowerCase() ||
+          activeEmail === (fetched.partner1_email || '').toLowerCase() ||
+          activeEmail === (fetched.partner2_email || '').toLowerCase()
+        );
+
+        const isAuthorized = isPinAuthenticated || isUidAuthorized || isEmailAuthorized;
+
+        if (!isAuthorized) {
+          // IMMEDIATE SCREEN RESET & CLEANUP
+          setConfig(DEMO_COUPLE);
+          setLoading(true);
+
+          if (activeUid && db) {
+            try {
+              const uSnap = await getDoc(doc(db, 'users', activeUid));
+              if (uSnap.exists()) {
+                const uData = uSnap.data();
+                if (uData.coupleSlug && uData.coupleSlug !== targetSlug && (uData.isPaid === true || uData.hasActiveSubscription === true)) {
+                  router.push(`/dashboard?slug=${uData.coupleSlug}`);
+                  return;
+                }
+              }
+            } catch (e) {}
+          }
+
+          router.push('/checkout');
+          return;
+        }
+      }
+
+      setConfig(fetched);
       setLoading(false);
     }
     loadCoupleData();
-  }, [slugFromUrl, userCoupleSlug]);
+  }, [slugFromUrl, userCoupleSlug, currentUser, router]);
 
   useEffect(() => {
     if (currentUser) {
