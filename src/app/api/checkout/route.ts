@@ -19,7 +19,7 @@ function slugify(text: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { partner1_name, partner2_name, partner1_email, partner2_email, package_type, shipping_address, whatsapp_number, start_date } = body;
+    const { partner1_name, partner2_name, partner1_email, partner2_email, package_type, shipping_address, whatsapp_number, start_date, owner_uid, owner_email } = body;
 
     if (!partner1_name || !partner2_name) {
       return NextResponse.json({ error: 'Lütfen çift isimlerini eksiksiz girin.' }, { status: 400 });
@@ -32,7 +32,9 @@ export async function POST(req: NextRequest) {
 
     const p1Email = (partner1_email || '').toLowerCase().trim();
     const p2Email = (partner2_email || '').toLowerCase().trim();
-    const authorized_emails = Array.from(new Set([p1Email, p2Email].filter(Boolean)));
+    const authorized_emails = Array.from(new Set([p1Email, p2Email, (owner_email || '').toLowerCase().trim()].filter(Boolean)));
+    const ownerUid = owner_uid || null;
+    const ownerEmail = (owner_email || p1Email || '').toLowerCase().trim();
 
     const newCouple = {
       slug,
@@ -45,6 +47,12 @@ export async function POST(req: NextRequest) {
       partner2_score: 0,
       partner1_pin: '1234',
       partner2_pin: '5678',
+      isPaid: true,
+      is_active: true,
+      owner_uid: ownerUid,
+      owner_email: ownerEmail,
+      partner1_uid: ownerUid,
+      co_owners: ownerUid ? [ownerUid] : [],
       authorized_emails,
       allowed_users: {
         partner1_email: p1Email,

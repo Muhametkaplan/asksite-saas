@@ -147,6 +147,9 @@ export interface CoupleConfig {
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;
   is_active?: boolean;
+  isPaid?: boolean;
+  owner_uid?: string;
+  owner_email?: string;
   pair_code?: string;
   pair_code_used?: boolean;
   isUsed?: boolean;

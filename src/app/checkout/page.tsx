@@ -179,6 +179,9 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
+      const currentUid = auth.currentUser?.uid || null;
+      const currentEmail = auth.currentUser?.email || partner1Email;
+
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -191,13 +194,18 @@ export default function CheckoutPage() {
           start_date: startDate,
           whatsapp_number: whatsapp,
           shipping_address: packageType === 'nfc' ? `${fullName} - ${address}, ${city}` : null,
+          owner_uid: currentUid,
+          owner_email: currentEmail,
         }),
       });
 
       const data = await res.json();
 
-      if (res.ok && data.redirect_url) {
-        // Open 2-Second Demo Payment Modal Simulation
+      if (res.ok && data.redirect_url && data.slug) {
+        setHasPurchased(true);
+        setUserCoupleSlug(data.slug);
+
+        // Open Payment Modal Simulation
         setShowPaymentModal(true);
         setPaymentStage('processing');
 
@@ -207,10 +215,10 @@ export default function CheckoutPage() {
           confetti({ particleCount: 70, spread: 90, origin: { y: 0.5 } });
         }, 1000);
 
-        // Redirect after 2 seconds
+        // Auto Redirect to Dashboard after 1.8 seconds (No holding on checkout!)
         setTimeout(() => {
-          router.push(data.redirect_url);
-        }, 2200);
+          router.push(data.redirect_url || `/dashboard?slug=${data.slug}`);
+        }, 1800);
       } else {
         alert(data.error || 'Ödeme tamamlanamadı.');
         setLoading(false);

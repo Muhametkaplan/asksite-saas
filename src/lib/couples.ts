@@ -423,10 +423,32 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         feature_toggles: config.feature_toggles || {},
         packageType: 'digital',
         isActive: true,
+        isPaid: config.isPaid !== undefined ? config.isPaid : true,
+        owner_uid: config.owner_uid || (config.co_owners && config.co_owners[0]) || null,
+        owner_email: config.owner_email || config.partner1_email || null,
+        partner1_uid: config.partner1_uid || config.owner_uid || (config.co_owners && config.co_owners[0]) || null,
+        partner2_uid: config.partner2_uid || (config.co_owners && config.co_owners[1]) || null,
         updatedAt: serverTimestamp(),
       };
 
       await setDoc(coupleRef, payload, { merge: true });
+
+      // Update user doc in users/{uid}
+      const primaryUid = config.owner_uid || config.partner1_uid || (config.co_owners && config.co_owners[0]);
+      if (primaryUid) {
+        const userRef = doc(db, 'users', primaryUid);
+        await setDoc(
+          userRef,
+          {
+            hasPurchasedSite: true,
+            hasActiveSubscription: true,
+            isPaid: true,
+            coupleSlug: config.slug,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
 
       return config;
     } catch (e) {
