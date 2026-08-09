@@ -21,9 +21,10 @@ export const metadata: Metadata = {
   description: 'Sevgilinizle özel anılarınızı biriktireceğiniz dijital çift platformu.',
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/apple-icon.png',
+    icon: [
+      { url: '/icon.png?v=2', type: 'image/png' },
+    ],
+    apple: '/apple-icon.png?v=2',
   },
   appleWebApp: {
     capable: true,
