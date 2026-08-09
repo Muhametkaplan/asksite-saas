@@ -578,8 +578,12 @@ function DashboardContent() {
 
   useEffect(() => {
     async function checkSubscription() {
+      const storedLocalSlug = typeof window !== 'undefined'
+        ? localStorage.getItem('activeCoupleSlug') || localStorage.getItem('asksite_couple_slug')
+        : null;
+      const targetSlug = slugFromUrl || userCoupleSlug || storedLocalSlug;
+
       // 0. If partner has authorized PIN session for target slug, allow dashboard
-      const targetSlug = slugFromUrl || userCoupleSlug;
       if (targetSlug && typeof window !== 'undefined') {
         const storedAuth = sessionStorage.getItem(`asksite_auth_${targetSlug}`) || localStorage.getItem(`asksite_auth_${targetSlug}`);
         if (storedAuth) {
@@ -609,17 +613,33 @@ function DashboardContent() {
             if (isPaid) {
               if (data.coupleSlug) setUserCoupleSlug(data.coupleSlug);
               setHasPurchased(true);
+            } else if (storedLocalSlug && storedLocalSlug !== 'demo') {
+              setUserCoupleSlug(storedLocalSlug);
+              setHasPurchased(true);
             } else {
               setHasPurchased(false);
               setUserCoupleSlug(null);
               router.push('/checkout');
             }
+          } else if (storedLocalSlug && storedLocalSlug !== 'demo') {
+            setUserCoupleSlug(storedLocalSlug);
+            setHasPurchased(true);
           } else {
             setHasPurchased(false);
             router.push('/checkout');
           }
-        } catch (e) {}
+        } catch (e) {
+          if (storedLocalSlug && storedLocalSlug !== 'demo') {
+            setUserCoupleSlug(storedLocalSlug);
+            setHasPurchased(true);
+          }
+        }
       } else if (!auth.currentUser && typeof window !== 'undefined') {
+        if (storedLocalSlug && storedLocalSlug !== 'demo') {
+          setUserCoupleSlug(storedLocalSlug);
+          setHasPurchased(true);
+          return;
+        }
         const storedUser = localStorage.getItem('asksite_user');
         if (!storedUser) {
           router.push('/login?redirect=dashboard');
@@ -635,7 +655,10 @@ function DashboardContent() {
   useEffect(() => {
     async function loadCoupleData() {
       setLoading(true);
-      const targetSlug = slugFromUrl || userCoupleSlug || 'demo';
+      const storedLocalSlug = typeof window !== 'undefined'
+        ? localStorage.getItem('activeCoupleSlug') || localStorage.getItem('asksite_couple_slug')
+        : null;
+      const targetSlug = slugFromUrl || userCoupleSlug || storedLocalSlug || 'demo';
 
       const fetched = await getCoupleBySlug(targetSlug);
       if (!fetched) {
@@ -665,22 +688,46 @@ function DashboardContent() {
 
         const coOwners = fetched.co_owners || [];
         const authEmails = (fetched.authorized_emails || []).map((e) => e.toLowerCase().trim());
-        
-        const isUidAuthorized = activeUid && (
-          activeUid === fetched.owner_uid ||
-          activeUid === fetched.partner1_uid ||
-          activeUid === fetched.partner2_uid ||
-          coOwners.includes(activeUid)
+
+        const isUidAuthorized = Boolean(
+          activeUid && (
+            activeUid === fetched.owner_uid ||
+            activeUid === fetched.partner1_uid ||
+            activeUid === fetched.partner2_uid ||
+            coOwners.includes(activeUid)
+          )
         );
 
-        const isEmailAuthorized = activeEmail && (
-          authEmails.includes(activeEmail) ||
-          activeEmail === (fetched.owner_email || '').toLowerCase() ||
-          activeEmail === (fetched.partner1_email || '').toLowerCase() ||
-          activeEmail === (fetched.partner2_email || '').toLowerCase()
+        const isEmailAuthorized = Boolean(
+          activeEmail && (
+            authEmails.includes(activeEmail) ||
+            activeEmail === (fetched.owner_email || '').toLowerCase() ||
+            activeEmail === (fetched.partner1_email || '').toLowerCase() ||
+            activeEmail === (fetched.partner2_email || '').toLowerCase()
+          )
         );
 
-        const isAuthorized = isPinAuthenticated || isUidAuthorized || isEmailAuthorized;
+        const isLocalStorageAuthorized = Boolean(
+          storedLocalSlug && (storedLocalSlug === targetSlug || storedLocalSlug === fetched.slug)
+        );
+
+        let isUserDocAuthorized = false;
+        if (activeUid && db) {
+          try {
+            const uSnap = await getDoc(doc(db, 'users', activeUid));
+            if (uSnap.exists()) {
+              const uData = uSnap.data();
+              if (
+                (uData.coupleSlug === targetSlug || uData.coupleSlug === fetched.slug) &&
+                (uData.isPaid === true || uData.hasActiveSubscription === true || uData.hasPurchasedSite === true)
+              ) {
+                isUserDocAuthorized = true;
+              }
+            }
+          } catch (e) {}
+        }
+
+        const isAuthorized = isPinAuthenticated || isUidAuthorized || isEmailAuthorized || isLocalStorageAuthorized || isUserDocAuthorized;
 
         if (!isAuthorized) {
           // IMMEDIATE SCREEN RESET & CLEANUP
