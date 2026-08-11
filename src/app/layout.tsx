@@ -17,19 +17,19 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'AskSite - Çift Siteniz & Dijital Anı Defteriniz',
+  title: 'Aşk Dünyamız',
   description: 'Sevgilinizle özel anılarınızı biriktireceğiniz dijital çift platformu.',
   manifest: '/manifest.json',
-  icons: {
-    icon: [
-      { url: '/icon.png?v=2', type: 'image/png' },
-    ],
-    apple: '/apple-icon.png?v=2',
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'AskSite',
+    title: 'Aşk Dünyamız',
+  },
+  icons: {
+    icon: '/icon.png?v=2',
+    apple: [
+      { url: '/apple-icon.png?v=2', sizes: '180x180', type: 'image/png' },
+    ],
   },
 };
 
