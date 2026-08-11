@@ -1,8 +1,75 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Heart, Sparkles, Shield, Rocket, ArrowRight, Smartphone, Gift } from 'lucide-react';
+import { Heart, Sparkles, Shield, Rocket, ArrowRight, Smartphone, Gift, Loader2 } from 'lucide-react';
 import HomeNavbar from '@/components/HomeNavbar';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function SaaSPlatformHome() {
+  const router = useRouter();
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    // 1. Instant check in localStorage/sessionStorage for fast auto-redirect
+    if (typeof window !== 'undefined') {
+      const storedSlug = localStorage.getItem('activeCoupleSlug') || localStorage.getItem('asksite_couple_slug');
+      if (storedSlug && storedSlug !== 'demo') {
+        router.replace(`/c/${storedSlug}`);
+        return;
+      }
+
+      const storedUser = localStorage.getItem('asksite_user');
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed.coupleSlug && parsed.coupleSlug !== 'demo') {
+            router.replace(`/c/${parsed.coupleSlug}`);
+            return;
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 2. Firebase Auth observer check for logged in user
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user && db) {
+        try {
+          const uSnap = await getDoc(doc(db, 'users', user.uid));
+          if (uSnap.exists()) {
+            const data = uSnap.data();
+            if (data.coupleSlug && data.coupleSlug !== 'demo') {
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('activeCoupleSlug', data.coupleSlug);
+                localStorage.setItem('asksite_couple_slug', data.coupleSlug);
+              }
+              router.replace(`/c/${data.coupleSlug}`);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Error checking user session at root:', e);
+        }
+      }
+      setCheckingSession(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-rose-600 font-bold p-4">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+          <span className="text-xs font-black tracking-wide">Özel Çift Dünyanız Yükleniyor... ✨</span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-gray-900 overflow-hidden">
       {/* Top Shared Navbar */}
