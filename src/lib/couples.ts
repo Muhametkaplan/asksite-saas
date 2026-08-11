@@ -1422,3 +1422,60 @@ export function subscribeToActivePaintingProgress(
   return () => {};
 }
 
+/* ================= 2048 GAME ENGINE (SEPARATE BOARDS & LEADERBOARD) ================= */
+export interface Game2048StateData {
+  board: number[][];
+  currentScore: number;
+  highScore: number;
+  gameOver: boolean;
+  updatedBy?: string;
+}
+
+export async function save2048State(
+  slug: string,
+  userKey: 'partner1' | 'partner2',
+  data: Game2048StateData
+): Promise<boolean> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/games_2048`, userKey);
+      await setDoc(
+        docRef,
+        {
+          ...data,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return true;
+    } catch (e) {
+      console.error('Error saving 2048 state:', e);
+    }
+  }
+  return false;
+}
+
+export function subscribeTo2048Games(
+  slug: string,
+  callback: (data: { partner1?: Game2048StateData; partner2?: Game2048StateData }) => void
+) {
+  if (isFirebaseConfigured && db) {
+    try {
+      const colRef = collection(db, `couples/${slug}/games_2048`);
+      return onSnapshot(colRef, (snap) => {
+        const result: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {};
+        snap.docs.forEach((docSnap) => {
+          if (docSnap.id === 'partner1') result.partner1 = docSnap.data() as Game2048StateData;
+          if (docSnap.id === 'partner2') result.partner2 = docSnap.data() as Game2048StateData;
+        });
+        callback(result);
+      });
+    } catch (e) {
+      console.error('Error subscribing to 2048 games:', e);
+    }
+  }
+  callback({});
+  return () => {};
+}
+
+

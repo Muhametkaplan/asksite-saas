@@ -49,6 +49,9 @@ import {
   saveDinoHighScore,
   getArcadeHighScores,
   saveArcadeHighScore,
+  save2048State,
+  subscribeTo2048Games,
+  Game2048StateData,
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
@@ -1837,7 +1840,7 @@ function FlappyBirdGame({
   );
 }
 
-/* --- SUB-GAME 7: 2048 (KLASİK STRATEJİ) --- */
+/* --- SUB-GAME 7: 2048 (KLASİK STRATEJİ & PARTNER TAHTALARI) --- */
 function Game2048({
   partner1,
   partner2,
@@ -1851,28 +1854,12 @@ function Game2048({
   playerName: string;
   role: 'partner1' | 'partner2' | 'guest';
 }) {
-  const [highScores, setHighScores] = useState<{ p1Score: number; p2Score: number }>({ p1Score: 0, p2Score: 0 });
-  const [grid, setGrid] = useState<number[][]>(() => createEmptyGrid());
-  const [score, setScore] = useState(0);
-  const [gameOver, setGameOver] = useState(false);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const userKey: 'partner1' | 'partner2' = role === 'partner2' ? 'partner2' : 'partner1';
 
-  useEffect(() => {
-    async function loadScores() {
-      if (slug) {
-        const fetched = await getArcadeHighScores(slug, '2048');
-        setHighScores(fetched);
-      }
-    }
-    loadScores();
-  }, [slug]);
-
-  const championName = useMemo(() => {
-    if (highScores.p1Score === 0 && highScores.p2Score === 0) return 'Henüz Rekor Yok 🎯';
-    if (highScores.p1Score > highScores.p2Score) return `🌸 Kız Partner (${partner1})`;
-    if (highScores.p2Score > highScores.p1Score) return `🔵 Erkek Partner (${partner2})`;
-    return 'Berabere 🤝';
-  }, [highScores, partner1, partner2]);
+  const [allGamesData, setAllGamesData] = useState<{
+    partner1?: Game2048StateData;
+    partner2?: Game2048StateData;
+  }>({});
 
   function createEmptyGrid() {
     return Array.from({ length: 4 }, () => Array(4).fill(0));
@@ -1892,6 +1879,104 @@ function Game2048({
     return newG;
   }
 
+  const [grid, setGrid] = useState<number[][]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const local = localStorage.getItem(`asksite_2048_${slug}_${userKey}`);
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed.board) && parsed.board.length === 4) {
+            return parsed.board;
+          }
+        }
+      } catch (e) {}
+    }
+    return createEmptyGrid();
+  });
+
+  const [score, setScore] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const local = localStorage.getItem(`asksite_2048_${slug}_${userKey}`);
+        if (local) {
+          const parsed = JSON.parse(local);
+          return parsed.currentScore || 0;
+        }
+      } catch (e) {}
+    }
+    return 0;
+  });
+
+  const [highScore, setHighScore] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const local = localStorage.getItem(`asksite_2048_${slug}_${userKey}`);
+        if (local) {
+          const parsed = JSON.parse(local);
+          return parsed.highScore || 0;
+        }
+      } catch (e) {}
+    }
+    return 0;
+  });
+
+  const [gameOver, setGameOver] = useState<boolean>(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const isInitialLoadedRef = useRef<boolean>(false);
+
+  // Subscribe to real-time 2048 Firestore collection
+  useEffect(() => {
+    const unsub = subscribeTo2048Games(slug, (data) => {
+      setAllGamesData(data);
+
+      const myData = data[userKey];
+      if (myData && !isInitialLoadedRef.current) {
+        isInitialLoadedRef.current = true;
+        if (Array.isArray(myData.board) && myData.board.length === 4) {
+          setGrid(myData.board);
+          setScore(myData.currentScore || 0);
+          setHighScore(myData.highScore || 0);
+          setGameOver(myData.gameOver || false);
+        } else {
+          let initGrid = createEmptyGrid();
+          initGrid = addRandomTile(initGrid);
+          initGrid = addRandomTile(initGrid);
+          setGrid(initGrid);
+          setScore(0);
+          setHighScore(myData.highScore || 0);
+          setGameOver(false);
+
+          save2048State(slug, userKey, {
+            board: initGrid,
+            currentScore: 0,
+            highScore: myData.highScore || 0,
+            gameOver: false,
+            updatedBy: playerName,
+          });
+        }
+      } else if (!myData && !isInitialLoadedRef.current) {
+        isInitialLoadedRef.current = true;
+        let initGrid = createEmptyGrid();
+        initGrid = addRandomTile(initGrid);
+        initGrid = addRandomTile(initGrid);
+        setGrid(initGrid);
+        setScore(0);
+        setHighScore(0);
+        setGameOver(false);
+
+        save2048State(slug, userKey, {
+          board: initGrid,
+          currentScore: 0,
+          highScore: 0,
+          gameOver: false,
+          updatedBy: playerName,
+        });
+      }
+    });
+
+    return () => unsub();
+  }, [slug, userKey, playerName]);
+
   const restartGame = () => {
     let newGrid = createEmptyGrid();
     newGrid = addRandomTile(newGrid);
@@ -1899,11 +1984,22 @@ function Game2048({
     setGrid(newGrid);
     setScore(0);
     setGameOver(false);
-  };
 
-  useEffect(() => {
-    restartGame();
-  }, []);
+    save2048State(slug, userKey, {
+      board: newGrid,
+      currentScore: 0,
+      highScore: highScore,
+      gameOver: false,
+      updatedBy: playerName,
+    });
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(
+        `asksite_2048_${slug}_${userKey}`,
+        JSON.stringify({ board: newGrid, currentScore: 0, highScore, gameOver: false })
+      );
+    }
+  };
 
   const slideRow = (row: number[]): { newRow: number[]; addedScore: number } => {
     let filtered = row.filter((v) => v !== 0);
@@ -1957,23 +2053,33 @@ function Game2048({
     if (changed) {
       const updatedGrid = addRandomTile(newG);
       const newScore = score + totalAdded;
+      const newHighScore = Math.max(highScore, newScore);
+      const isOver = isGameOver(updatedGrid);
+
       setGrid(updatedGrid);
       setScore(newScore);
-
-      if (isGameOver(updatedGrid)) {
-        setGameOver(true);
-        const previousRecord = role === 'partner1' ? highScores.p1Score : highScores.p2Score;
-        if (newScore > previousRecord) {
+      if (newHighScore > highScore) {
+        setHighScore(newHighScore);
+        const otherPartnerScore = userKey === 'partner1' ? (allGamesData.partner2?.highScore || 0) : (allGamesData.partner1?.highScore || 0);
+        if (newHighScore > otherPartnerScore) {
           triggerConfetti({ particleCount: 90, spread: 90 });
-          const isP1 = role === 'partner1';
-          const updatedScores = {
-            p1Score: isP1 ? newScore : highScores.p1Score,
-            p2Score: !isP1 ? newScore : highScores.p2Score,
-          };
-          setHighScores(updatedScores);
-          saveArcadeHighScore(slug, '2048', updatedScores.p1Score, updatedScores.p2Score);
-          saveGameScore(slug, '2048 Klasik', newScore, playerName);
         }
+      }
+      setGameOver(isOver);
+
+      save2048State(slug, userKey, {
+        board: updatedGrid,
+        currentScore: newScore,
+        highScore: newHighScore,
+        gameOver: isOver,
+        updatedBy: playerName,
+      });
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          `asksite_2048_${slug}_${userKey}`,
+          JSON.stringify({ board: updatedGrid, currentScore: newScore, highScore: newHighScore, gameOver: isOver })
+        );
       }
     }
   };
@@ -2026,33 +2132,49 @@ function Game2048({
     }
   };
 
+  // High Scores & Champion logic
+  const p1HighScore = userKey === 'partner1' ? Math.max(highScore, allGamesData.partner1?.highScore || 0) : (allGamesData.partner1?.highScore || 0);
+  const p2HighScore = userKey === 'partner2' ? Math.max(highScore, allGamesData.partner2?.highScore || 0) : (allGamesData.partner2?.highScore || 0);
+
+  const championName = useMemo(() => {
+    if (p1HighScore === 0 && p2HighScore === 0) return 'Henüz Rekor Yok 🎯';
+    if (p1HighScore > p2HighScore) return `${partner1} (${p1HighScore})`;
+    if (p2HighScore > p1HighScore) return `${partner2} (${p2HighScore})`;
+    return `Berabere (${p1HighScore}) 🤝`;
+  }, [p1HighScore, p2HighScore, partner1, partner2]);
+
   return (
     <div className="rounded-3xl bg-white p-6 shadow-xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200 max-w-xl mx-auto w-full">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 text-left">
           <span className="text-2xl">🧩</span>
-          <h3 className="text-xl font-black text-gray-900">2048 (Klasik Strateji)</h3>
+          <div>
+            <h3 className="text-lg font-black text-gray-900 leading-tight">2048 (Klasik Strateji)</h3>
+            <p className="text-[11px] text-rose-600 font-bold">
+              🎮 {playerName} ({userKey === 'partner1' ? partner1 : partner2}) Tahtası
+            </p>
+          </div>
         </div>
-        <div className="rounded-2xl bg-amber-50 px-4 py-2 border border-amber-200 text-xs font-black text-amber-800 font-mono">
-          SKOR: <span className="text-base text-amber-900">{score}</span>
+        <div className="rounded-2xl bg-amber-50 px-3.5 py-1.5 border border-amber-200 text-xs font-black text-amber-800 font-mono">
+          MEVCUT SKOR: <span className="text-base text-amber-900">{score}</span>
         </div>
       </div>
 
       {/* Leaderboard Panel */}
       <div className="rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 p-4 shadow-sm space-y-2">
-        <div className="flex items-center justify-between text-xs font-black">
-          <div className="flex items-center gap-2 text-pink-600">
-            <span>🌸 Kız Partner ({partner1})</span>
-            <span className="rounded-xl bg-pink-100 px-3 py-1 text-xs font-black text-pink-700">
-              {highScores.p1Score} Puan
+        <div className="flex items-center justify-between text-xs font-black flex-wrap gap-1">
+          <div className="flex items-center gap-1.5 text-pink-600">
+            <span>🌸 {partner1}:</span>
+            <span className="rounded-xl bg-pink-100 px-2.5 py-0.5 text-xs font-black text-pink-700">
+              {p1HighScore} Puan
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-blue-600">
-            <span className="rounded-xl bg-blue-100 px-3 py-1 text-xs font-black text-blue-700">
-              {highScores.p2Score} Puan
+          <div className="flex items-center gap-1.5 text-blue-600">
+            <span className="rounded-xl bg-blue-100 px-2.5 py-0.5 text-xs font-black text-blue-700">
+              {p2HighScore} Puan
             </span>
-            <span>🔵 Erkek Partner ({partner2})</span>
+            <span>🔵 {partner2}:</span>
           </div>
         </div>
 
@@ -2099,15 +2221,27 @@ function Game2048({
           <div className="absolute inset-0 rounded-3xl bg-black/70 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-3 z-30 animate-in fade-in">
             <div className="text-4xl">💥</div>
             <h4 className="text-xl font-black text-white">OYUN BİTTİ!</h4>
-            <p className="text-xs text-amber-200 font-mono">Toplam Skor: {score}</p>
+            <p className="text-xs text-amber-200 font-mono">Son Oyun Skoru: {score}</p>
+            <p className="text-[11px] text-gray-300 font-bold">Kişisel Rekorunuz: {highScore}</p>
             <button
               onClick={restartGame}
               className="rounded-2xl bg-amber-500 text-white font-black px-6 py-2.5 text-xs shadow-lg hover:bg-amber-600 transition"
             >
-              Yeni Oyun 🔄
+              Yeni Oyun Başlat 🔄
             </button>
           </div>
         )}
+      </div>
+
+      {/* Control Buttons */}
+      <div className="flex items-center justify-between gap-2 max-w-xs mx-auto">
+        <button
+          onClick={restartGame}
+          className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 font-extrabold text-xs hover:bg-rose-100 transition active:scale-95 border border-rose-100"
+        >
+          Yeniden Başlat 🔄
+        </button>
+        <span className="text-[10px] text-gray-400 font-bold">Klavye Tuşları (W A S D / Yön Tuşları)</span>
       </div>
 
       {/* Touch Control Buttons */}
