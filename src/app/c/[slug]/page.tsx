@@ -99,7 +99,7 @@ export default async function CouplePage({ params }: PageProps) {
   };
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-28 pt-8">
+    <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-32 pt-6 sm:pt-8 overflow-x-hidden max-w-full">
       {/* Dynamic Background Floating Hearts */}
       <FloatingHearts />
 
@@ -114,7 +114,7 @@ export default async function CouplePage({ params }: PageProps) {
         couple={couple}
       />
 
-      <div className="container relative z-10 mx-auto max-w-lg px-5 text-center">
+      <div className="container relative z-10 mx-auto max-w-lg px-3 sm:px-5 text-center overflow-x-hidden">
         {/* Dynamic Day/Night Greeting Theme */}
         {toggles.day_night !== false && (
           <DayNightGreeting partner1={couple.partner1_name} partner2={couple.partner2_name} />

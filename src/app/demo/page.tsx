@@ -88,7 +88,7 @@ export default function PureDemoPage() {
   const toggles = couple.feature_toggles || {};
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-gray-900 pb-32 text-center relative">
+    <main className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-gray-900 pb-32 text-center relative overflow-x-hidden max-w-full">
       {/* Top Pure Demo Banner Banner */}
       <div className="bg-gradient-to-r from-purple-700 via-rose-600 to-pink-600 text-white text-xs font-bold py-2.5 px-4 shadow-md flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-1.5 mx-auto sm:mx-0">
@@ -104,7 +104,7 @@ export default function PureDemoPage() {
       </div>
 
       {/* Main Container */}
-      <div className="container mx-auto max-w-xl px-4 pt-6 space-y-6">
+      <div className="container mx-auto max-w-xl px-3 sm:px-4 pt-6 space-y-6 overflow-x-hidden">
         {/* Dynamic Day/Night Mode Greeting Header */}
         {toggles.day_night !== false && (
           <DayNightGreeting partner1={couple.partner1_name} partner2={couple.partner2_name} />

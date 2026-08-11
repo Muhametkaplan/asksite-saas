@@ -40,6 +40,12 @@
   --foreground: #331825;
 }
 
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -47,3 +53,13 @@ body {
   overflow-x: hidden;
   user-select: none;
 }
+
+/* Hide scrollbar for clean horizontal scrolls */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

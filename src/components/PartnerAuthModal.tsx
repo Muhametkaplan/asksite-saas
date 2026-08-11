@@ -281,7 +281,7 @@ export default function PartnerAuthModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 backdrop-blur-xl p-4 animate-in fade-in duration-200 text-left">
-      <div className="relative w-full max-w-md rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-gray-100 text-center space-y-6">
+      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-5 sm:p-8 shadow-2xl border border-gray-100 text-center space-y-6">
         {/* ACCESS DENIED STATE */}
         {isAccessDenied ? (
           <div className="space-y-4 animate-in zoom-in-95 duration-200">

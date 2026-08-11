@@ -2185,7 +2185,7 @@ function Game2048({
 
       {/* 2048 Grid Board */}
       <div
-        className="relative mx-auto bg-[#bbada0] p-3 rounded-3xl max-w-sm aspect-square grid grid-cols-4 gap-2.5 shadow-2xl select-none"
+        className="relative mx-auto bg-[#bbada0] p-2.5 sm:p-3 rounded-3xl w-full max-w-[340px] sm:max-w-[360px] aspect-square grid grid-cols-4 gap-2 sm:gap-2.5 shadow-2xl select-none touch-none"
         onTouchStart={(e) => {
           if (e.touches.length > 0) {
             touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -2225,7 +2225,7 @@ function Game2048({
             <p className="text-[11px] text-gray-300 font-bold">Kişisel Rekorunuz: {highScore}</p>
             <button
               onClick={restartGame}
-              className="rounded-2xl bg-amber-500 text-white font-black px-6 py-2.5 text-xs shadow-lg hover:bg-amber-600 transition"
+              className="rounded-2xl bg-amber-500 text-white font-black px-6 py-3 text-xs shadow-lg hover:bg-amber-600 transition min-h-[44px]"
             >
               Yeni Oyun Başlat 🔄
             </button>
@@ -2237,21 +2237,21 @@ function Game2048({
       <div className="flex items-center justify-between gap-2 max-w-xs mx-auto">
         <button
           onClick={restartGame}
-          className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 font-extrabold text-xs hover:bg-rose-100 transition active:scale-95 border border-rose-100"
+          className="px-3 py-2 rounded-xl bg-rose-50 text-rose-600 font-extrabold text-xs hover:bg-rose-100 transition active:scale-95 border border-rose-100 min-h-[40px]"
         >
           Yeniden Başlat 🔄
         </button>
-        <span className="text-[10px] text-gray-400 font-bold">Klavye Tuşları (W A S D / Yön Tuşları)</span>
+        <span className="text-[10px] text-gray-400 font-bold">Klavye (W A S D) / Kaydır</span>
       </div>
 
       {/* Touch Control Buttons */}
-      <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+      <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto pt-1">
         <div />
-        <button onClick={() => move('up')} className="py-2.5 bg-gray-100 font-black rounded-xl text-sm active:scale-95 shadow-xs">⬆️</button>
+        <button onClick={() => move('up')} className="h-12 flex items-center justify-center bg-rose-50 text-rose-600 font-black rounded-2xl text-lg active:scale-90 border border-rose-100 shadow-sm hover:bg-rose-100 transition min-h-[44px]">⬆️</button>
         <div />
-        <button onClick={() => move('left')} className="py-2.5 bg-gray-100 font-black rounded-xl text-sm active:scale-95 shadow-xs">⬅️</button>
-        <button onClick={() => move('down')} className="py-2.5 bg-gray-100 font-black rounded-xl text-sm active:scale-95 shadow-xs">⬇️</button>
-        <button onClick={() => move('right')} className="py-2.5 bg-gray-100 font-black rounded-xl text-sm active:scale-95 shadow-xs">➡️</button>
+        <button onClick={() => move('left')} className="h-12 flex items-center justify-center bg-rose-50 text-rose-600 font-black rounded-2xl text-lg active:scale-90 border border-rose-100 shadow-sm hover:bg-rose-100 transition min-h-[44px]">⬅️</button>
+        <button onClick={() => move('down')} className="h-12 flex items-center justify-center bg-rose-50 text-rose-600 font-black rounded-2xl text-lg active:scale-90 border border-rose-100 shadow-sm hover:bg-rose-100 transition min-h-[44px]">⬇️</button>
+        <button onClick={() => move('right')} className="h-12 flex items-center justify-center bg-rose-50 text-rose-600 font-black rounded-2xl text-lg active:scale-90 border border-rose-100 shadow-sm hover:bg-rose-100 transition min-h-[44px]">➡️</button>
       </div>
     </div>
   );
@@ -4205,7 +4205,7 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
   return (
     <div className="space-y-4">
       {/* Main Canvas Wrapper */}
-      <div className="relative mx-auto w-[340px] sm:w-[360px] h-[340px] sm:h-[360px] rounded-3xl bg-white shadow-2xl border-4 border-rose-100 overflow-hidden touch-none select-none">
+      <div className="relative mx-auto w-full max-w-[340px] sm:max-w-[360px] aspect-square rounded-3xl bg-white shadow-2xl border-4 border-rose-100 overflow-hidden touch-none select-none">
         <canvas
           ref={canvasRef}
           width={360}
@@ -4227,13 +4227,13 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
           <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1.5 text-center">
             Fırça Renkleri 🎨
           </div>
-          <div className="flex items-center justify-center gap-2 flex-wrap">
+          <div className="flex items-center justify-start sm:justify-center gap-2.5 overflow-x-auto py-1 px-1 max-w-full no-scrollbar flex-nowrap sm:flex-wrap">
             {PALETTE_COLORS.map((c) => (
               <button
                 key={c.hex}
                 onClick={() => setSelectedColor(c.hex)}
                 title={c.name}
-                className={`h-7 w-7 rounded-full border-2 transition-transform ${selectedColor === c.hex
+                className={`h-8 w-8 shrink-0 rounded-full border-2 transition-transform ${selectedColor === c.hex
                   ? 'scale-125 border-gray-900 shadow-md'
                   : 'border-white hover:scale-110 shadow-2xs'
                   }`}
@@ -4243,11 +4243,11 @@ function TherapyWidget({ couple }: { couple: CoupleConfig }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
           <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200">
             <button
               onClick={() => setStrokeWidth(3)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${strokeWidth === 3 ? 'bg-rose-500 text-white' : 'text-gray-600'
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition min-h-[40px] ${strokeWidth === 3 ? 'bg-rose-500 text-white' : 'text-gray-600'
                 }`}
             >
               İnce (3px)

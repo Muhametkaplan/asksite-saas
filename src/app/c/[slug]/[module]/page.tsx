@@ -63,7 +63,7 @@ export default async function SubmodulePage({ params }: ModulePageProps) {
   }
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-20 pt-6 px-4">
+    <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-32 pt-6 px-3 sm:px-4 overflow-x-hidden max-w-full">
       {/* Device Session Guard & Auth Modal */}
       <PartnerAuthModal
         slug={couple.slug}
