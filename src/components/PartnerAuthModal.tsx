@@ -46,6 +46,11 @@ export default function PartnerAuthModal({
       });
       sessionStorage.setItem(`asksite_auth_${slug}`, authData);
       localStorage.setItem(`asksite_auth_${slug}`, authData);
+      if (slug && slug !== 'demo') {
+        document.cookie = `couple_slug=${slug}; path=/; max-age=31536000; SameSite=Lax`;
+        localStorage.setItem('activeCoupleSlug', slug);
+        localStorage.setItem('asksite_couple_slug', slug);
+      }
     }
   };
 
@@ -63,6 +68,11 @@ export default function PartnerAuthModal({
           setAuthorizedPartner(pName);
           setAuthRole(parsed.role);
           setIsOpen(false);
+          if (typeof window !== 'undefined' && slug && slug !== 'demo') {
+            document.cookie = `couple_slug=${slug}; path=/; max-age=31536000; SameSite=Lax`;
+            localStorage.setItem('activeCoupleSlug', slug);
+            localStorage.setItem('asksite_couple_slug', slug);
+          }
           if (parsed.role) {
             updatePartnerPresence(slug, parsed.role, true);
           }

@@ -14,11 +14,12 @@ export default function SaaSPlatformHome() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    // 1. Instant check in localStorage/sessionStorage for fast auto-redirect
+    // 1. Instant check in localStorage/sessionStorage for fast auto-redirect & cookie renewal
     if (typeof window !== 'undefined') {
       const storedSlug = localStorage.getItem('activeCoupleSlug') || localStorage.getItem('asksite_couple_slug');
       if (storedSlug && storedSlug !== 'demo') {
-        router.replace(`/c/${storedSlug}`);
+        document.cookie = `couple_slug=${storedSlug}; path=/; max-age=31536000; SameSite=Lax`;
+        window.location.replace(`/c/${storedSlug}`);
         return;
       }
 
@@ -27,7 +28,8 @@ export default function SaaSPlatformHome() {
         try {
           const parsed = JSON.parse(storedUser);
           if (parsed.coupleSlug && parsed.coupleSlug !== 'demo') {
-            router.replace(`/c/${parsed.coupleSlug}`);
+            document.cookie = `couple_slug=${parsed.coupleSlug}; path=/; max-age=31536000; SameSite=Lax`;
+            window.location.replace(`/c/${parsed.coupleSlug}`);
             return;
           }
         } catch (e) {}
@@ -43,10 +45,11 @@ export default function SaaSPlatformHome() {
             const data = uSnap.data();
             if (data.coupleSlug && data.coupleSlug !== 'demo') {
               if (typeof window !== 'undefined') {
+                document.cookie = `couple_slug=${data.coupleSlug}; path=/; max-age=31536000; SameSite=Lax`;
                 localStorage.setItem('activeCoupleSlug', data.coupleSlug);
                 localStorage.setItem('asksite_couple_slug', data.coupleSlug);
               }
-              router.replace(`/c/${data.coupleSlug}`);
+              window.location.replace(`/c/${data.coupleSlug}`);
               return;
             }
           }
