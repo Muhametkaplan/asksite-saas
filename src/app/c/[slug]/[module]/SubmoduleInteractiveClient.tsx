@@ -1861,6 +1861,8 @@ function Game2048({
     partner2?: Game2048StateData;
   }>({});
 
+  const [isGameLoading, setIsGameLoading] = useState<boolean>(true);
+
   function createEmptyGrid() {
     return Array.from({ length: 4 }, () => Array(4).fill(0));
   }
@@ -1924,15 +1926,18 @@ function Game2048({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const isInitialLoadedRef = useRef<boolean>(false);
 
-  // Subscribe to real-time 2048 Firestore collection
+  // Subscribe to real-time 2048 Firestore collection without overwriting on mount
   useEffect(() => {
+    let isMounted = true;
+
     const unsub = subscribeTo2048Games(slug, (data) => {
+      if (!isMounted) return;
       setAllGamesData(data);
 
       const myData = data[userKey];
-      if (myData && !isInitialLoadedRef.current) {
+      if (!isInitialLoadedRef.current) {
         isInitialLoadedRef.current = true;
-        if (Array.isArray(myData.board) && myData.board.length === 4) {
+        if (myData && Array.isArray(myData.board) && myData.board.length === 4) {
           setGrid(myData.board);
           setScore(myData.currentScore || 0);
           setHighScore(myData.highScore || 0);
@@ -1943,38 +1948,25 @@ function Game2048({
           initGrid = addRandomTile(initGrid);
           setGrid(initGrid);
           setScore(0);
-          setHighScore(myData.highScore || 0);
+          setHighScore(myData?.highScore || 0);
           setGameOver(false);
 
           save2048State(slug, userKey, {
             board: initGrid,
             currentScore: 0,
-            highScore: myData.highScore || 0,
+            highScore: myData?.highScore || 0,
             gameOver: false,
             updatedBy: playerName,
           });
         }
-      } else if (!myData && !isInitialLoadedRef.current) {
-        isInitialLoadedRef.current = true;
-        let initGrid = createEmptyGrid();
-        initGrid = addRandomTile(initGrid);
-        initGrid = addRandomTile(initGrid);
-        setGrid(initGrid);
-        setScore(0);
-        setHighScore(0);
-        setGameOver(false);
-
-        save2048State(slug, userKey, {
-          board: initGrid,
-          currentScore: 0,
-          highScore: 0,
-          gameOver: false,
-          updatedBy: playerName,
-        });
+        setIsGameLoading(false);
       }
     });
 
-    return () => unsub();
+    return () => {
+      isMounted = false;
+      unsub();
+    };
   }, [slug, userKey, playerName]);
 
   const restartGame = () => {
@@ -2020,7 +2012,7 @@ function Game2048({
   };
 
   const move = (dir: 'up' | 'down' | 'left' | 'right') => {
-    if (gameOver) return;
+    if (isGameLoading || gameOver) return;
     let current = grid;
     let newG = createEmptyGrid();
     let totalAdded = 0;
@@ -2113,7 +2105,7 @@ function Game2048({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [grid, score, gameOver]);
+  }, [grid, score, gameOver, isGameLoading]);
 
   const getTileColor = (val: number) => {
     switch (val) {
@@ -2205,6 +2197,13 @@ function Game2048({
           }
         }}
       >
+        {isGameLoading && (
+          <div className="absolute inset-0 rounded-3xl bg-amber-50/95 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-3 z-40 animate-in fade-in">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+            <p className="text-xs font-black text-amber-900">Tahtanız Yükleniyor... 🧩</p>
+          </div>
+        )}
+
         {grid.map((row, r) =>
           row.map((val, c) => (
             <div
@@ -2217,7 +2216,7 @@ function Game2048({
           ))
         )}
 
-        {gameOver && (
+        {gameOver && !isGameLoading && (
           <div className="absolute inset-0 rounded-3xl bg-black/70 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-3 z-30 animate-in fade-in">
             <div className="text-4xl">💥</div>
             <h4 className="text-xl font-black text-white">OYUN BİTTİ!</h4>
