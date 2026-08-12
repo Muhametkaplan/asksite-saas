@@ -1924,9 +1924,9 @@ function Game2048({
 
   const [gameOver, setGameOver] = useState<boolean>(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const isInitialLoadRef = useRef<boolean>(true);
+  const isLoadedFromDb = useRef<boolean>(false);
 
-  // Subscribe to real-time 2048 Firestore collection without overwriting on mount
+  // Subscribe to real-time 2048 Firestore collection with strict lock until DB load completes
   useEffect(() => {
     let isMounted = true;
 
@@ -1935,15 +1935,16 @@ function Game2048({
       setAllGamesData(data);
 
       const myData = data[userKey];
-      if (isInitialLoadRef.current) {
-        isInitialLoadRef.current = false;
+      if (!isLoadedFromDb.current) {
+        isLoadedFromDb.current = true;
         if (myData && Array.isArray(myData.board) && myData.board.length === 4) {
           setGrid(myData.board);
           setScore(myData.currentScore || 0);
           setHighScore(myData.highScore || 0);
           setGameOver(myData.gameOver || false);
-          // Strictly DO NOT call save2048State when reading existing Firestore board!
+          // Strictly NO save2048State call when hydrating existing board!
         } else if (!myData) {
+          // Only create and save 1 time if no document exists in DB at all
           let initGrid = createEmptyGrid();
           initGrid = addRandomTile(initGrid);
           initGrid = addRandomTile(initGrid);
@@ -1971,6 +1972,8 @@ function Game2048({
   }, [slug, userKey, playerName]);
 
   const restartGame = () => {
+    if (!isLoadedFromDb.current) return;
+
     let newGrid = createEmptyGrid();
     newGrid = addRandomTile(newGrid);
     newGrid = addRandomTile(newGrid);
@@ -2013,7 +2016,7 @@ function Game2048({
   };
 
   const move = (dir: 'up' | 'down' | 'left' | 'right') => {
-    if (isGameLoading || gameOver) return;
+    if (!isLoadedFromDb.current || isGameLoading || gameOver) return;
     let current = grid;
     let newG = createEmptyGrid();
     let totalAdded = 0;
