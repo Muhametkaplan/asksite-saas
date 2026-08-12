@@ -1478,4 +1478,23 @@ export function subscribeTo2048Games(
   return () => {};
 }
 
+export async function get2048State(
+  slug: string,
+  userKey: 'partner1' | 'partner2'
+): Promise<Game2048StateData | null> {
+  if (isFirebaseConfigured && db) {
+    try {
+      const docRef = doc(db, `couples/${slug}/games_2048`, userKey);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data() as Game2048StateData;
+      }
+    } catch (e) {
+      console.error('Error fetching 2048 state:', e);
+    }
+  }
+  return null;
+}
+
+
 

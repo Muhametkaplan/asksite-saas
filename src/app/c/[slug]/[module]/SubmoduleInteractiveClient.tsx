@@ -50,6 +50,7 @@ import {
   getArcadeHighScores,
   saveArcadeHighScore,
   save2048State,
+  get2048State,
   subscribeTo2048Games,
   Game2048StateData,
   formatDiaryDate,
@@ -1924,27 +1925,27 @@ function Game2048({
 
   const [gameOver, setGameOver] = useState<boolean>(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const isLoadedFromDb = useRef<boolean>(false);
+  const isGameLoaded = useRef<boolean>(false);
 
-  // Subscribe to real-time 2048 Firestore collection with strict lock until DB load completes
+  // 1. One-shot getDoc fetch on mount to load active player board without writing
   useEffect(() => {
     let isMounted = true;
+    isGameLoaded.current = false;
+    setIsGameLoading(true);
 
-    const unsub = subscribeTo2048Games(slug, (data) => {
-      if (!isMounted) return;
-      setAllGamesData(data);
+    async function loadGameData() {
+      try {
+        const data = await get2048State(slug, userKey);
+        if (!isMounted) return;
 
-      const myData = data[userKey];
-      if (!isLoadedFromDb.current) {
-        isLoadedFromDb.current = true;
-        if (myData && Array.isArray(myData.board) && myData.board.length === 4) {
-          setGrid(myData.board);
-          setScore(myData.currentScore || 0);
-          setHighScore(myData.highScore || 0);
-          setGameOver(myData.gameOver || false);
-          // Strictly NO save2048State call when hydrating existing board!
-        } else if (!myData) {
-          // Only create and save 1 time if no document exists in DB at all
+        if (data && Array.isArray(data.board) && data.board.length === 4) {
+          setGrid(data.board);
+          setScore(data.currentScore || 0);
+          setHighScore(data.highScore || 0);
+          setGameOver(data.gameOver || false);
+          // Strictly DO NOT write to DB on hydration!
+        } else if (!data) {
+          // If no document exists in DB at all, create 1-time initial board and save
           let initGrid = createEmptyGrid();
           initGrid = addRandomTile(initGrid);
           initGrid = addRandomTile(initGrid);
@@ -1953,7 +1954,7 @@ function Game2048({
           setHighScore(0);
           setGameOver(false);
 
-          save2048State(slug, userKey, {
+          await save2048State(slug, userKey, {
             board: initGrid,
             currentScore: 0,
             highScore: 0,
@@ -1961,18 +1962,34 @@ function Game2048({
             updatedBy: playerName,
           });
         }
-        setIsGameLoading(false);
+      } catch (err) {
+        console.error('Error loading 2048 state:', err);
+      } finally {
+        if (isMounted) {
+          isGameLoaded.current = true;
+          setIsGameLoading(false);
+        }
       }
-    });
+    }
+
+    loadGameData();
 
     return () => {
       isMounted = false;
-      unsub();
     };
   }, [slug, userKey, playerName]);
 
+  // 2. Realtime listener for Leaderboard / Partner high score updates
+  useEffect(() => {
+    const unsub = subscribeTo2048Games(slug, (data) => {
+      setAllGamesData(data);
+    });
+    return () => unsub();
+  }, [slug]);
+
+  // 3. Reset Game Handler
   const restartGame = () => {
-    if (!isLoadedFromDb.current) return;
+    if (!isGameLoaded.current) return;
 
     let newGrid = createEmptyGrid();
     newGrid = addRandomTile(newGrid);
@@ -2016,7 +2033,7 @@ function Game2048({
   };
 
   const move = (dir: 'up' | 'down' | 'left' | 'right') => {
-    if (!isLoadedFromDb.current || isGameLoading || gameOver) return;
+    if (!isGameLoaded.current || isGameLoading || gameOver) return;
     let current = grid;
     let newG = createEmptyGrid();
     let totalAdded = 0;
