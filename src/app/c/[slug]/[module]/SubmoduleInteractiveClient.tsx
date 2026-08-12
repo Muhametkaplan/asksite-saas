@@ -1924,7 +1924,7 @@ function Game2048({
 
   const [gameOver, setGameOver] = useState<boolean>(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const isInitialLoadedRef = useRef<boolean>(false);
+  const isInitialLoadRef = useRef<boolean>(true);
 
   // Subscribe to real-time 2048 Firestore collection without overwriting on mount
   useEffect(() => {
@@ -1935,26 +1935,27 @@ function Game2048({
       setAllGamesData(data);
 
       const myData = data[userKey];
-      if (!isInitialLoadedRef.current) {
-        isInitialLoadedRef.current = true;
+      if (isInitialLoadRef.current) {
+        isInitialLoadRef.current = false;
         if (myData && Array.isArray(myData.board) && myData.board.length === 4) {
           setGrid(myData.board);
           setScore(myData.currentScore || 0);
           setHighScore(myData.highScore || 0);
           setGameOver(myData.gameOver || false);
-        } else {
+          // Strictly DO NOT call save2048State when reading existing Firestore board!
+        } else if (!myData) {
           let initGrid = createEmptyGrid();
           initGrid = addRandomTile(initGrid);
           initGrid = addRandomTile(initGrid);
           setGrid(initGrid);
           setScore(0);
-          setHighScore(myData?.highScore || 0);
+          setHighScore(0);
           setGameOver(false);
 
           save2048State(slug, userKey, {
             board: initGrid,
             currentScore: 0,
-            highScore: myData?.highScore || 0,
+            highScore: 0,
             gameOver: false,
             updatedBy: playerName,
           });
