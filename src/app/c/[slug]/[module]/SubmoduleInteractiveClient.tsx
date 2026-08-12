@@ -2138,9 +2138,9 @@ function Game2048({
 
   const championName = useMemo(() => {
     if (p1HighScore === 0 && p2HighScore === 0) return 'Henüz Rekor Yok 🎯';
-    if (p1HighScore > p2HighScore) return `${partner1} (${p1HighScore})`;
-    if (p2HighScore > p1HighScore) return `${partner2} (${p2HighScore})`;
-    return `Berabere (${p1HighScore}) 🤝`;
+    if (p1HighScore > p2HighScore) return `${partner1} (${p1HighScore} Puan)`;
+    if (p2HighScore > p1HighScore) return `${partner2} (${p2HighScore} Puan)`;
+    return `Berabere (${p1HighScore} Puan) 🤝`;
   }, [p1HighScore, p2HighScore, partner1, partner2]);
 
   return (
@@ -2164,22 +2164,22 @@ function Game2048({
       <div className="rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 p-4 shadow-sm space-y-2">
         <div className="flex items-center justify-between text-xs font-black flex-wrap gap-1">
           <div className="flex items-center gap-1.5 text-pink-600">
-            <span>🌸 {partner1}:</span>
+            <span>🌸 {partner1} Puan:</span>
             <span className="rounded-xl bg-pink-100 px-2.5 py-0.5 text-xs font-black text-pink-700">
               {p1HighScore} Puan
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 text-blue-600">
+            <span>🔵 {partner2} Puan:</span>
             <span className="rounded-xl bg-blue-100 px-2.5 py-0.5 text-xs font-black text-blue-700">
               {p2HighScore} Puan
             </span>
-            <span>🔵 {partner2}:</span>
           </div>
         </div>
 
-        <div className="border-t border-amber-200 pt-2 text-xs font-extrabold text-gray-800 flex items-center justify-center gap-1">
-          <span>🏆 Şampiyon:</span> <span className="text-amber-800 font-black text-sm">{championName}</span>
+        <div className="border-t border-amber-200 pt-2 text-xs font-extrabold text-gray-800 flex items-center justify-center gap-1.5">
+          <span>🏆 Şampiyon:</span> <span className="text-amber-900 font-black text-sm">{championName}</span>
         </div>
       </div>
 
