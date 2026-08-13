@@ -1872,7 +1872,16 @@ function Game2048({
   playerName: string;
   role: 'partner1' | 'partner2' | 'guest';
 }) {
-  const userKey: 'partner1' | 'partner2' = role === 'partner2' ? 'partner2' : 'partner1';
+  const userKey: 'partner1' | 'partner2' = useMemo(() => {
+    const pNameNorm = (playerName || '').trim().toLocaleLowerCase('tr');
+    const p1Norm = (partner1 || '').trim().toLocaleLowerCase('tr');
+    const p2Norm = (partner2 || '').trim().toLocaleLowerCase('tr');
+
+    if (pNameNorm && pNameNorm === p2Norm) return 'partner2';
+    if (pNameNorm && pNameNorm === p1Norm) return 'partner1';
+    if (role === 'partner2') return 'partner2';
+    return 'partner1';
+  }, [playerName, partner1, partner2, role]);
 
   const [allGamesData, setAllGamesData] = useState<{
     partner1?: Game2048StateData;
