@@ -1447,6 +1447,13 @@ export async function save2048State(
         },
         { merge: true }
       );
+
+      // Sync to games_data/2048 for getArcadeHighScores
+      const arcadeRef = doc(db, `couples/${slug}/games_data`, '2048');
+      const scoreKey = userKey === 'partner1' ? 'p1Score' : 'p2Score';
+      const bestScore = Math.max(data.highScore || 0, data.currentScore || 0);
+      await setDoc(arcadeRef, { [scoreKey]: bestScore, updatedAt: serverTimestamp() }, { merge: true });
+
       return true;
     } catch (e) {
       console.error('Error saving 2048 state:', e);
@@ -1465,8 +1472,10 @@ export function subscribeTo2048Games(
       return onSnapshot(colRef, (snap) => {
         const result: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {};
         snap.docs.forEach((docSnap) => {
-          if (docSnap.id === 'partner1') result.partner1 = docSnap.data() as Game2048StateData;
-          if (docSnap.id === 'partner2') result.partner2 = docSnap.data() as Game2048StateData;
+          const id = docSnap.id.toLowerCase();
+          const d = docSnap.data() as Game2048StateData;
+          if (id === 'partner1' || id.includes('partner1')) result.partner1 = d;
+          if (id === 'partner2' || id.includes('partner2')) result.partner2 = d;
         });
         callback(result);
       });

@@ -1927,7 +1927,7 @@ function Game2048({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const isGameLoaded = useRef<boolean>(false);
 
-  // 1. One-shot getDoc fetch on mount to load active player board without writing
+  // 1. One-shot getDoc fetch on mount to load active player board & both partners high scores without writing
   useEffect(() => {
     let isMounted = true;
     isGameLoaded.current = false;
@@ -1935,18 +1935,31 @@ function Game2048({
 
     async function loadGameData() {
       try {
-        const data = await get2048State(slug, userKey);
+        const [myData, p1Data, p2Data, arcadeScores] = await Promise.all([
+          get2048State(slug, userKey),
+          get2048State(slug, 'partner1'),
+          get2048State(slug, 'partner2'),
+          getArcadeHighScores(slug, '2048'),
+        ]);
+
         if (!isMounted) return;
 
-        if (data && Array.isArray(data.board) && data.board.length === 4) {
-          setGrid(data.board);
-          setScore(data.currentScore || 0);
-          setHighScore(data.highScore || 0);
-          setGameOver(data.gameOver || false);
+        // Initialize allGamesData right away on mount for instant partner score hydration
+        setAllGamesData({
+          partner1: p1Data || (arcadeScores.p1Score > 0 ? { board: [], currentScore: arcadeScores.p1Score, highScore: arcadeScores.p1Score, gameOver: false } : undefined),
+          partner2: p2Data || (arcadeScores.p2Score > 0 ? { board: [], currentScore: arcadeScores.p2Score, highScore: arcadeScores.p2Score, gameOver: false } : undefined),
+        });
+
+        if (myData && Array.isArray(myData.board) && myData.board.length === 4) {
+          const bestScore = Math.max(myData.highScore || 0, myData.currentScore || 0);
+          setGrid(myData.board);
+          setScore(myData.currentScore || 0);
+          setHighScore(bestScore);
+          setGameOver(myData.gameOver || false);
           if (typeof window !== 'undefined') {
             localStorage.setItem(
               `asksite_2048_${slug}_${userKey}`,
-              JSON.stringify({ board: data.board, currentScore: data.currentScore || 0, highScore: data.highScore || 0, gameOver: data.gameOver || false })
+              JSON.stringify({ board: myData.board, currentScore: myData.currentScore || 0, highScore: bestScore, gameOver: myData.gameOver || false })
             );
           }
         } else {
