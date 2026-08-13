@@ -1943,24 +1943,46 @@ function Game2048({
           setScore(data.currentScore || 0);
           setHighScore(data.highScore || 0);
           setGameOver(data.gameOver || false);
-          // Strictly DO NOT write to DB on hydration!
-        } else if (!data) {
-          // If no document exists in DB at all, create 1-time initial board and save
-          let initGrid = createEmptyGrid();
-          initGrid = addRandomTile(initGrid);
-          initGrid = addRandomTile(initGrid);
-          setGrid(initGrid);
-          setScore(0);
-          setHighScore(0);
-          setGameOver(false);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(
+              `asksite_2048_${slug}_${userKey}`,
+              JSON.stringify({ board: data.board, currentScore: data.currentScore || 0, highScore: data.highScore || 0, gameOver: data.gameOver || false })
+            );
+          }
+        } else {
+          // Check local storage fallback if DB is empty or uninitialized
+          let localBoard: number[][] | null = null;
+          let localScore = 0;
+          let localHighScore = 0;
 
-          await save2048State(slug, userKey, {
-            board: initGrid,
-            currentScore: 0,
-            highScore: 0,
-            gameOver: false,
-            updatedBy: playerName,
-          });
+          if (typeof window !== 'undefined') {
+            try {
+              const local = localStorage.getItem(`asksite_2048_${slug}_${userKey}`);
+              if (local) {
+                const parsed = JSON.parse(local);
+                if (Array.isArray(parsed.board) && parsed.board.length === 4) {
+                  localBoard = parsed.board;
+                  localScore = parsed.currentScore || 0;
+                  localHighScore = parsed.highScore || 0;
+                }
+              }
+            } catch (e) {}
+          }
+
+          if (localBoard) {
+            setGrid(localBoard);
+            setScore(localScore);
+            setHighScore(localHighScore);
+          } else {
+            let initGrid = createEmptyGrid();
+            initGrid = addRandomTile(initGrid);
+            initGrid = addRandomTile(initGrid);
+            setGrid(initGrid);
+            setScore(0);
+            setHighScore(0);
+            setGameOver(false);
+          }
+          // ABSOLUTELY ZERO FIRESTORE WRITE CALLS HERE!
         }
       } catch (err) {
         console.error('Error loading 2048 state:', err);
@@ -1977,7 +1999,7 @@ function Game2048({
     return () => {
       isMounted = false;
     };
-  }, [slug, userKey, playerName]);
+  }, [slug, userKey]);
 
   // 2. Realtime listener for Leaderboard / Partner high score updates
   useEffect(() => {
