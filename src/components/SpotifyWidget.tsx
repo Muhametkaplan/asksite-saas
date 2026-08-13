@@ -33,7 +33,8 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
   const getEmbedSrc = (url?: string) => {
     if (activeOverride) return activeOverride;
 
-    const fallbackEmbed = 'https://open.spotify.com/embed/playlist/37i9dQZF1DWZQD1rStM4VL';
+    const fallbackId = '37i9dQZF1DWZQD1rStM4VL'; // Spotify Official "Romantik Hits" (Public, Active Global Playlist)
+    const fallbackEmbed = `https://open.spotify.com/embed/playlist/${fallbackId}`;
 
     if (!url || typeof url !== 'string' || !url.trim()) {
       return fallbackEmbed;
@@ -41,8 +42,13 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
 
     let cleanUrl = url.trim();
 
-    // Migrate old deprecated or broken Spotify playlist IDs
-    if (cleanUrl.includes('37i9dQZF1DXcBWIGoYBM5M')) {
+    // Detect Spotify private/personalized blends (37i9dQZF1EJ...), card-configs, or broken IDs
+    if (
+      cleanUrl.includes('37i9dQZF1EJ') ||
+      cleanUrl.includes('37i9dQZF1DXcBWIGoYBM5M') ||
+      cleanUrl.includes('sci=spotify') ||
+      cleanUrl.includes('card-config')
+    ) {
       return fallbackEmbed;
     }
 
@@ -51,7 +57,9 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
     if (match && match[1] && match[2]) {
       const type = match[1].toLowerCase();
       const id = match[2];
-      if (id === '37i9dQZF1DXcBWIGoYBM5M') {
+
+      // Block Spotify's private algorithmic/session IDs starting with 37i9dQZF1EJ or deprecated IDs
+      if (id.startsWith('37i9dQZF1EJ') || id === '37i9dQZF1DXcBWIGoYBM5M' || id === '37i9dQZF1DX506F6QhE9q7') {
         return fallbackEmbed;
       }
       return `https://open.spotify.com/embed/${type}/${id}`;

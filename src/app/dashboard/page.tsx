@@ -1645,9 +1645,12 @@ function DashboardContent() {
                     type="text"
                     value={config.spotify_url || ''}
                     onChange={(e) => setConfig({ ...config, spotify_url: e.target.value })}
-                    placeholder="https://open.spotify.com/embed/playlist/..."
+                    placeholder="https://open.spotify.com/playlist/..."
                     className="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-xs outline-none"
                   />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    💡 <strong>İpucu:</strong> Spotify&apos;da genel (halka açık) bir Çalma Listesi veya Şarkı bağlantısı yapıştırın. (Spotify kişisel Blend/Karma kart linklerine dışarıdan gömme izni vermemektedir.)
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Karaoke Akış Sözleri</label>
