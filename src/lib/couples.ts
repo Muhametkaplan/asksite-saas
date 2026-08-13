@@ -277,7 +277,13 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           theme_color_tech: data.theme?.techColor || data.theme_color_tech || '#6c5ce7',
           bg_music_url: data.bgMusicUrl || data.bg_music_url || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
           custom_audio_url: data.customAudioUrl || data.custom_audio_url || data.bg_music_url,
-          spotify_url: data.spotify?.spotifyUrl || data.spotify_url || DEMO_COUPLE.spotify_url,
+          spotify_url: (() => {
+            const raw = data.spotify?.spotifyUrl || data.spotify_url || DEMO_COUPLE.spotify_url;
+            if (!raw || raw.includes('37i9dQZF1DXcBWIGoYBM5M')) {
+              return 'https://open.spotify.com/embed/playlist/37i9dQZF1DX506F6QhE9q7';
+            }
+            return raw;
+          })(),
           spotify_lyrics: data.spotify?.lyrics || data.spotify_lyrics || DEMO_COUPLE.spotify_lyrics,
           whatsapp_number: data.whatsapp?.number || data.whatsapp_number || '905524185530',
           whatsapp_message: data.whatsapp?.message || data.whatsapp_message || 'Acil sarılmana ihtiyacım var 🥺',

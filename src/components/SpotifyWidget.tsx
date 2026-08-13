@@ -32,25 +32,24 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
 
     let cleanUrl = url.trim();
 
-    // Migrate old broken Spotify playlist ID if saved in Firestore
+    // Migrate old broken Spotify playlist ID if saved in Firestore or props
     if (cleanUrl.includes('37i9dQZF1DXcBWIGoYBM5M')) {
-      cleanUrl = cleanUrl.replace('37i9dQZF1DXcBWIGoYBM5M', defaultId);
+      cleanUrl = cleanUrl.replace(/37i9dQZF1DXcBWIGoYBM5M/g, defaultId);
     }
 
-    // Extract type (playlist, track, album, artist) and ID (handles intl-tr, intl-es, desktop, mobile)
-    const match = cleanUrl.match(/(playlist|track|album|artist)[\/:]([a-zA-Z0-9]+)/i);
+    // Extract type (playlist, track, album, artist) and Spotify ID (base62 ID length 15-30)
+    const match = cleanUrl.match(/(playlist|track|album|artist)[\/:]([a-zA-Z0-9]{15,30})/i);
     if (match && match[1] && match[2]) {
       const type = match[1].toLowerCase();
-      const id = match[2];
+      let id = match[2];
+      if (id === '37i9dQZF1DXcBWIGoYBM5M') {
+        id = defaultId;
+      }
       return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`;
     }
 
-    // Fallback if match fails: remove intl-xx and fix embed path
-    let formatted = cleanUrl.replace(/\/intl-[a-z]{2}\//i, '/');
-    if (!formatted.includes('/embed/')) {
-      formatted = formatted.replace('spotify.com/', 'spotify.com/embed/');
-    }
-    return formatted;
+    // Fallback guarantee for any non-embeddable or invalid URL format
+    return defaultEmbed;
   };
 
   const embedSrc = getEmbedSrc(spotifyUrl);
