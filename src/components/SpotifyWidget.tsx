@@ -33,7 +33,7 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
   const getEmbedSrc = (url?: string) => {
     if (activeOverride) return activeOverride;
 
-    const fallbackId = '37i9dQZF1DWZQD1rStM4VL'; // Spotify Official "Romantik Hits" (Public, Active Global Playlist)
+    const fallbackId = '37i9dQZF1DWZQD1rStM4VL'; // Official Spotify "Romantik Hits"
     const fallbackEmbed = `https://open.spotify.com/embed/playlist/${fallbackId}`;
 
     if (!url || typeof url !== 'string' || !url.trim()) {
@@ -42,31 +42,30 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
 
     let cleanUrl = url.trim();
 
-    // Detect Spotify private/personalized blends (37i9dQZF1EJ...), card-configs, or broken IDs
-    if (
-      cleanUrl.includes('37i9dQZF1EJ') ||
-      cleanUrl.includes('37i9dQZF1DXcBWIGoYBM5M') ||
-      cleanUrl.includes('sci=spotify') ||
-      cleanUrl.includes('card-config')
-    ) {
-      return fallbackEmbed;
+    // 1. If already a clean embed URL, strip tracking params (&pi=, &sci=) and return
+    if (cleanUrl.includes('spotify.com/embed/')) {
+      const qIndex = cleanUrl.indexOf('?');
+      return qIndex !== -1 ? cleanUrl.substring(0, qIndex) : cleanUrl;
     }
 
-    // Extract type (playlist, track, album, artist) and Spotify ID (base62 ID length 15-30)
-    const match = cleanUrl.match(/(playlist|track|album|artist)[\/:]([a-zA-Z0-9]{15,30})/i);
+    // 2. Extract Spotify item type (playlist, track, album, artist) and ID (Base62)
+    const match = cleanUrl.match(/(playlist|track|album|artist)[\/:]([a-zA-Z0-9]+)/i);
     if (match && match[1] && match[2]) {
       const type = match[1].toLowerCase();
       const id = match[2];
-
-      // Block Spotify's private algorithmic/session IDs starting with 37i9dQZF1EJ or deprecated IDs
-      if (id.startsWith('37i9dQZF1EJ') || id === '37i9dQZF1DXcBWIGoYBM5M' || id === '37i9dQZF1DX506F6QhE9q7') {
-        return fallbackEmbed;
-      }
       return `https://open.spotify.com/embed/${type}/${id}`;
     }
 
-    // Fallback guarantee for any non-embeddable or invalid URL format
-    return fallbackEmbed;
+    // 3. Fallback: replace spotify.com/ with spotify.com/embed/ and strip query params
+    let formatted = cleanUrl.replace(/\/intl-[a-z]{2}\//i, '/');
+    if (!formatted.includes('spotify.com/embed/')) {
+      formatted = formatted.replace('spotify.com/', 'spotify.com/embed/');
+    }
+    const qIndex = formatted.indexOf('?');
+    if (qIndex !== -1) {
+      formatted = formatted.substring(0, qIndex);
+    }
+    return formatted;
   };
 
   const embedSrc = getEmbedSrc(spotifyUrl);
