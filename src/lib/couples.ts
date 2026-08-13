@@ -1476,18 +1476,21 @@ export function subscribeTo2048Games(
 
   let games2048Data: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {};
   let gamesData2048: { p1Score?: number; p2Score?: number } = {};
+  let gamesDataCollectionScores: { p1Score?: number; p2Score?: number } = {};
 
   const emitCombinedData = () => {
     const p1BestScore = Math.max(
       games2048Data.partner1?.highScore || 0,
       games2048Data.partner1?.currentScore || 0,
-      gamesData2048.p1Score || 0
+      gamesData2048.p1Score || 0,
+      gamesDataCollectionScores.p1Score || 0
     );
 
     const p2BestScore = Math.max(
       games2048Data.partner2?.highScore || 0,
       games2048Data.partner2?.currentScore || 0,
-      gamesData2048.p2Score || 0
+      gamesData2048.p2Score || 0,
+      gamesDataCollectionScores.p2Score || 0
     );
 
     const combined: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {
@@ -1513,7 +1516,7 @@ export function subscribeTo2048Games(
     callback(combined);
   };
 
-  // Listener 1: couples/{slug}/games_2048 collection
+  // Listener 1: couples/{slug}/games_2048 collection with name-based dynamic matchers
   const colRef = collection(db, `couples/${slug}/games_2048`);
   const unsub1 = onSnapshot(
     colRef,
@@ -1521,17 +1524,54 @@ export function subscribeTo2048Games(
       const res: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {};
       snap.docs.forEach((docSnap) => {
         const id = docSnap.id.toLowerCase();
-        const d = docSnap.data() as Game2048StateData;
-        if (id === 'partner1' || id.includes('partner1')) res.partner1 = d;
-        if (id === 'partner2' || id.includes('partner2')) res.partner2 = d;
+        const d = docSnap.data() as Game2048StateData & {
+          updatedBy?: string;
+          playerName?: string;
+          partnerName?: string;
+          userKey?: string;
+        };
+
+        const nameInDoc = (d.updatedBy || d.playerName || d.partnerName || '').trim().toLocaleLowerCase('tr');
+        const userKeyInDoc = (d.userKey || '').toLowerCase();
+
+        // Partner 1 matchers (irem / partner1)
+        if (
+          id === 'partner1' ||
+          id.includes('partner1') ||
+          userKeyInDoc === 'partner1' ||
+          id === 'irem' ||
+          id.includes('irem') ||
+          nameInDoc === 'irem' ||
+          nameInDoc.includes('irem')
+        ) {
+          if (!res.partner1 || (d.highScore || d.currentScore || 0) >= (res.partner1.highScore || res.partner1.currentScore || 0)) {
+            res.partner1 = d;
+          }
+        }
+
+        // Partner 2 matchers (muhammet / partner2)
+        if (
+          id === 'partner2' ||
+          id.includes('partner2') ||
+          userKeyInDoc === 'partner2' ||
+          id === 'muhammet' ||
+          id.includes('muhammet') ||
+          nameInDoc === 'muhammet' ||
+          nameInDoc.includes('muhammet')
+        ) {
+          if (!res.partner2 || (d.highScore || d.currentScore || 0) >= (res.partner2.highScore || res.partner2.currentScore || 0)) {
+            res.partner2 = d;
+          }
+        }
       });
+
       games2048Data = res;
       emitCombinedData();
     },
     (err) => console.error('Error in 2048 collection snapshot:', err)
   );
 
-  // Listener 2: couples/{slug}/games_data/2048 document for dual fallback
+  // Listener 2: couples/{slug}/games_data/2048 document
   const docRef = doc(db, `couples/${slug}/games_data`, '2048');
   const unsub2 = onSnapshot(
     docRef,
@@ -1548,9 +1588,36 @@ export function subscribeTo2048Games(
     (err) => console.error('Error in 2048 games_data snapshot:', err)
   );
 
+  // Listener 3: couples/{slug}/games_data collection for general 2048 game scores
+  const gamesDataColRef = collection(db, `couples/${slug}/games_data`);
+  const unsub3 = onSnapshot(
+    gamesDataColRef,
+    (snap) => {
+      let p1Max = 0;
+      let p2Max = 0;
+      snap.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        const gName = (data.gameName || '').toString().toLowerCase();
+        if (gName.includes('2048')) {
+          const pName = (data.playerName || '').toString().trim().toLocaleLowerCase('tr');
+          const s = typeof data.score === 'number' ? data.score : 0;
+          if (pName.includes('irem')) {
+            if (s > p1Max) p1Max = s;
+          } else if (pName.includes('muhammet')) {
+            if (s > p2Max) p2Max = s;
+          }
+        }
+      });
+      gamesDataCollectionScores = { p1Score: p1Max, p2Score: p2Max };
+      emitCombinedData();
+    },
+    (err) => console.error('Error in games_data collection snapshot:', err)
+  );
+
   return () => {
     unsub1();
     unsub2();
+    unsub3();
   };
 }
 
