@@ -1438,20 +1438,23 @@ export async function save2048State(
 ): Promise<boolean> {
   if (isFirebaseConfigured && db) {
     try {
+      const bestScore = Math.max(data.highScore || 0, data.currentScore || 0);
+
+      // 1. Save state to games_2048/{userKey}
       const docRef = doc(db, `couples/${slug}/games_2048`, userKey);
       await setDoc(
         docRef,
         {
           ...data,
+          highScore: bestScore,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
 
-      // Also sync to games_data/2048 for getArcadeHighScores
+      // 2. Sync score to games_data/2048 for getArcadeHighScores
       const arcadeRef = doc(db, `couples/${slug}/games_data`, '2048');
       const scoreKey = userKey === 'partner1' ? 'p1Score' : 'p2Score';
-      const bestScore = Math.max(data.highScore || 0, data.currentScore || 0);
       await setDoc(arcadeRef, { [scoreKey]: bestScore, updatedAt: serverTimestamp() }, { merge: true });
 
       return true;
@@ -1466,43 +1469,89 @@ export function subscribeTo2048Games(
   slug: string,
   callback: (data: { partner1?: Game2048StateData; partner2?: Game2048StateData }) => void
 ) {
-  if (isFirebaseConfigured && db) {
-    try {
-      const colRef = collection(db, `couples/${slug}/games_2048`);
-      return onSnapshot(colRef, async (snap) => {
-        const result: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {};
-        snap.docs.forEach((docSnap) => {
-          const id = docSnap.id.toLowerCase();
-          const d = docSnap.data() as Game2048StateData;
-          if (id === 'partner1' || id.includes('partner1')) result.partner1 = d;
-          if (id === 'partner2' || id.includes('partner2')) result.partner2 = d;
-        });
-
-        // Fallback check games_data/2048 for any missing partner score
-        try {
-          if (db) {
-            const arcadeRef = doc(db, `couples/${slug}/games_data`, '2048');
-            const arcadeSnap = await getDoc(arcadeRef);
-            if (arcadeSnap.exists()) {
-              const aData = arcadeSnap.data();
-              if (!result.partner1 && aData.p1Score) {
-                result.partner1 = { board: [], currentScore: aData.p1Score, highScore: aData.p1Score, gameOver: false };
-              }
-              if (!result.partner2 && aData.p2Score) {
-                result.partner2 = { board: [], currentScore: aData.p2Score, highScore: aData.p2Score, gameOver: false };
-              }
-            }
-          }
-        } catch (e) {}
-
-        callback(result);
-      });
-    } catch (e) {
-      console.error('Error subscribing to 2048 games:', e);
-    }
+  if (!isFirebaseConfigured || !db) {
+    callback({});
+    return () => {};
   }
-  callback({});
-  return () => {};
+
+  let games2048Data: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {};
+  let gamesData2048: { p1Score?: number; p2Score?: number } = {};
+
+  const emitCombinedData = () => {
+    const p1BestScore = Math.max(
+      games2048Data.partner1?.highScore || 0,
+      games2048Data.partner1?.currentScore || 0,
+      gamesData2048.p1Score || 0
+    );
+
+    const p2BestScore = Math.max(
+      games2048Data.partner2?.highScore || 0,
+      games2048Data.partner2?.currentScore || 0,
+      gamesData2048.p2Score || 0
+    );
+
+    const combined: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {
+      partner1: games2048Data.partner1
+        ? {
+            ...games2048Data.partner1,
+            highScore: Math.max(games2048Data.partner1.highScore || 0, p1BestScore),
+          }
+        : p1BestScore > 0
+        ? { board: [], currentScore: p1BestScore, highScore: p1BestScore, gameOver: false }
+        : undefined,
+
+      partner2: games2048Data.partner2
+        ? {
+            ...games2048Data.partner2,
+            highScore: Math.max(games2048Data.partner2.highScore || 0, p2BestScore),
+          }
+        : p2BestScore > 0
+        ? { board: [], currentScore: p2BestScore, highScore: p2BestScore, gameOver: false }
+        : undefined,
+    };
+
+    callback(combined);
+  };
+
+  // Listener 1: couples/{slug}/games_2048 collection
+  const colRef = collection(db, `couples/${slug}/games_2048`);
+  const unsub1 = onSnapshot(
+    colRef,
+    (snap) => {
+      const res: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {};
+      snap.docs.forEach((docSnap) => {
+        const id = docSnap.id.toLowerCase();
+        const d = docSnap.data() as Game2048StateData;
+        if (id === 'partner1' || id.includes('partner1')) res.partner1 = d;
+        if (id === 'partner2' || id.includes('partner2')) res.partner2 = d;
+      });
+      games2048Data = res;
+      emitCombinedData();
+    },
+    (err) => console.error('Error in 2048 collection snapshot:', err)
+  );
+
+  // Listener 2: couples/{slug}/games_data/2048 document for dual fallback
+  const docRef = doc(db, `couples/${slug}/games_data`, '2048');
+  const unsub2 = onSnapshot(
+    docRef,
+    (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        gamesData2048 = {
+          p1Score: data.p1Score || 0,
+          p2Score: data.p2Score || 0,
+        };
+        emitCombinedData();
+      }
+    },
+    (err) => console.error('Error in 2048 games_data snapshot:', err)
+  );
+
+  return () => {
+    unsub1();
+    unsub2();
+  };
 }
 
 export async function get2048State(
