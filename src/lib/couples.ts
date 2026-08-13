@@ -279,8 +279,8 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           custom_audio_url: data.customAudioUrl || data.custom_audio_url || data.bg_music_url,
           spotify_url: (() => {
             const raw = data.spotify?.spotifyUrl || data.spotify_url || DEMO_COUPLE.spotify_url;
-            if (!raw || raw.includes('37i9dQZF1DXcBWIGoYBM5M')) {
-              return 'https://open.spotify.com/embed/playlist/37i9dQZF1DX506F6QhE9q7';
+            if (!raw || raw.includes('37i9dQZF1DXcBWIGoYBM5M') || raw.includes('37i9dQZF1DX506F6QhE9q7')) {
+              return 'https://open.spotify.com/embed/playlist/37i9dQZF1DWZQD1rStM4VL';
             }
             return raw;
           })(),

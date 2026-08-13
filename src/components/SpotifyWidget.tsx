@@ -23,33 +23,34 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
 
   // Helper to convert any Spotify share link (mobile, intl-tr, desktop, uri) to valid embed iframe src
   const getEmbedSrc = (url?: string) => {
-    const defaultId = '37i9dQZF1DX506F6QhE9q7'; // Official Spotify "Aşk Şarkıları" Playlist
-    const defaultEmbed = `https://open.spotify.com/embed/playlist/${defaultId}?utm_source=generator&theme=0`;
+    // Official working Spotify "Romantik Hits" Playlist (100% active globally on mobile & desktop)
+    const fallbackId = '37i9dQZF1DWZQD1rStM4VL';
+    const fallbackEmbed = `https://open.spotify.com/embed/playlist/${fallbackId}`;
 
     if (!url || typeof url !== 'string' || !url.trim()) {
-      return defaultEmbed;
+      return fallbackEmbed;
     }
 
     let cleanUrl = url.trim();
 
-    // Migrate old broken Spotify playlist ID if saved in Firestore or props
-    if (cleanUrl.includes('37i9dQZF1DXcBWIGoYBM5M')) {
-      cleanUrl = cleanUrl.replace(/37i9dQZF1DXcBWIGoYBM5M/g, defaultId);
+    // Migrate old deprecated or broken Spotify playlist IDs
+    if (cleanUrl.includes('37i9dQZF1DXcBWIGoYBM5M') || cleanUrl.includes('37i9dQZF1DX506F6QhE9q7')) {
+      return fallbackEmbed;
     }
 
     // Extract type (playlist, track, album, artist) and Spotify ID (base62 ID length 15-30)
     const match = cleanUrl.match(/(playlist|track|album|artist)[\/:]([a-zA-Z0-9]{15,30})/i);
     if (match && match[1] && match[2]) {
       const type = match[1].toLowerCase();
-      let id = match[2];
-      if (id === '37i9dQZF1DXcBWIGoYBM5M') {
-        id = defaultId;
+      const id = match[2];
+      if (id === '37i9dQZF1DXcBWIGoYBM5M' || id === '37i9dQZF1DX506F6QhE9q7') {
+        return fallbackEmbed;
       }
-      return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`;
+      return `https://open.spotify.com/embed/${type}/${id}`;
     }
 
     // Fallback guarantee for any non-embeddable or invalid URL format
-    return defaultEmbed;
+    return fallbackEmbed;
   };
 
   const embedSrc = getEmbedSrc(spotifyUrl);
