@@ -967,46 +967,46 @@ function DinoRunnerGame({
 
         {/* Overlay Modal */}
         {!isPlaying && (
-          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-4 z-30 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-2 sm:p-6 space-y-2 sm:space-y-4 z-30 animate-in fade-in duration-200">
             {gameOver ? (
-              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-6 text-center shadow-2xl space-y-4 border border-gray-200 animate-in zoom-in-95">
+              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-4 sm:p-6 text-center shadow-2xl space-y-3 sm:space-y-4 border border-gray-200 animate-in zoom-in-95">
                 {isNewRecord ? (
-                  <div className="space-y-1.5">
-                    <div className="text-5xl animate-bounce">🎉</div>
-                    <h4 className="text-lg font-black text-emerald-600">TEBRİKLER! YENİ REKOR!</h4>
-                    <p className="text-xs text-gray-600 font-bold">Chrome Dino rekorunu kırdınız!</p>
+                  <div className="space-y-1">
+                    <div className="text-3xl sm:text-5xl animate-bounce">🎉</div>
+                    <h4 className="text-sm sm:text-lg font-black text-emerald-600">TEBRİKLER! YENİ REKOR!</h4>
+                    <p className="text-[10px] sm:text-xs text-gray-600 font-bold">Chrome Dino rekorunu kırdınız!</p>
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
-                    <div className="text-4xl">💥</div>
-                    <h4 className="text-lg font-black text-gray-900">GAME OVER</h4>
+                  <div className="space-y-1">
+                    <div className="text-2xl sm:text-4xl">💥</div>
+                    <h4 className="text-sm sm:text-lg font-black text-gray-900">GAME OVER</h4>
                   </div>
                 )}
 
-                <div className="py-3 px-4 bg-gray-100 rounded-2xl border border-gray-200 text-xs font-black text-gray-800 flex items-center justify-around font-mono">
-                  <span>SCORE: <strong className="text-base text-gray-900">{currentScore}</strong></span>
-                  <span>SPEED: <strong className="text-base text-emerald-600">{currentSpeed}</strong></span>
+                <div className="py-2 sm:py-3 px-3 sm:px-4 bg-gray-100 rounded-2xl border border-gray-200 text-[10px] sm:text-xs font-black text-gray-800 flex items-center justify-around font-mono">
+                  <span>SCORE: <strong className="text-xs sm:text-base text-gray-900">{currentScore}</strong></span>
+                  <span>SPEED: <strong className="text-xs sm:text-base text-emerald-600">{currentSpeed}</strong></span>
                 </div>
 
                 <button
                   onClick={startGame}
-                  className="w-full rounded-2xl bg-gradient-to-r from-gray-800 via-gray-900 to-black py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
+                  className="w-full rounded-2xl bg-gradient-to-r from-gray-800 via-gray-900 to-black py-2.5 sm:py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
                 >
                   Oyna 🔄
                 </button>
               </div>
             ) : (
-              <div className="text-center space-y-4 max-w-md">
-                <div className="text-5xl animate-bounce">🦖</div>
-                <h4 className="text-2xl font-black text-white font-mono drop-shadow-md">CHROME DINO RUNNER</h4>
-                <p className="text-xs text-gray-300 leading-relaxed font-mono">
+              <div className="text-center space-y-1.5 sm:space-y-4 max-w-md p-1">
+                <div className="text-2xl sm:text-5xl animate-bounce">🦖</div>
+                <h4 className="text-base sm:text-2xl font-black text-white font-mono drop-shadow-md">CHROME DINO RUNNER</h4>
+                <p className="text-[10px] sm:text-xs text-gray-300 leading-tight sm:leading-relaxed font-mono">
                   Zıplama: <span className="font-bold text-emerald-400">Space / Up</span> | Eğilme: <span className="font-bold text-emerald-400">Down / S</span>
-                  <br />
-                  Mobilde zıplamak için dokunun, eğilmek için aşağı sürükleyin!
+                  <br className="hidden sm:inline" />
+                  Mobilde zıplamak için dokunun!
                 </p>
                 <button
                   onClick={startGame}
-                  className="rounded-2xl bg-gradient-to-r from-gray-800 via-gray-900 to-black px-10 py-3.5 text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition border border-gray-600 font-mono"
+                  className="rounded-2xl bg-gradient-to-r from-gray-800 via-gray-900 to-black px-6 sm:px-10 py-2 sm:py-3.5 text-xs sm:text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition border border-gray-600 font-mono"
                 >
                   START GAME 🚀
                 </button>
@@ -1809,43 +1809,43 @@ function FlappyBirdGame({
         <canvas ref={canvasRef} width={800} height={420} className="w-full max-w-full h-auto block touch-none" />
 
         {!isPlaying && (
-          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-6 space-y-4 z-30 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center p-2 sm:p-6 space-y-2 sm:space-y-4 z-30 animate-in fade-in duration-200">
             {gameOver ? (
-              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-6 text-center shadow-2xl space-y-4 border border-sky-200 animate-in zoom-in-95">
+              <div className="w-full max-w-sm rounded-3xl bg-white/95 backdrop-blur-md p-4 sm:p-6 text-center shadow-2xl space-y-3 sm:space-y-4 border border-sky-200 animate-in zoom-in-95">
                 {isNewRecord ? (
-                  <div className="space-y-1.5">
-                    <div className="text-5xl animate-bounce">🎉</div>
-                    <h4 className="text-lg font-black text-sky-600">TEBRİKLER! YENİ REKOR!</h4>
-                    <p className="text-xs text-gray-600 font-bold">Harika bir Flappy rekoru kırıldı!</p>
+                  <div className="space-y-1">
+                    <div className="text-3xl sm:text-5xl animate-bounce">🎉</div>
+                    <h4 className="text-sm sm:text-lg font-black text-sky-600">TEBRİKLER! YENİ REKOR!</h4>
+                    <p className="text-[10px] sm:text-xs text-gray-600 font-bold">Harika bir Flappy rekoru kırıldı!</p>
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
-                    <div className="text-4xl">💥</div>
-                    <h4 className="text-lg font-black text-gray-900">Oyun Bitti!</h4>
+                  <div className="space-y-1">
+                    <div className="text-2xl sm:text-4xl">💥</div>
+                    <h4 className="text-sm sm:text-lg font-black text-gray-900">Oyun Bitti!</h4>
                   </div>
                 )}
 
-                <div className="py-3 px-4 bg-sky-50 rounded-2xl border border-sky-100 text-xs font-black text-sky-700 flex items-center justify-center font-mono">
-                  SKOR: <strong className="text-base text-gray-900 ml-2">{currentScore} Pass</strong>
+                <div className="py-2 sm:py-3 px-3 sm:px-4 bg-sky-50 rounded-2xl border border-sky-100 text-[10px] sm:text-xs font-black text-sky-700 flex items-center justify-center font-mono">
+                  SKOR: <strong className="text-xs sm:text-base text-gray-900 ml-2">{currentScore} Pass</strong>
                 </div>
 
                 <button
                   onClick={startGame}
-                  className="w-full rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
+                  className="w-full rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 py-2.5 sm:py-3.5 text-xs font-black text-white shadow-lg hover:scale-102 active:scale-95 transition"
                 >
                   Yeniden Uç 🐤
                 </button>
               </div>
             ) : (
-              <div className="text-center space-y-4 max-w-md">
-                <div className="text-5xl animate-bounce">🐤</div>
-                <h4 className="text-2xl font-black text-white drop-shadow-md">FLAPPY BIRD</h4>
-                <p className="text-xs text-sky-200 leading-relaxed font-mono">
+              <div className="text-center space-y-1.5 sm:space-y-4 max-w-md p-1">
+                <div className="text-2xl sm:text-5xl animate-bounce">🐤</div>
+                <h4 className="text-base sm:text-2xl font-black text-white drop-shadow-md">FLAPPY BIRD</h4>
+                <p className="text-[10px] sm:text-xs text-sky-200 leading-tight sm:leading-relaxed font-mono">
                   Uçmak için <span className="font-bold text-sky-300">Space / Tık / Dokun</span> tuşuna basın!
                 </p>
                 <button
                   onClick={startGame}
-                  className="rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 px-10 py-3.5 text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
+                  className="rounded-2xl bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 px-6 sm:px-10 py-2 sm:py-3.5 text-xs sm:text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
                 >
                   BAŞLAT 🚀
                 </button>
@@ -2695,15 +2695,15 @@ function TowerStackerGame({
                 </button>
               </div>
             ) : (
-              <div className="text-center space-y-4 max-w-md">
-                <div className="text-5xl animate-bounce">🏰</div>
-                <h4 className="text-2xl font-black text-white drop-shadow-md">TOWER STACKER</h4>
-                <p className="text-xs text-purple-200 leading-relaxed font-mono">
+              <div className="text-center space-y-1.5 sm:space-y-4 max-w-md p-1">
+                <div className="text-2xl sm:text-5xl animate-bounce">🏰</div>
+                <h4 className="text-base sm:text-2xl font-black text-white drop-shadow-md">TOWER STACKER</h4>
+                <p className="text-[10px] sm:text-xs text-purple-200 leading-tight sm:leading-relaxed font-mono">
                   Bloğu düşürmek için <span className="font-bold text-pink-300">Space / Tık / Dokun</span> tuşuna basın!
                 </p>
                 <button
                   onClick={startGame}
-                  className="rounded-2xl bg-gradient-to-r from-purple-500 via-pink-600 to-rose-600 px-10 py-3.5 text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
+                  className="rounded-2xl bg-gradient-to-r from-purple-500 via-pink-600 to-rose-600 px-6 sm:px-10 py-2 sm:py-3.5 text-xs sm:text-sm font-black text-white shadow-xl hover:scale-105 active:scale-95 transition"
                 >
                   BAŞLAT 🚀
                 </button>
