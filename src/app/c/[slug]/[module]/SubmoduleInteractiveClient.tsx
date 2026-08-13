@@ -2095,7 +2095,10 @@ function Game2048({
       setScore(newScore);
       if (newHighScore > highScore) {
         setHighScore(newHighScore);
-        const otherPartnerScore = userKey === 'partner1' ? (allGamesData.partner2?.highScore || 0) : (allGamesData.partner1?.highScore || 0);
+        saveGameScore(slug, '2048', newHighScore, playerName);
+        const otherPartnerScore = userKey === 'partner1'
+          ? Math.max(allGamesData.partner2?.highScore || 0, allGamesData.partner2?.currentScore || 0)
+          : Math.max(allGamesData.partner1?.highScore || 0, allGamesData.partner1?.currentScore || 0);
         if (newHighScore > otherPartnerScore) {
           triggerConfetti({ particleCount: 90, spread: 90 });
         }
@@ -2167,9 +2170,23 @@ function Game2048({
     }
   };
 
-  // High Scores & Champion logic
-  const p1HighScore = userKey === 'partner1' ? Math.max(highScore, allGamesData.partner1?.highScore || 0) : (allGamesData.partner1?.highScore || 0);
-  const p2HighScore = userKey === 'partner2' ? Math.max(highScore, allGamesData.partner2?.highScore || 0) : (allGamesData.partner2?.highScore || 0);
+  // High Scores & Champion logic with robust fallbacks for both partners
+  const p1Data = allGamesData.partner1;
+  const p2Data = allGamesData.partner2;
+
+  const p1HighScore = Math.max(
+    p1Data?.highScore || 0,
+    p1Data?.currentScore || 0,
+    userKey === 'partner1' ? highScore : 0,
+    userKey === 'partner1' ? score : 0
+  );
+
+  const p2HighScore = Math.max(
+    p2Data?.highScore || 0,
+    p2Data?.currentScore || 0,
+    userKey === 'partner2' ? highScore : 0,
+    userKey === 'partner2' ? score : 0
+  );
 
   const championName = useMemo(() => {
     if (p1HighScore === 0 && p2HighScore === 0) return 'Henüz Rekor Yok 🎯';
