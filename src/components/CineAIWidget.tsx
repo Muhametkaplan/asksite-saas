@@ -5,6 +5,6 @@ interface AskSiteAIWidgetProps {
   slug?: string;
 }
 
-export default function AskSiteAIWidget({ partnerName, slug = 'irem-muhammet' }: AskSiteAIWidgetProps) {
+export default function AskSiteAIWidget({ partnerName, slug = 'demo' }: AskSiteAIWidgetProps) {
   return null;
 }

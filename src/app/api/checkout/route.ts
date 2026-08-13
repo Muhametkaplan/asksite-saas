@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
         'Gözlerine baktığım an zaman duruyor...',
         'Birlikte yazacağımız nice masallara ❤️',
       ],
-      whatsapp_number: whatsapp_number || '905524185530',
+      whatsapp_number: whatsapp_number || '905520000000',
       whatsapp_message: 'Acil sarılmana ihtiyacım var 🥺',
       love_reasons: [
         'Gülüşünle en karanlık günlerimi bile aydınlatıyorsun.',

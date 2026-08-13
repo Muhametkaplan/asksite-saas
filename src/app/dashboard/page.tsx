@@ -74,7 +74,7 @@ function DashboardContent() {
       'Sen benim kalbimin en tatlı melodisisin... 🎶',
       'Gözlerine baktığım an zaman duruyor...',
     ],
-    whatsapp_number: '905524185530',
+    whatsapp_number: '905520000000',
     whatsapp_message: 'Acil sarılmana ihtiyacım var 🥺',
     love_reasons: ['Gülüşünle dünyamı aydınlatıyorsun.'],
     memories: [],
@@ -668,7 +668,7 @@ function DashboardContent() {
       }
 
       // Security Guard for non-demo couples
-      if (targetSlug !== 'demo' && targetSlug !== 'irem-muhammet') {
+      if (targetSlug !== 'demo') {
         const activeUid = auth.currentUser?.uid || (currentUser as any)?.uid;
         const activeEmail = (auth.currentUser?.email || currentUser?.email || '').toLowerCase().trim();
 
@@ -1612,7 +1612,7 @@ function DashboardContent() {
                           allowed_users: { ...config.allowed_users, partner1_email: e.target.value },
                         })
                       }
-                      placeholder="irem@asksite.com"
+                      placeholder="partner1@asksite.com"
                       className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
                     />
                   </div>
@@ -1627,7 +1627,7 @@ function DashboardContent() {
                           allowed_users: { ...config.allowed_users, partner2_email: e.target.value },
                         })
                       }
-                      placeholder="muhammet@asksite.com"
+                      placeholder="partner2@asksite.com"
                       className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
                     />
                   </div>

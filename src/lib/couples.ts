@@ -17,8 +17,8 @@ import {
 } from 'firebase/firestore';
 
 export const DEMO_COUPLE: CoupleConfig = {
-  id: 'irem-muhammet',
-  slug: 'irem-muhammet',
+  id: 'demo',
+  slug: 'demo',
   pair_code: 'ASK-DEMO1',
   inviteCode: 'ASK-DEMO1',
   partner1_name: 'Partner 1',
@@ -31,14 +31,14 @@ export const DEMO_COUPLE: CoupleConfig = {
   theme_color_tech: '#6c5ce7',
   bg_music_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
   custom_audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-  spotify_url: 'https://open.spotify.com/embed/playlist/37i9dQZF1DX506F6QhE9q7',
+  spotify_url: 'https://open.spotify.com/embed/playlist/37i9dQZF1DWZQD1rStM4VL',
   spotify_lyrics: [
     'Sen benim kalbimin en tatlı melodisisin... 🎶',
     'Gözlerine baktığım an zaman duruyor...',
     'Birlikte yazacağımız nice masallara ❤️',
     'Sensiz geçen her saniye eksik bir parça...',
   ],
-  whatsapp_number: '905524185530',
+  whatsapp_number: '905520000000',
   whatsapp_message: 'Acil sarılmana ihtiyacım var 🥺',
   love_reasons: [
     'Gülüşünle en karanlık günlerimi bile aydınlatıyorsun.',
@@ -229,8 +229,8 @@ export const DEMO_COUPLE: CoupleConfig = {
     location: 'Kapadokya',
   },
   allowed_users: {
-    partner1_email: 'irem@asksite.com',
-    partner2_email: 'muhammet@asksite.com',
+    partner1_email: 'partner1@asksite.com',
+    partner2_email: 'partner2@asksite.com',
     partner1_pin: '1234',
     partner2_pin: '5678',
   },
@@ -247,7 +247,7 @@ export const DEMO_COUPLE: CoupleConfig = {
 };
 
 const localCouplesMemoryStore = new Map<string, CoupleConfig>();
-localCouplesMemoryStore.set('irem-muhammet', DEMO_COUPLE);
+localCouplesMemoryStore.set('demo', DEMO_COUPLE);
 
 export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null> {
   // If Firestore is available, fetch from 'couples' collection
@@ -279,7 +279,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           custom_audio_url: data.customAudioUrl || data.custom_audio_url || data.bg_music_url,
           spotify_url: data.spotify?.spotifyUrl || data.spotify_url || DEMO_COUPLE.spotify_url,
           spotify_lyrics: data.spotify?.lyrics || data.spotify_lyrics || DEMO_COUPLE.spotify_lyrics,
-          whatsapp_number: data.whatsapp?.number || data.whatsapp_number || '905524185530',
+          whatsapp_number: data.whatsapp?.number || data.whatsapp_number || '905520000000',
           whatsapp_message: data.whatsapp?.message || data.whatsapp_message || 'Acil sarılmana ihtiyacım var 🥺',
           love_reasons: data.love_reasons || DEMO_COUPLE.love_reasons,
           memories: memories.length > 0 ? memories : data.memories || DEMO_COUPLE.memories,
@@ -302,7 +302,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
           is_active: data.isActive !== undefined ? data.isActive : true,
         };
-      } else if (slug === 'irem-muhammet') {
+      } else if (slug === 'demo') {
         // Auto-seed demo couple on first request
         await seedDemoCoupleToFirebase();
         return DEMO_COUPLE;
@@ -313,7 +313,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
   }
 
   // Fallback to local memory store or demo slug
-  if (slug === 'demo' || slug === 'irem-muhammet') {
+  if (slug === 'demo') {
     return DEMO_COUPLE;
   }
 
@@ -528,7 +528,7 @@ export async function getMapMarkers(coupleId: string): Promise<MapMarker[]> {
 }
 
 export async function addMapMarker(marker: Omit<MapMarker, 'id' | 'created_at'>): Promise<MapMarker | null> {
-  const coupleSlug = marker.couple_id || 'irem-muhammet';
+  const coupleSlug = marker.couple_id || 'demo';
 
   if (isFirebaseConfigured && db) {
     try {
@@ -594,11 +594,11 @@ export async function deleteMapMarker(coupleId: string, markerId: string): Promi
 export async function seedDemoCoupleToFirebase(): Promise<boolean> {
   if (isFirebaseConfigured && db) {
     try {
-      const coupleRef = doc(db, 'couples', 'irem-muhammet');
+      const coupleRef = doc(db, 'couples', 'demo');
       const snap = await getDoc(coupleRef);
       if (!snap.exists()) {
         await saveCoupleConfig(DEMO_COUPLE);
-        console.log('Seeded demo couple (irem-muhammet) into Firestore!');
+        console.log('Seeded demo couple into Firestore!');
         return true;
       }
     } catch (e) {
@@ -1019,7 +1019,7 @@ export async function getCoupleByPairCode(pairCode: string): Promise<CoupleConfi
           theme_color_primary: data.theme_color_primary || '#ff4d6d',
           theme_color_tech: data.theme_color_tech || '#6c5ce7',
           bg_music_url: data.bg_music_url || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-          whatsapp_number: data.whatsapp_number || '905524185530',
+          whatsapp_number: data.whatsapp_number || '905520000000',
           whatsapp_message: data.whatsapp_message || 'Seni çok seviyorum 💖',
           love_reasons: data.love_reasons || DEMO_COUPLE.love_reasons,
           pair_code: data.pair_code || data.inviteCode || cleanCode,
@@ -1052,7 +1052,7 @@ export async function connectPartnerWithPairCode(
   const couple = await getCoupleByPairCode(pairCode);
   const normalizedEmail = (userEmail || '').toLowerCase().trim();
 
-  if (!couple || (couple.isPaid !== true && couple.slug !== 'irem-muhammet' && couple.slug !== 'demo')) {
+  if (!couple || (couple.isPaid !== true && couple.slug !== 'demo')) {
     return {
       success: false,
       message: 'Geçersiz veya ödemesi bulunmayan davet kodu!',
@@ -1304,7 +1304,7 @@ export async function resetDatabaseAndCollections(): Promise<{ success: boolean;
     }
 
     localCouplesMemoryStore.clear();
-    localCouplesMemoryStore.set('irem-muhammet', DEMO_COUPLE);
+    localCouplesMemoryStore.set('demo', DEMO_COUPLE);
 
     console.log(`Database Reset Complete: ${deletedCouples} couples, ${deletedUsers} users deleted.`);
     return { success: true, deletedCouples, deletedUsers };
@@ -1534,30 +1534,22 @@ export function subscribeTo2048Games(
         const nameInDoc = (d.updatedBy || d.playerName || d.partnerName || '').trim().toLocaleLowerCase('tr');
         const userKeyInDoc = (d.userKey || '').toLowerCase();
 
-        // Partner 1 matchers (irem / partner1)
+        // Partner 1 matchers
         if (
           id === 'partner1' ||
           id.includes('partner1') ||
-          userKeyInDoc === 'partner1' ||
-          id === 'irem' ||
-          id.includes('irem') ||
-          nameInDoc === 'irem' ||
-          nameInDoc.includes('irem')
+          userKeyInDoc === 'partner1'
         ) {
           if (!res.partner1 || (d.highScore || d.currentScore || 0) >= (res.partner1.highScore || res.partner1.currentScore || 0)) {
             res.partner1 = d;
           }
         }
 
-        // Partner 2 matchers (muhammet / partner2)
+        // Partner 2 matchers
         if (
           id === 'partner2' ||
           id.includes('partner2') ||
-          userKeyInDoc === 'partner2' ||
-          id === 'muhammet' ||
-          id.includes('muhammet') ||
-          nameInDoc === 'muhammet' ||
-          nameInDoc.includes('muhammet')
+          userKeyInDoc === 'partner2'
         ) {
           if (!res.partner2 || (d.highScore || d.currentScore || 0) >= (res.partner2.highScore || res.partner2.currentScore || 0)) {
             res.partner2 = d;
@@ -1601,9 +1593,9 @@ export function subscribeTo2048Games(
         if (gName.includes('2048')) {
           const pName = (data.playerName || '').toString().trim().toLocaleLowerCase('tr');
           const s = typeof data.score === 'number' ? data.score : 0;
-          if (pName.includes('irem')) {
+          if (pName.includes('partner1')) {
             if (s > p1Max) p1Max = s;
-          } else if (pName.includes('muhammet')) {
+          } else if (pName.includes('partner2')) {
             if (s > p2Max) p2Max = s;
           }
         }
