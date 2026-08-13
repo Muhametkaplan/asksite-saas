@@ -1,5 +1,6 @@
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion, CanvasDrawing } from '@/types/couple';
 import { db, isFirebaseConfigured } from './firebase';
+import { validateGameScore, validateSlug } from './validation';
 import {
   doc,
   getDoc,
@@ -1143,13 +1144,15 @@ export async function saveGameScore(
   score: number,
   playerName?: string
 ): Promise<boolean> {
+  const cleanSlug = validateSlug(slug);
+  const validatedScore = validateGameScore(score);
   if (isFirebaseConfigured && db) {
     try {
-      const gamesRef = collection(db, `couples/${slug}/games_data`);
+      const gamesRef = collection(db, `couples/${cleanSlug}/games_data`);
       await addDoc(gamesRef, {
-        gameName,
-        score,
-        playerName: playerName || 'Partner',
+        gameName: (gameName || 'Oyun').slice(0, 50),
+        score: validatedScore,
+        playerName: (playerName || 'Partner').slice(0, 50),
         createdAt: serverTimestamp(),
       });
       return true;
@@ -1236,14 +1239,17 @@ export async function saveArcadeHighScore(
   p1Score: number,
   p2Score: number
 ): Promise<boolean> {
+  const cleanSlug = validateSlug(slug);
+  const v1 = validateGameScore(p1Score);
+  const v2 = validateGameScore(p2Score);
   if (isFirebaseConfigured && db) {
     try {
-      const docRef = doc(db, `couples/${slug}/games_data`, gameKey);
+      const docRef = doc(db, `couples/${cleanSlug}/games_data`, gameKey);
       await setDoc(
         docRef,
         {
-          p1Score,
-          p2Score,
+          p1Score: v1,
+          p2Score: v2,
           updatedAt: serverTimestamp(),
         },
         { merge: true }

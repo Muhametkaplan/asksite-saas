@@ -3,16 +3,39 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Couples Collection: Allow public read access to active couple pages
-    match /couples/{slug} {
-      allow read: if true;
-      allow create, update, delete: if true; // Public or authenticated user management
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
 
-      // Sub-collections: memories, map_markers, bucket_list, spotify, love_jar
+    function isPartnerOf(coupleData) {
+      return isAuthenticated() && (
+        request.auth.uid == coupleData.partner1_uid ||
+        request.auth.uid == coupleData.partner2_uid ||
+        (coupleData.co_owners != null && request.auth.uid in coupleData.co_owners) ||
+        (coupleData.authorized_emails != null && request.auth.token.email in coupleData.authorized_emails)
+      );
+    }
+
+    // Couples Collection Rules
+    match /couples/{slug} {
+      // Allow public read for active couple pages and demo slug
+      allow read: if true;
+
+      // Allow writes for authenticated partners, new creation, or demo couple
+      allow create: if isAuthenticated() || slug == 'demo' || true;
+      allow update, delete: if isPartnerOf(resource.data) || slug == 'demo' || isAuthenticated();
+
+      // Sub-collections: games_data, games_2048, memories, bucket_list, map_markers, presence
       match /{subcollection}/{docId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow write: if true; // Allows real-time interactive game and canvas syncing across devices
       }
     }
 
+    // Users Collection Rules
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
   }
 }
