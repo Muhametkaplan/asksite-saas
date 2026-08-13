@@ -31,7 +31,7 @@ export const DEMO_COUPLE: CoupleConfig = {
   theme_color_tech: '#6c5ce7',
   bg_music_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
   custom_audio_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-  spotify_url: 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M',
+  spotify_url: 'https://open.spotify.com/embed/playlist/37i9dQZF1DX506F6QhE9q7',
   spotify_lyrics: [
     'Sen benim kalbimin en tatlı melodisisin... 🎶',
     'Gözlerine baktığım an zaman duruyor...',

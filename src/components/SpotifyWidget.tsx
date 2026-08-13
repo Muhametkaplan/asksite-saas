@@ -23,12 +23,19 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
 
   // Helper to convert any Spotify share link (mobile, intl-tr, desktop, uri) to valid embed iframe src
   const getEmbedSrc = (url?: string) => {
-    const defaultEmbed = 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0';
+    const defaultId = '37i9dQZF1DX506F6QhE9q7'; // Official Spotify "Aşk Şarkıları" Playlist
+    const defaultEmbed = `https://open.spotify.com/embed/playlist/${defaultId}?utm_source=generator&theme=0`;
+
     if (!url || typeof url !== 'string' || !url.trim()) {
       return defaultEmbed;
     }
 
-    const cleanUrl = url.trim();
+    let cleanUrl = url.trim();
+
+    // Migrate old broken Spotify playlist ID if saved in Firestore
+    if (cleanUrl.includes('37i9dQZF1DXcBWIGoYBM5M')) {
+      cleanUrl = cleanUrl.replace('37i9dQZF1DXcBWIGoYBM5M', defaultId);
+    }
 
     // Extract type (playlist, track, album, artist) and ID (handles intl-tr, intl-es, desktop, mobile)
     const match = cleanUrl.match(/(playlist|track|album|artist)[\/:]([a-zA-Z0-9]+)/i);
