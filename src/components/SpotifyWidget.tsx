@@ -21,16 +21,29 @@ export default function SpotifyWidget({ spotifyUrl, lyrics }: SpotifyWidgetProps
         'Kalbim ritmini seninle buluyor ✨',
       ];
 
-  // Helper to convert Spotify share link to embed iframe src if needed
+  // Helper to convert any Spotify share link (mobile, intl-tr, desktop, uri) to valid embed iframe src
   const getEmbedSrc = (url?: string) => {
-    if (!url) {
-      return 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0';
+    const defaultEmbed = 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0';
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      return defaultEmbed;
     }
-    if (url.includes('spotify.com/embed')) {
-      return url;
+
+    const cleanUrl = url.trim();
+
+    // Extract type (playlist, track, album, artist) and ID (handles intl-tr, intl-es, desktop, mobile)
+    const match = cleanUrl.match(/(playlist|track|album|artist)[\/:]([a-zA-Z0-9]+)/i);
+    if (match && match[1] && match[2]) {
+      const type = match[1].toLowerCase();
+      const id = match[2];
+      return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`;
     }
-    // Convert https://open.spotify.com/playlist/XYZ or track/XYZ to iframe embed format
-    return url.replace('spotify.com/', 'spotify.com/embed/');
+
+    // Fallback if match fails: remove intl-xx and fix embed path
+    let formatted = cleanUrl.replace(/\/intl-[a-z]{2}\//i, '/');
+    if (!formatted.includes('/embed/')) {
+      formatted = formatted.replace('spotify.com/', 'spotify.com/embed/');
+    }
+    return formatted;
   };
 
   const embedSrc = getEmbedSrc(spotifyUrl);
