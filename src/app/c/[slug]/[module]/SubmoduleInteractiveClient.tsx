@@ -1886,7 +1886,21 @@ function Game2048({
   const [allGamesData, setAllGamesData] = useState<{
     partner1?: Game2048StateData;
     partner2?: Game2048StateData;
-  }>({});
+  }>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const p1Cached = localStorage.getItem(`asksite_2048_p1_cache_${slug}`);
+        const p2Cached = localStorage.getItem(`asksite_2048_p2_cache_${slug}`);
+        const p1Score = p1Cached ? parseInt(p1Cached, 10) : 0;
+        const p2Score = p2Cached ? parseInt(p2Cached, 10) : 0;
+        return {
+          partner1: p1Score > 0 ? { board: [], currentScore: p1Score, highScore: p1Score, gameOver: false } : undefined,
+          partner2: p2Score > 0 ? { board: [], currentScore: p2Score, highScore: p2Score, gameOver: false } : undefined,
+        };
+      } catch (e) {}
+    }
+    return {};
+  });
 
   const [isGameLoading, setIsGameLoading] = useState<boolean>(true);
 
@@ -1970,10 +1984,31 @@ function Game2048({
 
         if (!isMounted) return;
 
-        // Initialize allGamesData right away on mount for instant partner score hydration
-        setAllGamesData({
-          partner1: p1Data || (arcadeScores.p1Score > 0 ? { board: [], currentScore: arcadeScores.p1Score, highScore: arcadeScores.p1Score, gameOver: false } : undefined),
-          partner2: p2Data || (arcadeScores.p2Score > 0 ? { board: [], currentScore: arcadeScores.p2Score, highScore: arcadeScores.p2Score, gameOver: false } : undefined),
+        const p1Best = Math.max(
+          p1Data?.highScore || 0,
+          p1Data?.currentScore || 0,
+          arcadeScores.p1Score || 0
+        );
+
+        const p2Best = Math.max(
+          p2Data?.highScore || 0,
+          p2Data?.currentScore || 0,
+          arcadeScores.p2Score || 0
+        );
+
+        if (typeof window !== 'undefined') {
+          if (p1Best > 0) localStorage.setItem(`asksite_2048_p1_cache_${slug}`, p1Best.toString());
+          if (p2Best > 0) localStorage.setItem(`asksite_2048_p2_cache_${slug}`, p2Best.toString());
+        }
+
+        // Initialize allGamesData right away on mount with state merger
+        setAllGamesData((prev) => {
+          const finalP1 = Math.max(p1Best, prev.partner1?.highScore || 0, prev.partner1?.currentScore || 0);
+          const finalP2 = Math.max(p2Best, prev.partner2?.highScore || 0, prev.partner2?.currentScore || 0);
+          return {
+            partner1: finalP1 > 0 ? { ...(p1Data || prev.partner1 || { board: [], currentScore: finalP1, gameOver: false }), highScore: finalP1 } : undefined,
+            partner2: finalP2 > 0 ? { ...(p2Data || prev.partner2 || { board: [], currentScore: finalP2, gameOver: false }), highScore: finalP2 } : undefined,
+          };
         });
 
         if (myData && Array.isArray(myData.board) && myData.board.length === 4) {
@@ -2021,7 +2056,6 @@ function Game2048({
             setHighScore(0);
             setGameOver(false);
           }
-          // ABSOLUTELY ZERO FIRESTORE WRITE CALLS HERE!
         }
       } catch (err) {
         console.error('Error loading 2048 state:', err);
@@ -2040,10 +2074,39 @@ function Game2048({
     };
   }, [slug, userKey]);
 
-  // 2. Realtime listener for Leaderboard / Partner high score updates
+  // 2. Realtime listener with state merger for Leaderboard / Partner high score updates
   useEffect(() => {
-    const unsub = subscribeTo2048Games(slug, (data) => {
-      setAllGamesData(data);
+    const unsub = subscribeTo2048Games(slug, (incoming) => {
+      setAllGamesData((prev) => {
+        const p1ScoreNew = Math.max(incoming.partner1?.highScore || 0, incoming.partner1?.currentScore || 0);
+        const p1ScoreOld = Math.max(prev.partner1?.highScore || 0, prev.partner1?.currentScore || 0);
+        const p1Final = Math.max(p1ScoreNew, p1ScoreOld);
+
+        const p2ScoreNew = Math.max(incoming.partner2?.highScore || 0, incoming.partner2?.currentScore || 0);
+        const p2ScoreOld = Math.max(prev.partner2?.highScore || 0, prev.partner2?.currentScore || 0);
+        const p2Final = Math.max(p2ScoreNew, p2ScoreOld);
+
+        if (typeof window !== 'undefined') {
+          if (p1Final > 0) localStorage.setItem(`asksite_2048_p1_cache_${slug}`, p1Final.toString());
+          if (p2Final > 0) localStorage.setItem(`asksite_2048_p2_cache_${slug}`, p2Final.toString());
+        }
+
+        return {
+          partner1: p1Final > 0
+            ? {
+                ...(incoming.partner1 || prev.partner1 || { board: [], currentScore: p1Final, gameOver: false }),
+                highScore: p1Final,
+              }
+            : undefined,
+
+          partner2: p2Final > 0
+            ? {
+                ...(incoming.partner2 || prev.partner2 || { board: [], currentScore: p2Final, gameOver: false }),
+                highScore: p2Final,
+              }
+            : undefined,
+        };
+      });
     });
     return () => unsub();
   }, [slug]);
