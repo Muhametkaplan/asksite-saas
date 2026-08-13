@@ -25,7 +25,7 @@ export function isDeviceAuthorized(couple: CoupleConfig): { isAuthorized: boolea
     const determinedRole: 'partner1' | 'partner2' =
       found.role ||
       (found.partner_name === couple.partner1_name ||
-      (couple.allowed_users?.partner1_email && found.email?.toLowerCase() === couple.allowed_users.partner1_email.toLowerCase())
+        (couple.allowed_users?.partner1_email && found.email?.toLowerCase() === couple.allowed_users.partner1_email.toLowerCase())
         ? 'partner1'
         : 'partner2');
 
@@ -55,7 +55,7 @@ export async function registerDeviceToken(
       if (snap.exists()) {
         const data = snap.data();
         const devices: AuthenticatedDevice[] = data.authenticated_devices || [];
-        
+
         const existingIdx = devices.findIndex((d) => d.device_token === token);
         const newDevice: AuthenticatedDevice = {
           device_token: token,

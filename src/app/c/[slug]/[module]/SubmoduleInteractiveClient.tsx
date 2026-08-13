@@ -56,6 +56,7 @@ import {
   formatDiaryDate,
   CanvasStrokeData,
 } from '@/lib/couples';
+import { isDeviceAuthorized } from '@/lib/deviceSession';
 import RomanticMap from '@/components/RomanticMap';
 import AskSiteAIWidget from '@/components/CineAIWidget';
 
@@ -189,21 +190,37 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
 
   const [activeTab, setActiveTab] = useState<'menu' | 'dino' | 'flappy' | '2048' | 'tower' | 'duel' | 'memory' | 'tod' | 'xox' | 'tkm'>('menu');
 
-  // Read Session Auth for seamless uninterrupted play
+  // Read Session Auth for seamless uninterrupted play across devices
   const authState = useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
     if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('asksite_auth_' + slug) || localStorage.getItem('asksite_auth_' + slug);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          const role: 'partner1' | 'partner2' | 'guest' = parsed.role === 'partner1' || parsed.role === 'partner2' ? parsed.role : 'guest';
-          const author = role === 'partner1' ? partner1 : role === 'partner2' ? partner2 : 'Partner';
+          let role: 'partner1' | 'partner2' | 'guest' = parsed.role === 'partner1' || parsed.role === 'partner2' ? parsed.role : 'guest';
+          let author = parsed.partnerName || (role === 'partner1' ? partner1 : role === 'partner2' ? partner2 : 'Partner');
+
+          if (parsed.partnerName) {
+            const pNorm = (parsed.partnerName || '').trim().toLocaleLowerCase('tr');
+            const p1Norm = (partner1 || '').trim().toLocaleLowerCase('tr');
+            const p2Norm = (partner2 || '').trim().toLocaleLowerCase('tr');
+            if (pNorm === p1Norm) role = 'partner1';
+            else if (pNorm === p2Norm) role = 'partner2';
+          }
+
           return { role, author, isPartner: role === 'partner1' || role === 'partner2' };
         } catch (e) { }
       }
+
+      const deviceCheck = isDeviceAuthorized(couple);
+      if (deviceCheck.isAuthorized && deviceCheck.role) {
+        const role = deviceCheck.role;
+        const author = deviceCheck.partnerName || (role === 'partner1' ? partner1 : partner2);
+        return { role, author, isPartner: true };
+      }
     }
     return { role: 'partner1', author: partner1, isPartner: true };
-  }, [slug, partner1, partner2]);
+  }, [slug, partner1, partner2, couple]);
 
   return (
     <div className="space-y-4">

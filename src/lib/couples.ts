@@ -1448,7 +1448,7 @@ export async function save2048State(
         { merge: true }
       );
 
-      // Sync to games_data/2048 for getArcadeHighScores
+      // Also sync to games_data/2048 for getArcadeHighScores
       const arcadeRef = doc(db, `couples/${slug}/games_data`, '2048');
       const scoreKey = userKey === 'partner1' ? 'p1Score' : 'p2Score';
       const bestScore = Math.max(data.highScore || 0, data.currentScore || 0);
@@ -1469,7 +1469,7 @@ export function subscribeTo2048Games(
   if (isFirebaseConfigured && db) {
     try {
       const colRef = collection(db, `couples/${slug}/games_2048`);
-      return onSnapshot(colRef, (snap) => {
+      return onSnapshot(colRef, async (snap) => {
         const result: { partner1?: Game2048StateData; partner2?: Game2048StateData } = {};
         snap.docs.forEach((docSnap) => {
           const id = docSnap.id.toLowerCase();
@@ -1477,6 +1477,24 @@ export function subscribeTo2048Games(
           if (id === 'partner1' || id.includes('partner1')) result.partner1 = d;
           if (id === 'partner2' || id.includes('partner2')) result.partner2 = d;
         });
+
+        // Fallback check games_data/2048 for any missing partner score
+        try {
+          if (db) {
+            const arcadeRef = doc(db, `couples/${slug}/games_data`, '2048');
+            const arcadeSnap = await getDoc(arcadeRef);
+            if (arcadeSnap.exists()) {
+              const aData = arcadeSnap.data();
+              if (!result.partner1 && aData.p1Score) {
+                result.partner1 = { board: [], currentScore: aData.p1Score, highScore: aData.p1Score, gameOver: false };
+              }
+              if (!result.partner2 && aData.p2Score) {
+                result.partner2 = { board: [], currentScore: aData.p2Score, highScore: aData.p2Score, gameOver: false };
+              }
+            }
+          }
+        } catch (e) {}
+
         callback(result);
       });
     } catch (e) {
@@ -1497,6 +1515,22 @@ export async function get2048State(
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         return docSnap.data() as Game2048StateData;
+      }
+
+      // Fallback check to games_data/2048
+      const arcadeRef = doc(db, `couples/${slug}/games_data`, '2048');
+      const arcadeSnap = await getDoc(arcadeRef);
+      if (arcadeSnap.exists()) {
+        const data = arcadeSnap.data();
+        const scoreVal = userKey === 'partner1' ? (data.p1Score || 0) : (data.p2Score || 0);
+        if (scoreVal > 0) {
+          return {
+            board: [],
+            currentScore: scoreVal,
+            highScore: scoreVal,
+            gameOver: false,
+          };
+        }
       }
     } catch (e) {
       console.error('Error fetching 2048 state:', e);
