@@ -261,8 +261,9 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 pb-16">
-      {/* Shared Header / Navbar Integration */}
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 flex flex-col justify-between m-0 p-0">
+      <div className="w-full flex-1 pb-16">
+        {/* Shared Header / Navbar Integration */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-xs px-4 sm:px-8 py-3.5">
         <div className="mx-auto max-w-5xl flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-xl font-black text-rose-600">
@@ -812,11 +813,10 @@ export default function CheckoutPage() {
           </>
         )}
       </div>
+      </div>
 
       {/* Corporate Compliance Footer */}
-      <div className="mt-20">
-        <Footer />
-      </div>
+      <Footer />
     </div>
   );
 }

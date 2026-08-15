@@ -76,89 +76,91 @@ export default function SaaSPlatformHome() {
     );
   }
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-gray-900 overflow-hidden flex flex-col justify-between">
-      {/* Top Shared Navbar */}
-      <HomeNavbar />
+    <div className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-gray-900 overflow-x-hidden flex flex-col justify-between m-0 p-0">
+      <div className="w-full flex-1">
+        {/* Top Shared Navbar */}
+        <HomeNavbar />
 
-      {/* Hero Header */}
-      <header className="container mx-auto max-w-5xl px-6 py-12 sm:py-16 text-center relative z-10">
-        <div className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-4 py-1.5 text-xs font-bold text-rose-600 mb-6 shadow-sm">
-          <Sparkles className="h-4 w-4" /> B2C Micro-SaaS Dijital Hediye Platformu
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-gray-900 mb-6 leading-tight">
-          Aşkınızı Ölümsüzleştiren <br />
-          <span className="bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
-            Kişiselleştirilebilir Çift Web Siteleri
-          </span>
-        </h1>
-
-        <p className="max-w-2xl mx-auto text-base sm:text-lg text-gray-600 mb-8 leading-relaxed">
-          Kendi isimleriniz, tanışma tarihiniz, romantik haritanız, 4 bağımlılık yapan mini oyun, canlı çizim tuvali ve unutulmaz anılarınızla saniyeler içinde benzersiz çift sayfanızı oluşturun.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link
-            href="/demo"
-            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 hover:shadow-rose-500/25 w-full sm:w-auto text-center"
-          >
-            <Heart className="h-5 w-5 fill-white" /> Canlı Çift Demosunu İncele <ArrowRight className="h-5 w-5" />
-          </Link>
-          <Link
-            href="/login?redirect=checkout"
-            className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-rose-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 hover:shadow-purple-500/25 border border-white/20 w-full sm:w-auto text-center"
-          >
-            <Rocket className="h-5 w-5" /> Kendi Siteni Oluştur / Satın Al 🚀
-          </Link>
-        </div>
-      </header>
-
-      {/* Feature Cards */}
-      <section id="ozellikler" className="container mx-auto max-w-5xl px-6 py-12 relative z-10">
-        <div className="text-center space-y-2 mb-10">
-          <span className="text-xs font-black uppercase tracking-wider text-purple-600 bg-purple-100 px-3 py-1 rounded-full border border-purple-200">
-            Zengin Modüller & Deneyim
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-black text-gray-900">
-            Neden AskSite SaaS? ✨
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white shadow-md text-left space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-500">
-              <Smartphone className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Özel Dynamic Slug URL</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              <code>asksite.com/c/isminiz</code> formatında kendinize özel linkinizi anında alın ve sevgilinizle paylaşın.
-            </p>
+        {/* Hero Header */}
+        <header className="container mx-auto max-w-5xl px-6 py-12 sm:py-16 text-center relative z-10">
+          <div className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-4 py-1.5 text-xs font-bold text-rose-600 mb-6 shadow-sm">
+            <Sparkles className="h-4 w-4" /> B2C Micro-SaaS Dijital Hediye Platformu
           </div>
 
-          <div className="rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white shadow-md text-left space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-600">
-              <Gamepad2 className="h-6 w-6" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">4 Mini Oyun & Canlı Skor</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              2048, Chrome Dinozor, Flappy Bird ve Tower Stacker oyunlarında partnerinizle eş zamanlı yarışın.
-            </p>
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-gray-900 mb-6 leading-tight">
+            Aşkınızı Ölümsüzleştiren <br />
+            <span className="bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
+              Kişiselleştirilebilir Çift Web Siteleri
+            </span>
+          </h1>
+
+          <p className="max-w-2xl mx-auto text-base sm:text-lg text-gray-600 mb-8 leading-relaxed">
+            Kendi isimleriniz, tanışma tarihiniz, romantik haritanız, 4 bağımlılık yapan mini oyun, canlı çizim tuvali ve unutulmaz anılarınızla saniyeler içinde benzersiz çift sayfanızı oluşturun.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/demo"
+              className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 hover:shadow-rose-500/25 w-full sm:w-auto text-center"
+            >
+              <Heart className="h-5 w-5 fill-white" /> Canlı Çift Demosunu İncele <ArrowRight className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/login?redirect=checkout"
+              className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-rose-600 px-8 py-4 text-base font-bold text-white shadow-xl transition-all hover:scale-105 active:scale-95 hover:shadow-purple-500/25 border border-white/20 w-full sm:w-auto text-center"
+            >
+              <Rocket className="h-5 w-5" /> Kendi Siteni Oluştur / Satın Al 🚀
+            </Link>
+          </div>
+        </header>
+
+        {/* Feature Cards */}
+        <section id="ozellikler" className="container mx-auto max-w-5xl px-6 py-12 relative z-10">
+          <div className="text-center space-y-2 mb-10">
+            <span className="text-xs font-black uppercase tracking-wider text-purple-600 bg-purple-100 px-3 py-1 rounded-full border border-purple-200">
+              Zengin Modüller & Deneyim
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900">
+              Neden AskSite SaaS? ✨
+            </h2>
           </div>
 
-          <div className="rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white shadow-md text-left space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
-              <Gift className="h-6 w-6" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white shadow-md text-left space-y-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-500">
+                <Smartphone className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Özel Dynamic Slug URL</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                <code>asksite.com/c/isminiz</code> formatında kendinize özel linkinizi anında alın ve sevgilinizle paylaşın.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-gray-900">NFC & HD QR Kod Hediyesi</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Sitenize doğrudan erişim sağlayan özel indirilebilir HD QR kod ve akıllı hediye kartı altyapısı.
-            </p>
-          </div>
-        </div>
-      </section>
 
-      {/* Pricing Table Section */}
-      <PricingSection />
+            <div className="rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white shadow-md text-left space-y-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-600">
+                <Gamepad2 className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">4 Mini Oyun & Canlı Skor</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                2048, Chrome Dinozor, Flappy Bird ve Tower Stacker oyunlarında partnerinizle eş zamanlı yarışın.
+              </p>
+            </div>
+
+            <div className="rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white shadow-md text-left space-y-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                <Gift className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">NFC & HD QR Kod Hediyesi</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Sitenize doğrudan erişim sağlayan özel indirilebilir HD QR kod ve akıllı hediye kartı altyapısı.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Pricing Table Section */}
+        <PricingSection />
+      </div>
 
       {/* Corporate Compliance Footer */}
       <Footer />

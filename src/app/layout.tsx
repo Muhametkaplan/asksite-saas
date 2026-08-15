@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#ff4d6d" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col m-0 p-0">
         {children}
         <script
           dangerouslySetInnerHTML={{

@@ -5,7 +5,7 @@ import { Heart, ShieldCheck, Lock, CreditCard, Mail, MessageCircle, Phone, Arrow
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-gradient-to-b from-gray-900 via-slate-950 to-black text-gray-300 pt-16 pb-12 border-t border-gray-800">
+    <footer className="w-full bg-[#0a0f1d] text-gray-300 pt-16 pb-12 border-t border-gray-800/80 m-0">
       <div className="mx-auto max-w-6xl px-6 sm:px-8">
         {/* Main Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-gray-800/80">
