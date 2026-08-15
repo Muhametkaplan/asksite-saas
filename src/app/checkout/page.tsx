@@ -27,6 +27,7 @@ import {
 import { connectPartnerWithPairCode, getCoupleBySlug } from '@/lib/couples';
 import { CoupleConfig } from '@/types/couple';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
+import Footer from '@/components/Footer';
 import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
@@ -752,7 +753,24 @@ export default function CheckoutPage() {
             )}
           </button>
 
-          <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
+          {/* Legal Consent Notice */}
+          <div className="mt-4 text-center text-[11px] text-gray-500 leading-relaxed border-t border-gray-100 pt-3">
+            Siparişi onaylayarak{' '}
+            <Link href="/legal/mesafeli-satis-sozlesmesi" target="_blank" className="text-rose-600 underline font-semibold">
+              Mesafeli Satış Sözleşmesi
+            </Link>
+            ,{' '}
+            <Link href="/legal/iptal-ve-iade-kosullari" target="_blank" className="text-rose-600 underline font-semibold">
+              İptal & İade Koşulları
+            </Link>{' '}
+            ve{' '}
+            <Link href="/legal/gizlilik-ve-kvkk" target="_blank" className="text-rose-600 underline font-semibold">
+              Gizlilik / KVKK Politikasını
+            </Link>{' '}
+            kabul etmiş sayılırsınız.
+          </div>
+
+          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500">
             <ShieldCheck className="h-4 w-4 text-emerald-500" /> 256-Bit SSL ile %100 Güvenli Ödeme & Anında Aktivasyon
           </div>
         </form>
@@ -793,6 +811,11 @@ export default function CheckoutPage() {
         )}
           </>
         )}
+      </div>
+
+      {/* Corporate Compliance Footer */}
+      <div className="mt-20">
+        <Footer />
       </div>
     </div>
   );

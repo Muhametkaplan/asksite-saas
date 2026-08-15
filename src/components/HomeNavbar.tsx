@@ -71,9 +71,23 @@ export default function HomeNavbar() {
   return (
     <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-xs px-4 sm:px-8 py-3.5">
       <div className="mx-auto max-w-5xl flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 text-xl font-black text-rose-600">
-          <Heart className="h-6 w-6 fill-rose-500 text-rose-500 animate-pulse" /> AskSite SaaS
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center gap-2 text-xl font-black text-rose-600">
+            <Heart className="h-6 w-6 fill-rose-500 text-rose-500 animate-pulse" /> AskSite SaaS
+          </Link>
+
+          <div className="hidden md:flex items-center gap-4 text-xs font-bold text-gray-600">
+            <Link href="/#ozellikler" className="hover:text-rose-600 transition">
+              Özellikler
+            </Link>
+            <Link href="/#fiyatlandirma" className="hover:text-rose-600 transition">
+              Paketler & Fiyatlar
+            </Link>
+            <Link href="/demo" className="hover:text-rose-600 transition">
+              Canlı Demo
+            </Link>
+          </div>
+        </div>
 
         <div className="flex items-center gap-3">
           {user ? (
