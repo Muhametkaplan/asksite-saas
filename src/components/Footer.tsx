@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Heart, ShieldCheck, Lock, CreditCard, Mail, MessageCircle, Phone, ArrowUpRight } from 'lucide-react';
+import { Heart, ShieldCheck, Lock, CreditCard, Mail, MessageCircle, Phone, MapPin, ArrowUpRight } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -20,9 +20,14 @@ export default function Footer() {
             <p className="text-xs text-gray-400 leading-relaxed">
               Aşkınızı ve en güzel anılarınızı dijital dünyada ölümsüzleştiren, Türkiye&apos;nin lider çift web sitesi ve dijital hediye platformu.
             </p>
-            <div className="flex items-center gap-2 pt-1 text-[11px] font-bold text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>7/24 Anında Dijital Aktivasyon</span>
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                <span>7/24 Anında Dijital Aktivasyon</span>
+              </div>
+              <div className="text-[11px] text-gray-400 font-semibold">
+                Yetkili Satıcı: <span className="text-gray-200">Muhammet Kaplan</span>
+              </div>
             </div>
           </div>
 
@@ -91,24 +96,28 @@ export default function Footer() {
             <h4 className="text-xs font-black uppercase tracking-wider text-white">Müşteri Destek & İletişim</h4>
             <div className="space-y-2.5 text-xs text-gray-400">
               <a
-                href="mailto:destek@asksite.com"
+                href="mailto:muhammet.2713ka@gmail.com"
                 className="flex items-center gap-2 hover:text-white transition group"
               >
-                <Mail className="h-4 w-4 text-rose-400 group-hover:scale-110 transition" />
-                <span>destek@asksite.com</span>
+                <Mail className="h-4 w-4 text-rose-400 group-hover:scale-110 transition shrink-0" />
+                <span className="truncate">muhammet.2713ka@gmail.com</span>
               </a>
               <a
-                href="https://wa.me/905520000000"
+                href="https://wa.me/905524185530"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-emerald-400 transition group"
               >
-                <MessageCircle className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition" />
+                <MessageCircle className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition shrink-0" />
                 <span>WhatsApp Destek Hattı</span>
               </a>
               <div className="flex items-center gap-2 text-gray-400">
-                <Phone className="h-4 w-4 text-purple-400" />
-                <span>+90 (552) 000 00 00</span>
+                <Phone className="h-4 w-4 text-purple-400 shrink-0" />
+                <span>+90 552 418 55 30</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-400">
+                <MapPin className="h-4 w-4 text-rose-500 shrink-0" />
+                <span>Şahinbey / Gaziantep, Türkiye</span>
               </div>
               <div className="pt-2 text-[11px] text-gray-500">
                 Haftanın 7 Günü 09:00 - 23:00 Destek
@@ -145,7 +154,7 @@ export default function Footer() {
 
         {/* Copyright & Disclaimer */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500 text-center sm:text-left">
-          <p>© 2026 AskSite SaaS (Aşk Dünyamız). Tüm hakları saklıdır.</p>
+          <p>© 2026 AskSite SaaS - Muhammet Kaplan. Tüm hakları saklıdır.</p>
           <p className="text-[11px] text-gray-600">
             Dijital içerik ve mikro-hizmet platformu. Fiyatlara yasal KDV dahildir.
           </p>

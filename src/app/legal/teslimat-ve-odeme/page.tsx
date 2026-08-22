@@ -1,9 +1,9 @@
 import { Metadata } from 'next';
-import { Truck, ShieldCheck, Zap, CreditCard, Lock, CheckCircle2 } from 'lucide-react';
+import { Truck, ShieldCheck, Zap, CreditCard, Lock, CheckCircle2, Building, Mail, Phone, MapPin } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Teslimat ve Ödeme Şartları | AskSite SaaS',
-  description: 'AskSite SaaS platformu anında dijital teslimat ve 256-bit SSL güvenli ödeme koşulları.',
+  description: 'Muhammet Kaplan (AskSite) anında dijital teslimat ve 256-bit SSL güvenli ödeme koşulları.',
 };
 
 export default function TeslimatVeOdemePage() {
@@ -18,7 +18,7 @@ export default function TeslimatVeOdemePage() {
           Teslimat ve Ödeme Şartları
         </h1>
         <p className="text-xs text-gray-400">
-          Son Güncelleme: 15 Ağustos 2026 | E-Ticaret ve dijital hizmet teslimat protokolü
+          Son Güncelleme: 22 Ağustos 2026 | Hizmet Sağlayıcı: Muhammet Kaplan (AskSite)
         </p>
       </div>
 
@@ -29,15 +29,15 @@ export default function TeslimatVeOdemePage() {
           <span>1. Dijital Hizmet Teslimat Süreci (Anında Aktivasyon)</span>
         </h2>
         <p className="leading-relaxed">
-          AskSite SaaS, bir dijital mikro-hizmet platformudur. Satın alınan paketler fiziksel bekleme süresi olmaksızın anında teslim edilir:
+          AskSite SaaS (https://www.asksite.com.tr), bir dijital mikro-hizmet ve bulut yazılım platformudur. Satın alınan paketler fiziksel bekleme süresi olmaksızın anında teslim edilir:
         </p>
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-2">
           <div className="flex items-center gap-2 font-bold text-xs">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            <span>1 Saniyede Otomatik Yayın:</span>
+            <span>1 Saniyede Otomatik Yayın ve Aktivasyon:</span>
           </div>
           <p className="text-xs leading-relaxed">
-            Ödeme onaylandığı an sistemimiz sizin ve partnerinizin ismine özel çift web sitesini (<code>asksite.com/c/isminiz</code>) otomatik olarak derler ve yayına alır. Ekranda beliren özel <strong>Davet Kodu (Pair Code)</strong> ve <strong>Yönetim Paneli Girişi</strong> anında teslim edilir.
+            Ödeme onaylandığı an sistemimiz sizin ve partnerinizin ismine özel çift web sitesini (<code>asksite.com.tr/c/isminiz</code>) otomatik olarak derler ve sunucuda yayına alır. Ekranda beliren özel <strong>Davet Kodu (Pair Code)</strong> ve <strong>Yönetim Paneli Girişi</strong> anında teslim edilir.
           </p>
         </div>
       </section>
@@ -52,9 +52,9 @@ export default function TeslimatVeOdemePage() {
           Platformumuz üzerinden gerçekleştirilen tüm ödeme işlemleri uluslararası güvenlik standartlarına tam uyumludur:
         </p>
         <ul className="list-disc pl-5 space-y-1.5 text-xs text-gray-600 leading-relaxed">
-          <li><strong>256-Bit SSL Şifreleme:</strong> Kredi kartı ve ödeme bilgileriniz tarayıcınızdan bankaya doğrudan şifreli kanalla iletilir; sunucularımızda kart bilgisi asla kaydedilmez veya saklanmaz.</li>
+          <li><strong>256-Bit SSL Şifreleme:</strong> Kredi kartı ve ödeme bilgileriniz tarayıcınızdan lisanslı ödeme kuruluşuna doğrudan şifreli kanalla iletilir; sunucularımızda kart bilgisi asla kaydedilmez veya saklanmaz.</li>
           <li><strong>3D Secure Zorunluluğu:</strong> Bankanız tarafından telefonunuza gönderilen tek kullanımlık SMS onay kodu ile ödeme güvenliği en üst düzeyde sağlanır.</li>
-          <li><strong>Lisanslı Ödeme Altyapısı:</strong> Ödemeler BDDK lisanslı güvenli ödeme kuruluşları (PayTR, iyzico, Shopier) aracılığıyla işlenir.</li>
+          <li><strong>Lisanslı Ödeme Altyapısı:</strong> Ödemeler BDDK lisanslı güvenli ödeme aracıları (PayTR / iyzico) altyapısıyla tahsil edilir.</li>
         </ul>
       </section>
 
@@ -93,18 +93,37 @@ export default function TeslimatVeOdemePage() {
           Fiziksel NFC Akıllı Kart veya hediye ürünü içeren paketler satın alındığında:
         </p>
         <ul className="list-disc pl-5 space-y-1.5 text-xs text-gray-600 leading-relaxed">
-          <li><strong>Ücretsiz Kargo:</strong> Fiziksel ürünlerde Türkiye&apos;nin 81 iline kargo ücretsizdir.</li>
-          <li><strong>Kargoya Veriliş Süresi:</strong> Kişiye özel NFC çip kodlamasının ardından ürünler 1-2 iş günü içinde anlaşmalı kargo firmasına teslim edilir.</li>
+          <li><strong>Ücretsiz Kargo:</strong> Fiziksel ürünlerde Türkiye&apos;nin 81 iline anlaşmalı kargo ile gönderim ücretsizdir.</li>
+          <li><strong>Kargoya Veriliş Süresi:</strong> Kişiye özel NFC çip kodlamasının ardından ürünler 1-2 iş günü içinde kargo firmasına teslim edilir.</li>
           <li><strong>Kargo Takip Bilgisi:</strong> Kargo takip numarası sipariş sırasında beyan edilen e-posta adresinize veya WhatsApp numaranıza iletilir.</li>
         </ul>
       </section>
 
-      {/* 5. Fatura ve Bilgilendirme */}
+      {/* 5. Satıcı & İletişim Bilgileri */}
       <section className="space-y-3">
-        <h2 className="text-base font-bold text-gray-900">5. E-Fatura ve Sipariş Bildirimi</h2>
-        <p className="leading-relaxed">
-          Ödeme onayının ardından e-faturanız ve sipariş detayınız kayıtlı e-posta adresinize dijital ortamda iletilir. Satın aldığınız paket kapsamındaki hizmet süresi (1 Yıllık veya Ömür Boyu) ödeme anından itibaren başlar.
-        </p>
+        <h2 className="text-base font-bold text-gray-900">5. Satıcı Bilgileri ve İletişim</h2>
+        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-2 text-xs">
+          <div className="flex items-center gap-2 font-bold text-gray-900">
+            <Building className="h-4 w-4 text-rose-500 shrink-0" />
+            <span>Hizmet Sağlayıcı:</span>
+            <span className="text-gray-700 font-normal">Muhammet Kaplan (AskSite SaaS)</span>
+          </div>
+          <div className="flex items-center gap-2 font-bold text-gray-900">
+            <MapPin className="h-4 w-4 text-rose-500 shrink-0" />
+            <span>Adres:</span>
+            <span className="text-gray-700 font-normal">Şahinbey / Gaziantep, Türkiye</span>
+          </div>
+          <div className="flex items-center gap-2 font-bold text-gray-900">
+            <Mail className="h-4 w-4 text-rose-500 shrink-0" />
+            <span>E-Posta:</span>
+            <a href="mailto:muhammet.2713ka@gmail.com" className="text-rose-600 hover:underline">muhammet.2713ka@gmail.com</a>
+          </div>
+          <div className="flex items-center gap-2 font-bold text-gray-900">
+            <Phone className="h-4 w-4 text-emerald-500 shrink-0" />
+            <span>Telefon / WhatsApp:</span>
+            <a href="https://wa.me/905524185530" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">+90 552 418 55 30</a>
+          </div>
+        </div>
       </section>
     </div>
   );
