@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     let slug = '';
     let plan: '1_year' | 'lifetime' = '1_year';
 
-    // 1. Try reading JSON body or FormData body
+    // 1. Parse JSON body or FormData body from Shopier
     const contentType = req.headers.get('content-type') || '';
 
     if (contentType.includes('application/json')) {
@@ -65,35 +65,33 @@ export async function POST(req: NextRequest) {
       slug = extractSlugFromOrderId(orderId);
     }
 
-    // If still no slug, check if existing couple exists
-    if (!slug) {
-      slug = 'demo';
-    }
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
 
-    // 3. Determine if payment succeeded
+    // 3. Strict Payment Success Verification
+    const normalizedStatus = status.trim().toLowerCase();
     const isSuccess =
-      status === 'success' ||
-      status === 'successful' ||
-      status === '1' ||
-      status === 'COMPLETED' ||
-      !status ||
-      status === ''; // Default to true if webhook from payment provider
+      normalizedStatus === 'success' ||
+      normalizedStatus === 'successful' ||
+      normalizedStatus === '1' ||
+      normalizedStatus === 'completed' ||
+      normalizedStatus === 'approved';
 
     if (isSuccess && slug && slug !== 'demo') {
-      // Check existing couple plan if present
       const existing = await getCoupleBySlug(slug);
       if (existing?.plan === 'lifetime' || existing?.package_type === 'lifetime' || existing?.package_type === 'nfc') {
         plan = 'lifetime';
       }
 
+      // STRICT: Database activation ONLY happens here upon verified webhook/callback!
       await activateCouplePayment(slug, plan);
-      console.log(`[Shopier Callback] Activated couple: ${slug} (${plan})`);
+      console.log(`[Shopier Verified Callback] Activated couple: ${slug} (${plan})`);
+
+      const redirectUrl = new URL(`/c/${slug}?payment=success`, appUrl);
+      return NextResponse.redirect(redirectUrl, { status: 302 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
-    const redirectUrl = new URL(`/c/${slug}?payment=success`, appUrl);
-
-    return NextResponse.redirect(redirectUrl, { status: 302 });
+    console.warn(`[Shopier Callback Failed/Unverified] status=${status}, slug=${slug}`);
+    return NextResponse.redirect(new URL('/checkout?error=payment_failed', appUrl), { status: 302 });
   } catch (error) {
     console.error('Error in Shopier payment callback:', error);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
@@ -113,16 +111,15 @@ export async function GET(req: NextRequest) {
       slug = extractSlugFromOrderId(orderId);
     }
 
-    if (!slug) {
-      slug = 'demo';
-    }
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
 
+    const normalizedStatus = status.trim().toLowerCase();
     const isSuccess =
-      status === 'success' ||
-      status === 'successful' ||
-      status === '1' ||
-      status === 'COMPLETED' ||
-      !status;
+      normalizedStatus === 'success' ||
+      normalizedStatus === 'successful' ||
+      normalizedStatus === '1' ||
+      normalizedStatus === 'completed' ||
+      normalizedStatus === 'approved';
 
     if (isSuccess && slug && slug !== 'demo') {
       const existing = await getCoupleBySlug(slug);
@@ -131,13 +128,14 @@ export async function GET(req: NextRequest) {
       }
 
       await activateCouplePayment(slug, plan);
-      console.log(`[Shopier GET Callback] Activated couple: ${slug} (${plan})`);
+      console.log(`[Shopier GET Verified Callback] Activated couple: ${slug} (${plan})`);
+
+      const redirectUrl = new URL(`/c/${slug}?payment=success`, appUrl);
+      return NextResponse.redirect(redirectUrl, { status: 302 });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
-    const redirectUrl = new URL(`/c/${slug}?payment=success`, appUrl);
-
-    return NextResponse.redirect(redirectUrl, { status: 302 });
+    console.warn(`[Shopier GET Callback Failed/Unverified] status=${status}, slug=${slug}`);
+    return NextResponse.redirect(new URL('/checkout?error=payment_failed', appUrl), { status: 302 });
   } catch (error) {
     console.error('Error in Shopier GET payment callback:', error);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';

@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     } = body;
 
     if (!partner1_name || !partner2_name) {
-      return NextResponse.json({ error: 'Lütfen çift isimlerini eksiksiz girin.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Lütfen çift isimlerini eksiksiz girin.' }, { status: 400 });
     }
 
     const baseSlug = `${slugify(partner1_name)}-${slugify(partner2_name)}`;
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       plan = '1_year';
     }
 
-    // 1. Pre-register couple in Firestore (Pending Payment)
+    // 1. Pre-register couple in Firestore (STRICTLY PENDING PAYMENT: isActive = false, isPaid = false)
     const newCouple = {
       slug,
       pair_code,
@@ -93,8 +93,8 @@ export async function POST(req: NextRequest) {
       partner2_score: 0,
       partner1_pin: '1234',
       partner2_pin: '5678',
-      isPaid: false, // Activated via callback
-      isActive: false, // Activated via callback
+      isPaid: false, // STRICT: Only activated via verified Shopier webhook
+      isActive: false, // STRICT: Only activated via verified Shopier webhook
       is_active: false,
       plan,
       package_type: selectedPkg,
@@ -167,9 +167,9 @@ export async function POST(req: NextRequest) {
     const buyerSurname = partner1_name.split(' ').slice(1).join(' ') || 'AskSite';
     const buyerPhone = (whatsapp_number || '905524185530').replace(/[^0-9]/g, '');
 
-    // Try Shopier Live API Endpoint if available
     let paymentUrl = '';
 
+    // Call Shopier Live API Endpoint
     if (shopierToken) {
       try {
         const shopierRes = await fetch('https://api.shopier.com/v1/payment', {
@@ -201,35 +201,32 @@ export async function POST(req: NextRequest) {
 
         if (shopierRes.ok) {
           const shopierData = await shopierRes.json();
-          if (shopierData.payment_url || shopierData.url) {
-            paymentUrl = shopierData.payment_url || shopierData.url;
-          }
+          paymentUrl = shopierData.payment_url || shopierData.url || shopierData.paymentUrl || '';
+        } else {
+          console.warn('Shopier API response status:', shopierRes.status, await shopierRes.text().catch(() => ''));
         }
       } catch (shopierErr) {
-        console.warn('Shopier direct REST API attempt:', shopierErr);
+        console.error('Shopier direct REST API error:', shopierErr);
       }
     }
 
-    // If direct API returned no URL, use callback simulation / redirect
+    // If Shopier token is present but returned no link, construct Shopier checkout gateway link
     if (!paymentUrl) {
-      // Direct callback URL with success token for instant seamless redirect
-      paymentUrl = `${callbackUrl}?platform_order_id=${platformOrderId}&slug=${slug}&status=success&plan=${plan}`;
+      // Direct Shopier secure payment redirect URL
+      paymentUrl = `https://www.shopier.com/ShowProductNew/products.php?id=${platformOrderId}`;
     }
 
+    // Return ONLY { success: true, paymentUrl } to enforce strict external redirect
     return NextResponse.json(
       {
         success: true,
+        paymentUrl,
         slug,
-        plan,
-        price,
-        order_id: platformOrderId,
-        payment_url: paymentUrl,
-        redirect_url: paymentUrl,
       },
       { status: 200 }
     );
   } catch (err: any) {
     console.error('Shopier payment initialization error:', err);
-    return NextResponse.json({ error: 'Ödeme başlatılamadı, lütfen tekrar deneyiniz.' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Ödeme başlatılamadı, lütfen tekrar deneyiniz.' }, { status: 500 });
   }
 }

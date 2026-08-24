@@ -34,8 +34,6 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [packageType, setPackageType] = useState<'yearly' | 'lifetime' | 'nfc' | 'digital'>('lifetime');
   const [loading, setLoading] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentStage, setPaymentStage] = useState<'processing' | 'success'>('processing');
 
   const [partner1, setPartner1] = useState('');
   const [partner2, setPartner2] = useState('');
@@ -246,33 +244,16 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      if (res.ok && (data.payment_url || data.redirect_url)) {
-        const targetUrl = data.payment_url || data.redirect_url;
-        setHasPurchased(true);
-        setUserCoupleSlug(data.slug);
-
-        // Open Payment Modal Simulation / Transition
-        setShowPaymentModal(true);
-        setPaymentStage('processing');
-
-        // Transition to success / redirection
-        setTimeout(() => {
-          setPaymentStage('success');
-          confetti({ particleCount: 70, spread: 90, origin: { y: 0.5 } });
-        }, 800);
-
-        setTimeout(() => {
-          if (targetUrl.startsWith('http')) {
-            window.location.href = targetUrl;
-          } else {
-            router.push(targetUrl);
-          }
-        }, 1600);
+      if (res.ok && data.paymentUrl) {
+        // Shopier güvenli ödeme ekranına zorunlu yönlendir
+        window.location.href = data.paymentUrl;
       } else {
-        alert(data.error || 'Ödeme başlatılamadı.');
+        console.error('Ödeme linki oluşturulamadı.', data);
+        alert(data.error || 'Ödeme linki oluşturulamadı. Lütfen bilgilerinizi kontrol edip tekrar deneyiniz.');
         setLoading(false);
       }
     } catch (e) {
+      console.error('Ödeme isteği hatası:', e);
       alert('Bir hata oluştu, lütfen tekrar deneyin.');
       setLoading(false);
     }
@@ -829,41 +810,6 @@ export default function CheckoutPage() {
             <ShieldCheck className="h-4 w-4 text-emerald-500" /> 256-Bit SSL ile %100 Güvenli Ödeme & Anında Aktivasyon
           </div>
         </form>
-
-        {/* Demo Ödeme İşleniyor & Başarılı Modalı */}
-        {showPaymentModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl border border-gray-100 flex flex-col items-center">
-              {paymentStage === 'processing' ? (
-                <>
-                  <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-rose-50 border-4 border-rose-200 text-rose-500">
-                    <CreditCard className="h-9 w-9 animate-pulse" />
-                    <div className="absolute inset-0 rounded-full border-4 border-rose-500 border-t-transparent animate-spin" />
-                  </div>
-                  <h3 className="text-lg font-extrabold text-gray-900 mb-1">
-                    Ödeme İşleniyor... 💳
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Güvenli 256-Bit SSL ödeme ağ geçidine bağlanılıyor...
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 animate-bounce">
-                    <CheckCircle2 className="h-12 w-12" />
-                  </div>
-                  <h3 className="text-xl font-extrabold text-emerald-600 mb-1">
-                    Demo Ödeme Başarılı! 🎉
-                  </h3>
-                  <p className="text-xs text-gray-600 font-semibold mb-2">
-                    {partner1} & {partner2} için özel web siteniz ve paneli hazırlandı.
-                  </p>
-                  <span className="text-[11px] text-gray-400">Yönetim paneline yönlendiriliyorsunuz...</span>
-                </>
-              )}
-            </div>
-          </div>
-        )}
           </>
         )}
       </div>
