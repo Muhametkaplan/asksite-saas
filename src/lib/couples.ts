@@ -1653,5 +1653,77 @@ export async function get2048State(
   return null;
 }
 
+export async function activateCouplePayment(
+  slug: string,
+  plan: '1_year' | 'lifetime' = '1_year'
+): Promise<boolean> {
+  const cleanSlug = validateSlug(slug);
+  const isYearly = plan === '1_year';
+  const now = new Date();
+  const expiresAt = isYearly
+    ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+
+  if (localCouplesMemoryStore.has(cleanSlug)) {
+    const existing = localCouplesMemoryStore.get(cleanSlug)!;
+    localCouplesMemoryStore.set(cleanSlug, {
+      ...existing,
+      isPaid: true,
+      is_active: true,
+      plan,
+      paid_at: now.toISOString(),
+      expires_at: expiresAt || undefined,
+    });
+  }
+
+  if (isFirebaseConfigured && db) {
+    try {
+      const coupleRef = doc(db, 'couples', cleanSlug);
+      const snap = await getDoc(coupleRef);
+      const coupleData = snap.exists() ? snap.data() : null;
+
+      await setDoc(
+        coupleRef,
+        {
+          isPaid: true,
+          isActive: true,
+          is_active: true,
+          plan,
+          paidAt: serverTimestamp(),
+          paid_at: now.toISOString(),
+          expires_at: expiresAt,
+        },
+        { merge: true }
+      );
+
+      // If owner UID exists, activate user subscription in Firestore
+      const ownerUid = coupleData?.owner_uid || coupleData?.partner1_uid;
+      if (ownerUid) {
+        const userRef = doc(db, 'users', ownerUid);
+        await setDoc(
+          userRef,
+          {
+            hasPurchasedSite: true,
+            hasActiveSubscription: true,
+            coupleSlug: cleanSlug,
+            isPaid: true,
+            plan,
+            paidAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      return true;
+    } catch (e) {
+      console.error('Error activating couple payment in Firestore:', e);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 
 

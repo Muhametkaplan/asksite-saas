@@ -32,7 +32,7 @@ import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const [packageType, setPackageType] = useState<'digital' | 'nfc'>('digital');
+  const [packageType, setPackageType] = useState<'yearly' | 'lifetime' | 'nfc' | 'digital'>('lifetime');
   const [loading, setLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentStage, setPaymentStage] = useState<'processing' | 'success'>('processing');
@@ -58,6 +58,19 @@ export default function CheckoutPage() {
   const [forceShowPurchaseForm, setForceShowPurchaseForm] = useState(false);
 
   useEffect(() => {
+    // Check URL parameters for pre-selected plan
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const planParam = urlParams.get('plan');
+      if (planParam === 'yearly' || planParam === '1_year' || planParam === 'digital') {
+        setPackageType('yearly');
+      } else if (planParam === 'lifetime') {
+        setPackageType('lifetime');
+      } else if (planParam === 'nfc') {
+        setPackageType('nfc');
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setCurrentUser({
@@ -140,14 +153,15 @@ export default function CheckoutPage() {
   const handleConnectWithInviteCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteCodeInput.trim()) {
-      setInviteStatusMsg({ type: 'error', text: 'Lütfen geçerli bir davet kodu girin (Örn: ASK-X79B2).' });
+      setInviteStatusMsg({ type: 'error', text: 'Lütfen davet kodunu giriniz.' });
       return;
     }
+
     setInviteConnecting(true);
     setInviteStatusMsg(null);
 
     try {
-      const uid = auth.currentUser?.uid || `user-${Date.now()}`;
+      const uid = auth.currentUser?.uid || `usr_invite_${Date.now()}`;
       const email = auth.currentUser?.email || 'partner2@example.com';
       const res = await connectPartnerWithPairCode(uid, email, inviteCodeInput);
 
@@ -213,7 +227,7 @@ export default function CheckoutPage() {
       const currentUid = auth.currentUser?.uid || null;
       const currentEmail = auth.currentUser?.email || partner1Email;
 
-      const res = await fetch('/api/checkout', {
+      const res = await fetch('/api/payment/shopier', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -232,26 +246,30 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      if (res.ok && data.redirect_url && data.slug) {
+      if (res.ok && (data.payment_url || data.redirect_url)) {
+        const targetUrl = data.payment_url || data.redirect_url;
         setHasPurchased(true);
         setUserCoupleSlug(data.slug);
 
-        // Open Payment Modal Simulation
+        // Open Payment Modal Simulation / Transition
         setShowPaymentModal(true);
         setPaymentStage('processing');
 
-        // Transition to success after 1 second
+        // Transition to success / redirection
         setTimeout(() => {
           setPaymentStage('success');
           confetti({ particleCount: 70, spread: 90, origin: { y: 0.5 } });
-        }, 1000);
+        }, 800);
 
-        // Auto Redirect to Dashboard after 1.8 seconds (No holding on checkout!)
         setTimeout(() => {
-          router.push(data.redirect_url || `/dashboard?slug=${data.slug}`);
-        }, 1800);
+          if (targetUrl.startsWith('http')) {
+            window.location.href = targetUrl;
+          } else {
+            router.push(targetUrl);
+          }
+        }, 1600);
       } else {
-        alert(data.error || 'Ödeme tamamlanamadı.');
+        alert(data.error || 'Ödeme başlatılamadı.');
         setLoading(false);
       }
     } catch (e) {
@@ -523,88 +541,123 @@ export default function CheckoutPage() {
             </div>
 
         {/* Package Selector */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {/* Dijital Paket */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {/* 1 Yıllık Çift Paketi */}
           <div
-            onClick={() => setPackageType('digital')}
-            className={`cursor-pointer rounded-3xl p-6 transition-all border-2 ${
-              packageType === 'digital'
+            onClick={() => setPackageType('yearly')}
+            className={`cursor-pointer rounded-3xl p-5 transition-all border-2 flex flex-col justify-between ${
+              packageType === 'yearly' || packageType === 'digital'
                 ? 'border-rose-500 bg-white shadow-xl ring-2 ring-rose-500/20'
                 : 'border-white/80 bg-white/60 hover:bg-white/90'
             }`}
           >
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-rose-500">
-                  Popüler Dijital Paket
+            <div>
+              <div className="flex justify-between items-start mb-3">
+                <span className="text-[11px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">
+                  Standart
                 </span>
-                <h3 className="text-xl font-bold text-gray-900 mt-1">Dijital Aşk Sayfası</h3>
+                <CheckCircle2
+                  className={`h-5 w-5 ${
+                    packageType === 'yearly' || packageType === 'digital' ? 'text-rose-500' : 'text-gray-300'
+                  }`}
+                />
               </div>
-              <CheckCircle2
-                className={`h-6 w-6 ${
-                  packageType === 'digital' ? 'text-rose-500' : 'text-gray-300'
-                }`}
-              />
+              <h3 className="text-lg font-black text-gray-900">1 Yıllık Çift Paketi</h3>
+              <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-2 mb-3">
+                ₺199 <span className="text-xs font-normal text-gray-500">/ Yıl</span>
+              </div>
+              <ul className="space-y-1.5 text-xs text-gray-600">
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> Özel Çift Linki (/c/...)
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> 4 Efsane Çift Oyunu
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> Canlı Çizim & Spotify
+                </li>
+              </ul>
             </div>
-            <div className="text-3xl font-extrabold text-gray-900 mb-4">
-              ₺399 <span className="text-xs font-normal text-gray-500">/ 1 Yıllık Yayın</span>
+          </div>
+
+          {/* Ömür Boyu Aşk Paketi (Popüler) */}
+          <div
+            onClick={() => setPackageType('lifetime')}
+            className={`cursor-pointer rounded-3xl p-5 transition-all border-2 relative overflow-hidden flex flex-col justify-between ${
+              packageType === 'lifetime'
+                ? 'border-purple-600 bg-white shadow-xl ring-2 ring-purple-600/20'
+                : 'border-white/80 bg-white/60 hover:bg-white/90'
+            }`}
+          >
+            <div className="absolute top-2 right-2 rounded-full bg-gradient-to-r from-rose-500 to-purple-600 px-2.5 py-0.5 text-[9px] font-black text-white shadow-xs">
+              EN POPÜLER
             </div>
-            <ul className="space-y-2 text-xs text-gray-600">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Size Özel Çift Linki (/c/...)
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> İndirilebilir Yüksek Çözünürlüklü HD QR Kod
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Yapay Zeka (Gemini AI) Film Robotu
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Sevgi Kavanozu & Harita Anı Noktaları
-              </li>
-            </ul>
+
+            <div>
+              <div className="flex justify-between items-start mb-3">
+                <span className="text-[11px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
+                  Ömür Boyu V.I.P
+                </span>
+                <CheckCircle2
+                  className={`h-5 w-5 ${
+                    packageType === 'lifetime' ? 'text-purple-600' : 'text-gray-300'
+                  }`}
+                />
+              </div>
+              <h3 className="text-lg font-black text-gray-900">Ömür Boyu Paket</h3>
+              <div className="text-2xl sm:text-3xl font-black text-purple-700 mt-2 mb-3">
+                ₺349 <span className="text-xs font-normal text-gray-500">/ Tek Seferlik</span>
+              </div>
+              <ul className="space-y-1.5 text-xs text-gray-700">
+                <li className="flex items-center gap-1.5 font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600 shrink-0" /> Ömür Boyu Sınırsız Yayın
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600 shrink-0" /> Gemini AI Film Robotu
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600 shrink-0" /> HD QR Kod & VIP Destek
+                </li>
+              </ul>
+            </div>
           </div>
 
           {/* Fiziksel NFC Paketi */}
           <div
             onClick={() => setPackageType('nfc')}
-            className={`cursor-pointer rounded-3xl p-6 transition-all border-2 relative overflow-hidden ${
+            className={`cursor-pointer rounded-3xl p-5 transition-all border-2 flex flex-col justify-between ${
               packageType === 'nfc'
-                ? 'border-purple-600 bg-white shadow-xl ring-2 ring-purple-600/20'
+                ? 'border-amber-500 bg-white shadow-xl ring-2 ring-amber-500/20'
                 : 'border-white/80 bg-white/60 hover:bg-white/90'
             }`}
           >
-            <div className="absolute top-3 right-3 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 px-3 py-1 text-[10px] font-extrabold text-white shadow-sm">
-              SÜPRİZ HEDİYE
-            </div>
-
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-purple-600">
-                  Fiziksel + Dijital V.I.P Paket
+            <div>
+              <div className="flex justify-between items-start mb-3">
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-100">
+                  Fiziksel Kart
                 </span>
-                <h3 className="text-xl font-bold text-gray-900 mt-1">NFC Akıllı Kart & Anahtarlık</h3>
+                <CheckCircle2
+                  className={`h-5 w-5 ${
+                    packageType === 'nfc' ? 'text-amber-500' : 'text-gray-300'
+                  }`}
+                />
               </div>
-              <CheckCircle2
-                className={`h-6 w-6 ${
-                  packageType === 'nfc' ? 'text-purple-600' : 'text-gray-300'
-                }`}
-              />
+              <h3 className="text-lg font-black text-gray-900">NFC Akıllı Kart</h3>
+              <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2 mb-3">
+                ₺499 <span className="text-xs font-normal text-gray-500">/ Kargo Dahil</span>
+              </div>
+              <ul className="space-y-1.5 text-xs text-gray-600">
+                <li className="flex items-center gap-1.5 font-semibold text-amber-700">
+                  <Truck className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Adrese Ücretsiz Kargo
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Temassız NFC Çipli Kart
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Ömür Boyu Dijital Erişim
+                </li>
+              </ul>
             </div>
-            <div className="text-3xl font-extrabold text-gray-900 mb-4">
-              ₺699 <span className="text-xs font-normal text-gray-500">/ Kargo Dahil</span>
-            </div>
-            <ul className="space-y-2 text-xs text-gray-600">
-              <li className="flex items-center gap-2 font-semibold text-purple-700">
-                <Truck className="h-4 w-4 text-purple-600" /> Adrese Ücretsiz Kargo
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-purple-600" /> Telefonu Yaklaştırınca Açılan Akıllı NFC Çip
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-purple-600" /> Dijital Paket İçeriğinin Tamamı
-              </li>
-            </ul>
           </div>
         </div>
 
@@ -622,7 +675,7 @@ export default function CheckoutPage() {
               <input
                 type="text"
                 required
-                placeholder="Örn: Ayşe"
+                placeholder="Partner 1"
                 value={partner1}
                 onChange={(e) => setPartner1(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
@@ -630,14 +683,14 @@ export default function CheckoutPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                1. Partner E-Posta Adresi (Kız) *
+                2. Partner İsmi (Erkek Partner) *
               </label>
               <input
-                type="email"
+                type="text"
                 required
-                placeholder="ayse@example.com"
-                value={partner1Email}
-                onChange={(e) => setPartner1Email(e.target.value)}
+                placeholder="Partner 2"
+                value={partner2}
+                onChange={(e) => setPartner2(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
               />
             </div>
@@ -646,25 +699,24 @@ export default function CheckoutPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                2. Partner İsmi (Erkek Partner) *
+                1. Partner E-Postası *
               </label>
               <input
-                type="text"
+                type="email"
                 required
-                placeholder="Örn: Ahmet"
-                value={partner2}
-                onChange={(e) => setPartner2(e.target.value)}
+                placeholder="partner1@asksite.com"
+                value={partner1Email}
+                onChange={(e) => setPartner1Email(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                2. Partner E-Posta Adresi (Erkek) *
+                2. Partner E-Postası (Opsiyonel)
               </label>
               <input
                 type="email"
-                required
-                placeholder="ahmet@example.com"
+                placeholder="partner2@asksite.com"
                 value={partner2Email}
                 onChange={(e) => setPartner2Email(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
@@ -675,13 +727,13 @@ export default function CheckoutPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                İlişki Başlangıç Tarihi
+                Tanışma / Yıldönümü Tarihi
               </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 text-gray-700"
               />
             </div>
             <div>
@@ -690,7 +742,7 @@ export default function CheckoutPage() {
               </label>
               <input
                 type="text"
-                placeholder="905520000000"
+                placeholder="905524185530"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
@@ -706,10 +758,10 @@ export default function CheckoutPage() {
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Ad Soyad</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Alıcı Ad Soyad</label>
                   <input
                     type="text"
-                    placeholder="Ahmet Yılmaz"
+                    placeholder="Adınız Soyadınız"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
@@ -746,10 +798,12 @@ export default function CheckoutPage() {
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 py-4 text-base font-bold text-white shadow-xl transition hover:opacity-95 active:scale-98 disabled:opacity-50"
           >
             {loading ? (
-              'Ödeme İşleniyor...'
+              'Shopier Ödeme Sayfasına Yönlendiriliyorsunuz...'
             ) : (
               <>
-                <CreditCard className="h-5 w-5" /> Güvenli Öde ({packageType === 'digital' ? '₺399' : '₺699'}) ve Paneli Aç <ArrowRight className="h-5 w-5" />
+                <CreditCard className="h-5 w-5" /> Shopier ile Güvenli Öde (
+                {packageType === 'yearly' || packageType === 'digital' ? '₺199' : packageType === 'lifetime' ? '₺349' : '₺499'}
+                ) ve Başlat <ArrowRight className="h-5 w-5" />
               </>
             )}
           </button>
