@@ -25,6 +25,47 @@ function generateRandomInviteCode(): string {
   return `ASK-${result}`;
 }
 
+function sanitizePhone(rawPhone: string | null | undefined): string {
+  if (!rawPhone) return '05524185530';
+  // Strip all non-digit characters
+  let digits = rawPhone.replace(/\D/g, '');
+  if (!digits || digits.length < 7) {
+    return '05524185530';
+  }
+  // If starts with 90 and 12 digits, convert to 05xx or 5xx
+  if (digits.startsWith('90') && digits.length === 12) {
+    digits = '0' + digits.substring(2);
+  } else if (!digits.startsWith('0') && digits.length === 10) {
+    digits = '0' + digits;
+  }
+  return digits;
+}
+
+function sanitizeNameAndSurname(fullName: string, fallbackName = 'Musteri', fallbackSurname = 'Kullanici') {
+  const trimmed = (fullName || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) {
+    return { name: fallbackName, surname: fallbackSurname };
+  }
+  const parts = trimmed.split(' ');
+  if (parts.length === 1) {
+    return {
+      name: parts[0] || fallbackName,
+      surname: fallbackSurname,
+    };
+  }
+  const surname = parts.pop() || fallbackSurname;
+  const name = parts.join(' ') || fallbackName;
+  return { name, surname };
+}
+
+function sanitizeEmail(email: string | null | undefined): string {
+  const clean = (email || '').trim().toLowerCase();
+  if (clean && clean.includes('@') && clean.includes('.')) {
+    return clean;
+  }
+  return 'destek@asksite.com.tr';
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -50,31 +91,30 @@ export async function POST(req: NextRequest) {
     const slug = `${baseSlug}-${randomSuffix}`;
     const pair_code = generateRandomInviteCode();
 
-    const p1Email = (partner1_email || '').toLowerCase().trim();
-    const p2Email = (partner2_email || '').toLowerCase().trim();
-    const customerEmail = p1Email || (owner_email || '').toLowerCase().trim() || 'musteri@asksite.com.tr';
-    const authorized_emails = Array.from(new Set([p1Email, p2Email, (owner_email || '').toLowerCase().trim()].filter(Boolean)));
+    const p1Email = sanitizeEmail(partner1_email);
+    const p2Email = partner2_email ? sanitizeEmail(partner2_email) : '';
+    const customerEmail = p1Email || sanitizeEmail(owner_email);
+    const authorized_emails = Array.from(new Set([p1Email, p2Email, sanitizeEmail(owner_email)].filter(Boolean)));
     const ownerUid = owner_uid || null;
-    const ownerEmail = (owner_email || p1Email || '').toLowerCase().trim();
+    const ownerEmail = sanitizeEmail(owner_email || p1Email);
 
     // Determine package pricing & plan
     const selectedPkg = (package_type || 'yearly').toLowerCase();
     let price = 199;
-    let packageName = '1 Yıllık Çift Paketi';
+    let packageName = 'AskSite 1 Yillik Cift Paketi';
     let plan: '1_year' | 'lifetime' = '1_year';
 
     if (selectedPkg === 'lifetime') {
       price = 349;
-      packageName = 'Ömür Boyu Aşk Paketi';
+      packageName = 'AskSite Omur Boyu Ask Paketi';
       plan = 'lifetime';
     } else if (selectedPkg === 'nfc') {
       price = 499;
-      packageName = 'Fiziksel NFC Akıllı Kart & V.I.P Çift Paketi';
+      packageName = 'AskSite NFC Akilli Kart VIP Paketi';
       plan = 'lifetime';
     } else {
-      // digital or yearly
       price = 199;
-      packageName = '1 Yıllık Çift Paketi';
+      packageName = 'AskSite 1 Yillik Cift Paketi';
       plan = '1_year';
     }
 
@@ -122,7 +162,7 @@ export async function POST(req: NextRequest) {
         'Gözlerine baktığım an zaman duruyor...',
         'Birlikte yazacağımız nice masallara ❤️',
       ],
-      whatsapp_number: whatsapp_number || '905524185530',
+      whatsapp_number: sanitizePhone(whatsapp_number),
       whatsapp_message: 'Acil sarılmana ihtiyacım var 🥺',
       love_reasons: [
         'Gülüşünle en karanlık günlerimi bile aydınlatıyorsun.',
@@ -157,15 +197,63 @@ export async function POST(req: NextRequest) {
 
     await saveCoupleConfig(newCouple);
 
-    // 2. Prepare Shopier Order & Payment Request
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
-    const callbackUrl = `${appUrl}/api/payment/callback`;
-    const platformOrderId = `ask_${slug}_${Date.now()}`;
-    const shopierToken = process.env.SHOPIER_API_TOKEN;
+    // 2. Prepare Shopier Order & Sanitized Data
+    const callbackUrl = 'https://www.asksite.com.tr/api/payment/callback';
+    const cleanOrderId = `ASK${Date.now().toString().slice(-8)}${Math.floor(1000 + Math.random() * 9000)}`;
+    const shopierToken = (process.env.SHOPIER_API_TOKEN || '').replace(/['"]/g, '').trim();
 
-    const buyerName = partner1_name.split(' ')[0] || 'Musteri';
-    const buyerSurname = partner1_name.split(' ').slice(1).join(' ') || 'AskSite';
-    const buyerPhone = (whatsapp_number || '905524185530').replace(/[^0-9]/g, '');
+    const { name: buyerName, surname: buyerSurname } = sanitizeNameAndSurname(
+      partner1_name,
+      'Musteri',
+      partner2_name ? partner2_name.trim().split(' ')[0] : 'Kullanici'
+    );
+    const buyerPhone = sanitizePhone(whatsapp_number);
+
+    // Sanitized Shopier Payload matching Shopier API v1/v2 schema
+    const shopierPayload = {
+      order_id: cleanOrderId,
+      currency: 'TRY',
+      amount: Number(price.toFixed(2)),
+      price: Number(price.toFixed(2)),
+      product_name: packageName,
+      product_type: 'digital',
+      callback_url: callbackUrl,
+      return_url: callbackUrl,
+      callbackUrl: callbackUrl,
+      returnUrl: callbackUrl,
+      buyer: {
+        name: buyerName,
+        surname: buyerSurname,
+        email: customerEmail,
+        phone: buyerPhone,
+        address: 'Sahinbey, Gaziantep',
+        city: 'Gaziantep',
+        country: 'Turkiye',
+        postcode: '27000',
+      },
+      billing_address: {
+        address: 'Sahinbey, Gaziantep',
+        city: 'Gaziantep',
+        country: 'Turkiye',
+        postcode: '27000',
+      },
+      shipping_address: {
+        address: shipping_address || 'Sahinbey, Gaziantep',
+        city: 'Gaziantep',
+        country: 'Turkiye',
+        postcode: '27000',
+      },
+      metadata: {
+        slug,
+        plan,
+        order_id: cleanOrderId,
+        package_type: selectedPkg,
+        owner_uid: ownerUid,
+      },
+    };
+
+    // Debugging Log: Print payload to Vercel/Terminal logs
+    console.log('Shopier Payload:', JSON.stringify(shopierPayload, null, 2));
 
     let paymentUrl = '';
 
@@ -178,45 +266,28 @@ export async function POST(req: NextRequest) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${shopierToken}`,
           },
-          body: JSON.stringify({
-            order_id: platformOrderId,
-            currency: 'TRY',
-            amount: price,
-            product_name: packageName,
-            callback_url: callbackUrl,
-            buyer: {
-              name: buyerName,
-              surname: buyerSurname,
-              email: customerEmail,
-              phone: buyerPhone,
-            },
-            metadata: {
-              slug,
-              plan,
-              package_type: selectedPkg,
-              owner_uid: ownerUid,
-            },
-          }),
+          body: JSON.stringify(shopierPayload),
         });
 
         if (shopierRes.ok) {
           const shopierData = await shopierRes.json();
-          paymentUrl = shopierData.payment_url || shopierData.url || shopierData.paymentUrl || '';
+          paymentUrl = shopierData.payment_url || shopierData.url || shopierData.paymentUrl || shopierData.link || '';
+          console.log('Shopier API Response Success:', shopierData);
         } else {
-          console.warn('Shopier API response status:', shopierRes.status, await shopierRes.text().catch(() => ''));
+          const rawError = await shopierRes.text().catch(() => '');
+          console.error('Shopier API Hatası:', shopierRes.status, rawError);
         }
       } catch (shopierErr) {
-        console.error('Shopier direct REST API error:', shopierErr);
+        console.error('Shopier API Bağlantı Hatası:', shopierErr);
       }
     }
 
-    // If Shopier token is present but returned no link, construct Shopier checkout gateway link
+    // If Shopier returned no direct link, fallback to Shopier gateway URL format
     if (!paymentUrl) {
-      // Direct Shopier secure payment redirect URL
-      paymentUrl = `https://www.shopier.com/ShowProductNew/products.php?id=${platformOrderId}`;
+      paymentUrl = `https://www.shopier.com/ShowProductNew/products.php?id=${cleanOrderId}`;
     }
 
-    // Return ONLY { success: true, paymentUrl } to enforce strict external redirect
+    // Return strictly { success: true, paymentUrl } to enforce external redirect
     return NextResponse.json(
       {
         success: true,
