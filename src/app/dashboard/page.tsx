@@ -43,6 +43,7 @@ import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMa
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
+import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 
 function DashboardContent() {
   const searchParams = useSearchParams();
@@ -487,10 +488,12 @@ function DashboardContent() {
   }, []);
 
   const [currentUser, setCurrentUser] = useState<{ displayName?: string; email?: string; phone?: string } | null>(null);
+  const [firebaseAuthUser, setFirebaseAuthUser] = useState<any>(null);
   const [authProvider, setAuthProvider] = useState<'google' | 'password'>('password');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setFirebaseAuthUser(firebaseUser);
       if (firebaseUser) {
         setCurrentUser({
           displayName: firebaseUser.displayName || '',
@@ -499,6 +502,13 @@ function DashboardContent() {
         });
         const isGoogle = firebaseUser.providerData.some((p) => p.providerId === 'google.com');
         setAuthProvider(isGoogle ? 'google' : 'password');
+
+        if (db) {
+          try {
+            const userRef = doc(db, 'users', firebaseUser.uid);
+            await setDoc(userRef, { emailVerified: firebaseUser.emailVerified ?? false }, { merge: true });
+          } catch (e) {}
+        }
       } else if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('asksite_user');
         if (stored) {
@@ -845,6 +855,15 @@ function DashboardContent() {
       <div className="flex h-screen items-center justify-center bg-pink-50 text-rose-600 font-bold">
         Yönetim Paneli Yükleniyor... ✨
       </div>
+    );
+  }
+
+  if (firebaseAuthUser && !firebaseAuthUser.emailVerified && firebaseAuthUser.providerData.some((p: any) => p.providerId === 'password')) {
+    return (
+      <EmailVerificationGuard
+        user={firebaseAuthUser}
+        onVerified={() => setFirebaseAuthUser({ ...firebaseAuthUser, emailVerified: true })}
+      />
     );
   }
 

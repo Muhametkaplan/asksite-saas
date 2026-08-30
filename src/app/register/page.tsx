@@ -7,11 +7,11 @@ export default function RegisterRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/login?redirect=checkout');
+    router.replace('/login?mode=register&redirect=checkout');
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center text-xs font-bold text-gray-500">
+    <div className="min-h-screen flex items-center justify-center text-xs font-bold text-gray-500 bg-pink-50">
       Kayıt sayfasına yönlendiriliyorsunuz...
     </div>
   );

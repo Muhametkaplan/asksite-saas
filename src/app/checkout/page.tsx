@@ -28,6 +28,7 @@ import { connectPartnerWithPairCode, getCoupleBySlug } from '@/lib/couples';
 import { CoupleConfig } from '@/types/couple';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
 import Footer from '@/components/Footer';
+import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
@@ -49,6 +50,7 @@ export default function CheckoutPage() {
 
   // Auth User & Subscription State
   const [currentUser, setCurrentUser] = useState<{ displayName?: string; email?: string } | null>(null);
+  const [firebaseAuthUser, setFirebaseAuthUser] = useState<any>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
 
   const [hasPurchased, setHasPurchased] = useState<boolean | null>(null);
@@ -70,6 +72,7 @@ export default function CheckoutPage() {
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setFirebaseAuthUser(firebaseUser);
       if (firebaseUser) {
         setCurrentUser({
           displayName: firebaseUser.displayName || '',
@@ -82,6 +85,9 @@ export default function CheckoutPage() {
         if (db) {
           try {
             const userRef = doc(db, 'users', firebaseUser.uid);
+            // Sync emailVerified state with Firestore
+            await setDoc(userRef, { emailVerified: firebaseUser.emailVerified ?? false }, { merge: true });
+
             const snap = await getDoc(userRef);
             if (snap.exists()) {
               const data = snap.data();
@@ -258,6 +264,15 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   };
+
+  if (firebaseAuthUser && !firebaseAuthUser.emailVerified && firebaseAuthUser.providerData.some((p: any) => p.providerId === 'password')) {
+    return (
+      <EmailVerificationGuard
+        user={firebaseAuthUser}
+        onVerified={() => setFirebaseAuthUser({ ...firebaseAuthUser, emailVerified: true })}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 flex flex-col justify-between m-0 p-0">

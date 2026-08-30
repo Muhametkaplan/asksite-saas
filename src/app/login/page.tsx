@@ -8,14 +8,16 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  sendEmailVerification,
+  signOut,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
-import { Heart, Sparkles, Lock, Mail, User, Phone, LogIn, UserPlus, ArrowRight } from 'lucide-react';
+import { Heart, Sparkles, Lock, Mail, User, Phone, LogIn, UserPlus, ArrowRight, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { autoClaimCoupleByEmail } from '@/lib/couples';
 
 async function saveUserDataToFirestore(user: any, name?: string, phoneNumber?: string) {
-  if (!db) return;
+  if (!db || !user?.uid) return;
   try {
     const userRef = doc(db, 'users', user.uid);
     await setDoc(
@@ -25,6 +27,7 @@ async function saveUserDataToFirestore(user: any, name?: string, phoneNumber?: s
         email: user.email,
         displayName: user.displayName || name || '',
         phone: phoneNumber || '',
+        emailVerified: user.emailVerified ?? false,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -41,7 +44,8 @@ function LoginContent() {
   const targetSlugParam = searchParams?.get('slug') || '';
   const urlErrorMsg = searchParams?.get('error') || '';
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const initialMode = searchParams?.get('mode') === 'register' ? 'register' : 'login';
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(urlErrorMsg ? decodeURIComponent(urlErrorMsg) : '');
 
@@ -50,6 +54,13 @@ function LoginContent() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+
+  // Email Verification Waiting State
+  const [verificationPendingUser, setVerificationPendingUser] = useState<any | null>(null);
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [verificationChecking, setVerificationChecking] = useState(false);
+  const [verificationStatusMsg, setVerificationStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const handleSuccessAuth = async (userObj: any) => {
     if (typeof window !== 'undefined') {
@@ -60,6 +71,7 @@ function LoginContent() {
           email: userObj.email,
           displayName: userObj.displayName || fullName || 'Çift Kullanıcısı',
           phone: phone || userObj.phoneNumber || '',
+          emailVerified: userObj.emailVerified ?? false,
         })
       );
     }
@@ -89,6 +101,7 @@ function LoginContent() {
     setErrorMsg('');
     try {
       const res = await signInWithPopup(auth, googleProvider);
+      // Google users have emailVerified = true automatically
       await saveUserDataToFirestore(res.user);
       handleSuccessAuth(res.user);
     } catch (err: any) {
@@ -123,12 +136,37 @@ function LoginContent() {
         if (fullName) {
           await updateProfile(res.user, { displayName: fullName });
         }
+
+        // 1. Send Verification Email immediately
+        try {
+          await sendEmailVerification(res.user);
+        } catch (emailErr) {
+          console.warn('Error sending initial verification email:', emailErr);
+        }
+
+        // 2. Save user to Firestore with emailVerified: false
         await saveUserDataToFirestore(res.user, fullName, phone);
-        handleSuccessAuth({ ...res.user, displayName: fullName || res.user.displayName });
+
+        // 3. Show Verification Pending Screen instead of jumping directly
+        setVerificationPendingUser({
+          uid: res.user.uid,
+          email: res.user.email,
+          displayName: fullName || res.user.displayName,
+        });
       } else {
         const res = await signInWithEmailAndPassword(auth, email, password);
         await saveUserDataToFirestore(res.user);
-        handleSuccessAuth(res.user);
+
+        // If email is not verified, show verification pending screen
+        if (!res.user.emailVerified) {
+          setVerificationPendingUser({
+            uid: res.user.uid,
+            email: res.user.email,
+            displayName: res.user.displayName,
+          });
+        } else {
+          handleSuccessAuth(res.user);
+        }
       }
     } catch (err: any) {
       console.error('Auth Error:', err);
@@ -149,6 +187,166 @@ function LoginContent() {
       setLoading(false);
     }
   };
+
+  const handleResendVerification = async () => {
+    if (!auth.currentUser || resendCooldown > 0) return;
+    setResendingVerification(true);
+    setVerificationStatusMsg(null);
+
+    try {
+      await sendEmailVerification(auth.currentUser);
+      setVerificationStatusMsg({
+        type: 'success',
+        text: 'Doğrulama linki e-posta adresinize tekrar gönderildi!',
+      });
+      setResendCooldown(60);
+      const interval = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      console.error('Error resending email:', err);
+      setVerificationStatusMsg({
+        type: 'error',
+        text: err.code === 'auth/too-many-requests' ? 'Çok fazla deneme yapıldı. Lütfen biraz bekleyin.' : 'E-posta gönderilemedi.',
+      });
+    } finally {
+      setResendingVerification(false);
+    }
+  };
+
+  const handleCheckEmailVerified = async () => {
+    if (!auth.currentUser) return;
+    setVerificationChecking(true);
+    setVerificationStatusMsg(null);
+
+    try {
+      await auth.currentUser.reload();
+      if (auth.currentUser.emailVerified) {
+        await saveUserDataToFirestore(auth.currentUser);
+        setVerificationStatusMsg({
+          type: 'success',
+          text: 'E-postanız başarıyla doğrulandı! Yönlendiriliyorsunuz...',
+        });
+        setTimeout(() => {
+          handleSuccessAuth(auth.currentUser);
+        }, 1000);
+      } else {
+        setVerificationStatusMsg({
+          type: 'info',
+          text: 'Henüz doğrulama bağlantısına tıklanmadı. Lütfen e-postanızı kontrol edip linke tıklayın.',
+        });
+      }
+    } catch (err) {
+      console.error('Error checking verification:', err);
+      setVerificationStatusMsg({
+        type: 'error',
+        text: 'Doğrulama kontrol edilirken bir hata oluştu.',
+      });
+    } finally {
+      setVerificationChecking(false);
+    }
+  };
+
+  // If in Verification Waiting Screen
+  if (verificationPendingUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 flex items-center justify-center py-12 px-4 sm:px-6">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center">
+            <Link href="/" className="inline-flex items-center gap-2 text-2xl font-black text-rose-600 mb-2">
+              <Heart className="h-7 w-7 fill-rose-500 text-rose-500 animate-pulse" /> AskSite SaaS
+            </Link>
+          </div>
+
+          <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-rose-100 backdrop-blur-md text-center space-y-5">
+            <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-rose-50 text-rose-600 border border-rose-200 shadow-md">
+              <Mail className="h-10 w-10 animate-bounce" />
+              <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-500"></span>
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
+                Hesap Oluşturuldu 🎉
+              </span>
+              <h2 className="text-2xl font-black text-gray-900 pt-1">
+                E-Postanızı Doğrulayın
+              </h2>
+              <p className="text-xs text-gray-600 leading-relaxed">
+                <strong className="text-gray-900 underline font-semibold">{verificationPendingUser.email}</strong> adresine bir doğrulama linki gönderdik. Lütfen linke tıklayarak hesabınızı aktif edin.
+              </p>
+            </div>
+
+            {verificationStatusMsg && (
+              <div
+                className={`p-3 rounded-2xl text-xs font-semibold text-left flex items-start gap-2 ${
+                  verificationStatusMsg.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : verificationStatusMsg.type === 'info'
+                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {verificationStatusMsg.type === 'success' ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                )}
+                <span>{verificationStatusMsg.text}</span>
+              </div>
+            )}
+
+            <div className="space-y-2.5 pt-2">
+              <button
+                onClick={handleCheckEmailVerified}
+                disabled={verificationChecking}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 py-3.5 px-4 text-xs font-bold text-white shadow-lg hover:opacity-95 active:scale-98 transition disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${verificationChecking ? 'animate-spin' : ''}`} />
+                <span>{verificationChecking ? 'Kontrol Ediliyor...' : 'Doğruladım, Devam Et'}</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={handleResendVerification}
+                disabled={resendingVerification || resendCooldown > 0}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gray-50 border border-gray-200 py-2.5 px-4 text-xs font-semibold text-gray-700 hover:bg-gray-100 transition disabled:opacity-50"
+              >
+                <Mail className="h-3.5 w-3.5 text-rose-500" />
+                <span>
+                  {resendCooldown > 0
+                    ? `Tekrar Gönder (${resendCooldown}s)`
+                    : resendingVerification
+                    ? 'Gönderiliyor...'
+                    : 'Doğrulama Linkini Tekrar Gönder'}
+                </span>
+              </button>
+            </div>
+
+            <div className="pt-3 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setVerificationPendingUser(null);
+                  signOut(auth);
+                }}
+                className="text-xs text-gray-500 hover:text-rose-600 underline font-medium"
+              >
+                Farklı bir hesapla giriş yap
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 flex items-center justify-center py-12 px-4 sm:px-6">
@@ -209,45 +407,54 @@ function LoginContent() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            Google İle Tek Tıkla Devam Et
+            <span>Google ile Devam Et</span>
           </button>
 
-          <div className="relative my-4 flex items-center justify-center">
+          <div className="relative mb-5 flex items-center justify-center">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200" />
             </div>
-            <span className="relative bg-white px-3 text-[11px] uppercase font-bold text-gray-400">veya</span>
+            <span className="relative bg-white px-3 text-[11px] font-semibold text-gray-400 uppercase">
+              Veya E-Posta ile
+            </span>
           </div>
 
+          {/* Error Notice */}
+          {errorMsg && (
+            <div className="mb-4 rounded-2xl bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 border border-rose-200">
+              {errorMsg}
+            </div>
+          )}
+
           {/* Form */}
-          <form onSubmit={handleEmailSubmit} className="space-y-3.5">
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
             {mode === 'register' && (
               <>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Ad Soyad *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Adınız Soyadınız *</label>
                   <div className="relative">
                     <User className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
                     <input
                       type="text"
                       required
-                      placeholder="Ahmet Yılmaz"
+                      placeholder="Örn: Ayşe Yılmaz"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                      className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Telefon Numarası</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">WhatsApp Telefon Numaranız (Opsiyonel)</label>
                   <div className="relative">
                     <Phone className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
                     <input
                       type="tel"
-                      placeholder="905520000000"
+                      placeholder="905524185530"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                      className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
                     />
                   </div>
                 </div>
@@ -255,22 +462,22 @@ function LoginContent() {
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">E-posta Adresi *</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1">E-Posta Adresiniz *</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
                 <input
                   type="email"
                   required
-                  placeholder="ornek@domain.com"
+                  placeholder="ornek@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                  className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Parola *</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1">Şifreniz *</label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
                 <input
@@ -279,35 +486,40 @@ function LoginContent() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                  className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
                 />
               </div>
+              {mode === 'register' && (
+                <p className="text-[10px] text-gray-400 mt-1">En az 6 karakter olmalıdır.</p>
+              )}
             </div>
-
-            {errorMsg && (
-              <div className="rounded-xl bg-rose-50 p-2.5 text-xs text-rose-600 font-semibold text-center border border-rose-100">
-                {errorMsg}
-              </div>
-            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 py-3 text-xs font-extrabold text-white shadow-lg hover:opacity-95 active:scale-98 transition disabled:opacity-50 mt-4"
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 py-3.5 px-4 text-xs font-bold text-white shadow-xl shadow-rose-500/20 hover:opacity-95 active:scale-98 transition disabled:opacity-50 mt-2"
             >
               {loading ? (
-                'İşleniyor...'
+                <span>İşleniyor...</span>
               ) : mode === 'login' ? (
                 <>
-                  Giriş Yap ve Devam Et <ArrowRight className="h-4 w-4" />
+                  <span>Giriş Yap ve Devam Et</span>
+                  <ArrowRight className="h-4 w-4" />
                 </>
               ) : (
                 <>
-                  Hesap Oluştur ve Devam Et <ArrowRight className="h-4 w-4" />
+                  <span>Kayıt Ol ve Doğrulama Maili Al</span>
+                  <Sparkles className="h-4 w-4" />
                 </>
               )}
             </button>
           </form>
+        </div>
+
+        {/* Security Trust */}
+        <div className="text-center text-[11px] text-gray-400 flex items-center justify-center gap-1.5">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+          <span>256-Bit SSL ile Şifrelenmiş Güvenli Giriş</span>
         </div>
       </div>
     </div>
@@ -316,7 +528,13 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-xs font-bold text-gray-500">Yükleniyor...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-pink-50 text-xs font-bold text-gray-500">
+          Yükleniyor...
+        </div>
+      }
+    >
       <LoginContent />
     </Suspense>
   );
