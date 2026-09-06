@@ -3,6 +3,17 @@ import { getFirebaseAdmin } from '@/lib/firebaseAdmin';
 import { getAuth } from 'firebase-admin/auth';
 import { sendVerificationEmail } from '@/lib/mail';
 
+export async function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    hasClientEmail: Boolean(process.env.FIREBASE_CLIENT_EMAIL),
+    hasPrivateKey: Boolean(process.env.FIREBASE_PRIVATE_KEY),
+    hasGmailUser: Boolean(process.env.GMAIL_USER),
+    hasGmailPass: Boolean(process.env.GMAIL_APP_PASSWORD),
+    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr',
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, name } = await req.json();
@@ -19,7 +30,7 @@ export async function POST(req: NextRequest) {
       process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS
     );
 
-    // If server credentials are not yet added to .env.local, signal client to fallback
+    // If server credentials are not yet added, signal client to fallback gracefully
     if (!hasAdminConfig || !hasMailConfig) {
       console.warn('[SendVerification] Admin SDK or SMTP not fully configured. Falling back to client verification.');
       return NextResponse.json({
@@ -68,9 +79,12 @@ export async function POST(req: NextRequest) {
       message: error?.message,
       code: error?.code,
     });
-    return NextResponse.json(
-      { success: false, fallbackToClient: true, error: error?.message, code: error?.code },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      fallbackToClient: true,
+      error: error?.message,
+      code: error?.code,
+    });
   }
 }
+
