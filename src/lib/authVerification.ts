@@ -21,7 +21,10 @@ export async function dispatchVerificationEmail(
 
     const data = await res.json();
     if (data.success) {
+      console.log('[dispatchVerificationEmail] Custom HTML email successfully dispatched!');
       return { success: true, method: 'custom_html' };
+    } else {
+      console.warn('[dispatchVerificationEmail] Custom email route returned non-success, falling back to Firebase:', data);
     }
   } catch (e) {
     console.warn('[dispatchVerificationEmail] Custom email dispatch error, falling back:', e);

@@ -7,26 +7,38 @@ export interface SendVerificationEmailParams {
 }
 
 export async function sendVerificationEmail({ to, name, verificationLink }: SendVerificationEmailParams) {
-  const user = process.env.GMAIL_USER || process.env.SMTP_USER || 'asksitesaas@gmail.com';
-  const pass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+  function cleanString(val?: string): string {
+    if (!val) return '';
+    let clean = val.trim();
+    while ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
+      clean = clean.slice(1, -1).trim();
+    }
+    return clean;
+  }
+
+  const rawUser = process.env.GMAIL_USER || process.env.SMTP_USER || 'asksitesaas@gmail.com';
+  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+
+  const user = cleanString(rawUser);
+  const pass = cleanString(rawPass).replace(/\s+/g, '');
 
   if (!pass) {
     console.warn('[Mail] No SMTP / Gmail App Password configured in environment variables.');
     return { success: false, reason: 'NO_SMTP_CONFIGURED' };
   }
 
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT) || 465;
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: {
-      user,
-      pass: pass.replace(/\s+/g, ''), // Remove spaces if copied from Google App Password
-    },
-  });
+  // Use service: 'gmail' for best cloud/serverless compatibility, or custom SMTP host if provided
+  const transporter = process.env.SMTP_HOST
+    ? nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: Number(process.env.SMTP_PORT) === 465 || !process.env.SMTP_PORT,
+        auth: { user, pass },
+      })
+    : nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass },
+      });
 
   const displayName = name || to.split('@')[0] || 'Değerli Kullanıcımız';
 

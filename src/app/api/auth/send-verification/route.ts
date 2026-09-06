@@ -38,7 +38,13 @@ export async function POST(req: NextRequest) {
       handleCodeInApp: false,
     };
 
-    const link = await adminAuth.generateEmailVerificationLink(email, actionCodeSettings);
+    let link: string;
+    try {
+      link = await adminAuth.generateEmailVerificationLink(email, actionCodeSettings);
+    } catch (urlErr: any) {
+      console.warn('[SendVerification] generateEmailVerificationLink failed with continue URL, retrying without actionCodeSettings:', urlErr?.message);
+      link = await adminAuth.generateEmailVerificationLink(email);
+    }
 
     const result = await sendVerificationEmail({
       to: email,
@@ -47,6 +53,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!result.success) {
+      console.warn('[SendVerification] sendVerificationEmail failed:', result.reason);
       return NextResponse.json({
         success: false,
         fallbackToClient: true,
@@ -54,11 +61,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    console.log('[SendVerification] Custom HTML verification email sent successfully to:', email);
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('[SendVerification] Error generating or sending verification email:', error);
+    console.error('[SendVerification] Exception in verification endpoint:', {
+      message: error?.message,
+      code: error?.code,
+    });
     return NextResponse.json(
-      { success: false, fallbackToClient: true, error: error.message },
+      { success: false, fallbackToClient: true, error: error?.message, code: error?.code },
       { status: 500 }
     );
   }
