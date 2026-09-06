@@ -6,6 +6,7 @@ import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Mail, RefreshCw, CheckCircle2, AlertTriangle, LogOut, ArrowRight, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { dispatchVerificationEmail } from '@/lib/authVerification';
 
 interface EmailVerificationGuardProps {
   user: User | null;
@@ -33,7 +34,7 @@ export default function EmailVerificationGuard({ user, onVerified, children }: E
     setMessage(null);
 
     try {
-      await sendEmailVerification(auth.currentUser);
+      await dispatchVerificationEmail(auth.currentUser);
       setMessage({
         type: 'success',
         text: 'Doğrulama linki e-posta adresinize tekrar gönderildi! Lütfen gelen kutunuzu ve spam klasörünü kontrol edin.',

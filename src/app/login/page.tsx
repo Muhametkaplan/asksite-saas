@@ -15,6 +15,7 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
 import { Heart, Sparkles, Lock, Mail, User, Phone, LogIn, UserPlus, ArrowRight, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { autoClaimCoupleByEmail } from '@/lib/couples';
+import { dispatchVerificationEmail } from '@/lib/authVerification';
 
 async function saveUserDataToFirestore(user: any, name?: string, phoneNumber?: string) {
   if (!db || !user?.uid) return;
@@ -137,9 +138,9 @@ function LoginContent() {
           await updateProfile(res.user, { displayName: fullName });
         }
 
-        // 1. Send Verification Email immediately
+        // 1. Send Verification Email immediately (custom HTML or fallback)
         try {
-          await sendEmailVerification(res.user);
+          await dispatchVerificationEmail(res.user, fullName);
         } catch (emailErr) {
           console.warn('Error sending initial verification email:', emailErr);
         }
@@ -194,7 +195,7 @@ function LoginContent() {
     setVerificationStatusMsg(null);
 
     try {
-      await sendEmailVerification(auth.currentUser);
+      await dispatchVerificationEmail(auth.currentUser);
       setVerificationStatusMsg({
         type: 'success',
         text: 'Doğrulama linki e-posta adresinize tekrar gönderildi!',
