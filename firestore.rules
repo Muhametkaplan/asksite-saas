@@ -3,39 +3,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isPartnerOf(coupleData) {
-      return isAuthenticated() && (
-        request.auth.uid == coupleData.partner1_uid ||
-        request.auth.uid == coupleData.partner2_uid ||
-        (coupleData.co_owners != null && request.auth.uid in coupleData.co_owners) ||
-        (coupleData.authorized_emails != null && request.auth.token.email in coupleData.authorized_emails)
-      );
-    }
-
-    // Couples Collection Rules
+    // 1. Çift Sayfaları (/couples/{slug})
+    // Çift sayfaları (QR kod, link paylaşımı, web ziyaretçileri) herkese açık okunabilir olmalıdır.
     match /couples/{slug} {
-      // Allow public read for active couple pages and demo slug
+      // Sayfayı herkes görüntüleyebilir (Ziyaretçiler, partnerler, misafirler)
       allow read: if true;
 
-      // Allow writes for authenticated partners, new creation, or demo couple
-      allow create: if isAuthenticated() || slug == 'demo' || true;
-      allow update, delete: if isPartnerOf(resource.data) || slug == 'demo' || isAuthenticated();
+      // Sayfa oluşturma ve güncelleme (Kayıt, checkout, dashboard ve oyun/anılar için)
+      allow create, update: if true;
+      allow delete: if request.auth != null;
 
-      // Sub-collections: games_data, games_2048, memories, bucket_list, map_markers, presence
-      match /{subcollection}/{docId} {
-        allow read: if true;
-        allow write: if true; // Allows real-time interactive game and canvas syncing across devices
+      // Çift sayfasına ait tüm alt modüller ve koleksiyonlar (anılar, oyunlar, harita, kanvas, çizimler vb.)
+      match /{subcollection=**} {
+        allow read, write: if true;
       }
     }
 
-    // Users Collection Rules
+    // 2. Kullanıcı Hesapları (/users/{userId})
+    // Her kullanıcı sadece kendi hesap verisini okuyabilir ve güncelleyebilir
     match /users/{userId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 3. Varsayılan Güvenlik Kuralı: Diğer tüm koleksiyonlar için auth zorunlu
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
+
