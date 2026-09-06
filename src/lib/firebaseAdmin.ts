@@ -1,5 +1,4 @@
-import { getApps, getApp, initializeApp, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import crypto from 'crypto';
 
 function cleanString(val?: string): string {
   if (!val) return '';
@@ -17,32 +16,97 @@ function formatPrivateKey(rawKey?: string): string {
   return clean;
 }
 
-export function getFirebaseAdmin() {
-  const apps = getApps();
-  if (apps.length > 0) {
-    return apps[0]!;
-  }
+async function getGoogleAccessToken(clientEmail: string, privateKey: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    iss: clientEmail,
+    scope: 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/cloud-platform',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  };
 
+  const b64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
+  const b64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signInput = `${b64Header}.${b64Payload}`;
+
+  const signer = crypto.createSign('RSA-SHA256');
+  signer.update(signInput);
+  const signature = signer.sign(privateKey, 'base64url');
+
+  const assertion = `${signInput}.${signature}`;
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) {
+    throw new Error(`Google OAuth error: ${JSON.stringify(tokenData)}`);
+  }
+  return tokenData.access_token;
+}
+
+/**
+ * Generates official Firebase email verification link directly using Google Cloud Identity Platform REST API.
+ * Eliminates native Node/CJS bundle crashes on Vercel Serverless Functions.
+ */
+export async function generateVerificationLinkNative(email: string, continueUrl?: string): Promise<string> {
   const projectId = cleanString(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) || 'asksite-saas';
   const clientEmail = cleanString(process.env.FIREBASE_CLIENT_EMAIL);
   const privateKey = formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
 
-  if (clientEmail && privateKey) {
-    return initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
+  if (!clientEmail || !privateKey) {
+    throw new Error('MISSING_SERVICE_ACCOUNT_CREDENTIALS');
   }
 
-  // Fallback to default credentials or mock if not configured
-  return initializeApp({
-    projectId,
+  const accessToken = await getGoogleAccessToken(clientEmail, privateKey);
+
+  const reqBody: any = {
+    requestType: 'VERIFY_EMAIL',
+    email,
+    returnOobLink: true,
+  };
+
+  if (continueUrl) {
+    reqBody.continueUrl = continueUrl;
+  }
+
+  const oobRes = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:sendOobCode`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(reqBody),
   });
+
+  const oobData = await oobRes.json();
+  if (!oobData.oobLink) {
+    if (continueUrl) {
+      console.warn('[OOB] Failed with continueUrl, retrying without continueUrl:', oobData);
+      delete reqBody.continueUrl;
+      const retryRes = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:sendOobCode`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(reqBody),
+      });
+      const retryData = await retryRes.json();
+      if (retryData.oobLink) {
+        return retryData.oobLink;
+      }
+    }
+    throw new Error(`Failed to generate oobLink: ${JSON.stringify(oobData)}`);
+  }
+
+  return oobData.oobLink;
 }
-
-export { getAuth };
-
-
