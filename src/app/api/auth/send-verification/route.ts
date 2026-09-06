@@ -1,17 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirebaseAdmin } from '@/lib/firebaseAdmin';
-import { getAuth } from 'firebase-admin/auth';
-import { sendVerificationEmail } from '@/lib/mail';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
-  return NextResponse.json({
-    status: 'ok',
-    hasClientEmail: Boolean(process.env.FIREBASE_CLIENT_EMAIL),
-    hasPrivateKey: Boolean(process.env.FIREBASE_PRIVATE_KEY),
-    hasGmailUser: Boolean(process.env.GMAIL_USER),
-    hasGmailPass: Boolean(process.env.GMAIL_APP_PASSWORD),
-    appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr',
-  });
+  try {
+    const adminMod = await import('@/lib/firebaseAdmin');
+    const mailMod = await import('@/lib/mail');
+
+    return NextResponse.json({
+      status: 'ok',
+      modulesLoaded: true,
+      hasClientEmail: Boolean(process.env.FIREBASE_CLIENT_EMAIL),
+      hasPrivateKey: Boolean(process.env.FIREBASE_PRIVATE_KEY),
+      hasGmailUser: Boolean(process.env.GMAIL_USER),
+      hasGmailPass: Boolean(process.env.GMAIL_APP_PASSWORD),
+      appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr',
+    });
+  } catch (err: any) {
+    console.error('[Diagnostic GET] Error:', err);
+    return NextResponse.json({
+      status: 'error',
+      message: err?.message,
+      stack: err?.stack,
+    });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -39,6 +52,10 @@ export async function POST(req: NextRequest) {
         reason: 'CREDENTIALS_MISSING',
       });
     }
+
+    // Dynamic import to protect serverless container from import-time crashes
+    const { getFirebaseAdmin, getAuth } = await import('@/lib/firebaseAdmin');
+    const { sendVerificationEmail } = await import('@/lib/mail');
 
     const app = getFirebaseAdmin();
     const adminAuth = getAuth(app);
@@ -78,6 +95,7 @@ export async function POST(req: NextRequest) {
     console.error('[SendVerification] Exception in verification endpoint:', {
       message: error?.message,
       code: error?.code,
+      stack: error?.stack,
     });
     return NextResponse.json({
       success: false,
@@ -87,4 +105,3 @@ export async function POST(req: NextRequest) {
     });
   }
 }
-
