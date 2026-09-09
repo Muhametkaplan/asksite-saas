@@ -197,102 +197,55 @@ export async function POST(req: NextRequest) {
 
     await saveCoupleConfig(newCouple);
 
-    // 2. Prepare Shopier Order & Sanitized Data
-    const callbackUrl = 'https://www.asksite.com.tr/api/payment/callback';
-    const cleanOrderId = `ASK${Date.now().toString().slice(-8)}${Math.floor(1000 + Math.random() * 9000)}`;
-    const shopierToken = (process.env.SHOPIER_API_TOKEN || '').replace(/['"]/g, '').trim();
-
-    const { name: buyerName, surname: buyerSurname } = sanitizeNameAndSurname(
-      partner1_name,
-      'Musteri',
-      partner2_name ? partner2_name.trim().split(' ')[0] : 'Kullanici'
-    );
-    const buyerPhone = sanitizePhone(whatsapp_number);
-
-    // Sanitized Shopier Payload matching Shopier API v1/v2 schema
-    const shopierPayload = {
-      order_id: cleanOrderId,
-      currency: 'TRY',
-      amount: Number(price.toFixed(2)),
-      price: Number(price.toFixed(2)),
-      product_name: packageName,
-      product_type: 'digital',
-      callback_url: callbackUrl,
-      return_url: callbackUrl,
-      callbackUrl: callbackUrl,
-      returnUrl: callbackUrl,
-      buyer: {
-        name: buyerName,
-        surname: buyerSurname,
-        email: customerEmail,
-        phone: buyerPhone,
-        address: 'Sahinbey, Gaziantep',
-        city: 'Gaziantep',
-        country: 'Turkiye',
-        postcode: '27000',
-      },
-      billing_address: {
-        address: 'Sahinbey, Gaziantep',
-        city: 'Gaziantep',
-        country: 'Turkiye',
-        postcode: '27000',
-      },
-      shipping_address: {
-        address: shipping_address || 'Sahinbey, Gaziantep',
-        city: 'Gaziantep',
-        country: 'Turkiye',
-        postcode: '27000',
-      },
-      metadata: {
-        slug,
-        plan,
-        order_id: cleanOrderId,
-        package_type: selectedPkg,
-        owner_uid: ownerUid,
-      },
-    };
-
-    // Debugging Log: Print payload to Vercel/Terminal logs
-    console.log('Shopier Payload:', JSON.stringify(shopierPayload, null, 2));
-
+    // 2. Map directly to the live verified Shopier product URLs
     let paymentUrl = '';
+    let shopierProductId = '50201181';
 
-    // Call Shopier Live API Endpoint
-    if (shopierToken) {
+    if (selectedPkg === 'lifetime') {
+      paymentUrl = process.env.SHOPIER_PRODUCT_URL_LIFETIME || 'https://www.shopier.com/50201191';
+      shopierProductId = '50201191';
+    } else if (selectedPkg === 'nfc') {
+      paymentUrl = process.env.SHOPIER_PRODUCT_URL_NFC || 'https://www.shopier.com/50201195';
+      shopierProductId = '50201195';
+    } else {
+      paymentUrl = process.env.SHOPIER_PRODUCT_URL_YEARLY || 'https://www.shopier.com/50201181';
+      shopierProductId = '50201181';
+    }
+
+    const cleanOrderId = `ASK${Date.now().toString().slice(-8)}${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // If owner UID exists, associate pending couple slug with the user in Firestore
+    if (ownerUid) {
       try {
-        const shopierRes = await fetch('https://api.shopier.com/v1/payment', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${shopierToken}`,
-          },
-          body: JSON.stringify(shopierPayload),
-        });
-
-        if (shopierRes.ok) {
-          const shopierData = await shopierRes.json();
-          paymentUrl = shopierData.payment_url || shopierData.url || shopierData.paymentUrl || shopierData.link || '';
-          console.log('Shopier API Response Success:', shopierData);
-        } else {
-          const rawError = await shopierRes.text().catch(() => '');
-          console.error('Shopier API Hatası:', shopierRes.status, rawError);
+        const { db } = await import('@/lib/firebase');
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+        if (db) {
+          await setDoc(
+            doc(db, 'users', ownerUid),
+            {
+              pendingCoupleSlug: slug,
+              pendingPackageType: selectedPkg,
+              pendingOrderId: cleanOrderId,
+              shopierProductId,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
         }
-      } catch (shopierErr) {
-        console.error('Shopier API Bağlantı Hatası:', shopierErr);
+      } catch (e) {
+        console.error('Error saving pending couple to user in Firestore:', e);
       }
     }
 
-    // If Shopier returned no direct link, fallback to Shopier gateway URL format
-    if (!paymentUrl) {
-      paymentUrl = `https://www.shopier.com/ShowProductNew/products.php?id=${cleanOrderId}`;
-    }
+    console.log(`[Shopier Checkout Initiated] slug=${slug}, pkg=${selectedPkg}, url=${paymentUrl}`);
 
-    // Return strictly { success: true, paymentUrl } to enforce external redirect
+    // Return strictly { success: true, paymentUrl, slug }
     return NextResponse.json(
       {
         success: true,
         paymentUrl,
         slug,
+        orderId: cleanOrderId,
       },
       { status: 200 }
     );

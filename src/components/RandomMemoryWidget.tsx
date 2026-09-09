@@ -62,7 +62,7 @@ export default function RandomMemoryWidget({ memories }: RandomMemoryWidgetProps
   if (!currentMemory) return null;
 
   return (
-    <div className="random-memory-widget my-6 rounded-3xl bg-white/80 backdrop-blur-md p-6 shadow-md border border-white/90 text-left relative overflow-hidden transition-all duration-300 hover:shadow-lg">
+    <div id="anilar" data-section="anilar" className="random-memory-widget my-6 scroll-mt-24 rounded-3xl bg-white/80 backdrop-blur-md p-6 shadow-md border border-white/90 text-left relative overflow-hidden transition-all duration-300 hover:shadow-lg">
       <div className="flex items-center justify-between mb-3 border-b pb-2.5">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-pink-600">

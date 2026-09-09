@@ -46,7 +46,7 @@ export default function CoupleBucketList({ items }: CoupleBucketListProps) {
   const completedCount = list.filter((i) => i.completed).length;
 
   return (
-    <div id="bucketlist" className="bucket-list-widget my-6 rounded-3xl bg-white/80 backdrop-blur-md p-6 shadow-md border border-white/90 text-left">
+    <div id="bucketlist" data-section="rota" className="bucket-list-widget my-6 scroll-mt-24 rounded-3xl bg-white/80 backdrop-blur-md p-6 shadow-md border border-white/90 text-left transition-all duration-300">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 border-b pb-3">
         <div className="flex items-center gap-2">

@@ -121,6 +121,11 @@ export default function CheckoutPage() {
   const [inviteStatusMsg, setInviteStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [copiedPurchasedPairCode, setCopiedPurchasedPairCode] = useState(false);
 
+  // Shopier Order Verification State
+  const [verifyOrderId, setVerifyOrderId] = useState('');
+  const [verifyingOrder, setVerifyingOrder] = useState(false);
+  const [verifyStatusMsg, setVerifyStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   useEffect(() => {
     async function loadCoupleConfig() {
       if (hasPurchased === true && userCoupleSlug && userCoupleSlug !== 'demo') {
@@ -251,7 +256,11 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (res.ok && data.paymentUrl) {
-        // Shopier güvenli ödeme ekranına zorunlu yönlendir
+        if (typeof window !== 'undefined') {
+          if (data.slug) localStorage.setItem('pendingCoupleSlug', data.slug);
+          if (data.orderId) localStorage.setItem('pendingOrderId', data.orderId);
+        }
+        // Shopier güvenli ödeme ekranına yönlendir
         window.location.href = data.paymentUrl;
       } else {
         console.error('Ödeme linki oluşturulamadı.', data);
@@ -262,6 +271,52 @@ export default function CheckoutPage() {
       console.error('Ödeme isteği hatası:', e);
       alert('Bir hata oluştu, lütfen tekrar deneyin.');
       setLoading(false);
+    }
+  };
+
+  const handleVerifyOrder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!verifyOrderId.trim()) {
+      setVerifyStatusMsg({ type: 'error', text: 'Lütfen Shopier sipariş numaranızı giriniz.' });
+      return;
+    }
+    setVerifyingOrder(true);
+    setVerifyStatusMsg(null);
+
+    try {
+      const storedSlug = typeof window !== 'undefined' ? localStorage.getItem('pendingCoupleSlug') : '';
+      const res = await fetch('/api/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: verifyOrderId.trim(),
+          slug: storedSlug || undefined,
+          email: partner1Email || auth.currentUser?.email,
+          uid: auth.currentUser?.uid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        setVerifyStatusMsg({ type: 'success', text: 'Tebrikler! Siteniz başarıyla onaylandı ve açılıyor... ✨' });
+        setHasPurchased(true);
+        setUserCoupleSlug(data.slug);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('activeCoupleSlug', data.slug);
+          localStorage.setItem('asksite_couple_slug', data.slug);
+        }
+        setTimeout(() => {
+          window.location.href = `/c/${data.slug}?payment=success`;
+        }, 1500);
+      } else {
+        setVerifyStatusMsg({ type: 'error', text: data.error || 'Sipariş doğrulanamadı. Lütfen bilgilerinizi kontrol ediniz.' });
+      }
+    } catch (err: any) {
+      setVerifyStatusMsg({ type: 'error', text: 'Bağlantı hatası oluştu, lütfen tekrar deneyiniz.' });
+    } finally {
+      setVerifyingOrder(false);
     }
   };
 
@@ -520,6 +575,48 @@ export default function CheckoutPage() {
                   }`}
                 >
                   {inviteStatusMsg.text}
+                </div>
+              )}
+            </div>
+
+            {/* Shopier'dan Ödeme Yapanlar İçin Hızlı Sipariş Doğrulama Kutusu */}
+            <div className="mb-8 rounded-3xl bg-white p-5 sm:p-6 shadow-lg border border-rose-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                    <CreditCard className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-black text-gray-900">Shopier&apos;dan Ödeme Yaptınız Mı?</h4>
+                    <p className="text-[11px] text-gray-500">Shopier sipariş numaranız ile sitenizi anında aktif edebilirsiniz.</p>
+                  </div>
+                </div>
+              </div>
+              <form onSubmit={handleVerifyOrder} className="flex flex-col sm:flex-row items-stretch gap-2.5 pt-1">
+                <input
+                  type="text"
+                  placeholder="Shopier Sipariş No (Örn: 9 haneli numara)"
+                  value={verifyOrderId}
+                  onChange={(e) => setVerifyOrderId(e.target.value)}
+                  className="flex-1 rounded-2xl bg-gray-50 border border-gray-200 px-4 py-3 text-xs text-gray-900 placeholder-gray-400 outline-none focus:border-rose-500 focus:bg-white transition"
+                />
+                <button
+                  type="submit"
+                  disabled={verifyingOrder}
+                  className="rounded-2xl bg-gray-900 hover:bg-black px-6 py-3 text-xs font-black text-white shadow-md transition active:scale-95 disabled:opacity-50 shrink-0 flex items-center justify-center gap-1.5"
+                >
+                  {verifyingOrder ? 'Doğrulanıyor...' : 'Siparişi Doğrula & Sitemi Aç ✨'}
+                </button>
+              </form>
+              {verifyStatusMsg && (
+                <div
+                  className={`rounded-xl p-3 text-xs font-bold border text-left ${
+                    verifyStatusMsg.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  }`}
+                >
+                  {verifyStatusMsg.text}
                 </div>
               )}
             </div>

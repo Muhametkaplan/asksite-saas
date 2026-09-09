@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, Gamepad2, Ticket, Palette, BookOpen, Hourglass, Film, Disc, Brain } from 'lucide-react';
 import { DEMO_COUPLE } from '@/lib/couples';
 import SubmoduleInteractiveClient from '@/app/c/[slug]/[module]/SubmoduleInteractiveClient';
+import BottomNav from '@/components/BottomNav';
 
 interface DemoModulePageProps {
   params: Promise<{ module: string }>;
@@ -60,6 +61,9 @@ export default async function DemoSubmodulePage({ params }: DemoModulePageProps)
       <div className="mx-auto max-w-lg">
         <SubmoduleInteractiveClient module={module} couple={DEMO_COUPLE} />
       </div>
+
+      {/* Floating Bottom App Navigation */}
+      <BottomNav slug="demo" />
     </main>
   );
 }

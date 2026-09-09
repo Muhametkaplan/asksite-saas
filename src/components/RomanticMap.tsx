@@ -145,7 +145,7 @@ export default function RomanticMap({ coupleId }: RomanticMapProps) {
   };
 
   return (
-    <div className="box-style my-6 rounded-3xl bg-white/70 backdrop-blur-md p-6 border border-white/80 shadow-md relative">
+    <div id="harita" data-section="harita" className="box-style my-6 scroll-mt-24 rounded-3xl bg-white/70 backdrop-blur-md p-6 border border-white/80 shadow-md relative transition-all duration-300">
       <h3 className="flex items-center justify-center gap-2 text-lg font-bold text-gray-800 mb-1">
         <MapPin className="h-5 w-5 text-rose-500" /> Bizim Haritamız
       </h3>

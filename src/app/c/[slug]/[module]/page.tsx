@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { ArrowLeft, Sparkles, Heart, Gamepad2, Ticket, Palette, BookOpen, Hourglass, Film, Disc, Brain } from 'lucide-react';
 import { getCoupleBySlug } from '@/lib/couples';
 import SubmoduleInteractiveClient from './SubmoduleInteractiveClient';
-
 import PartnerAuthModal from '@/components/PartnerAuthModal';
+import BottomNav from '@/components/BottomNav';
 
 interface ModulePageProps {
   params: Promise<{ slug: string; module: string }>;
@@ -96,6 +96,9 @@ export default async function SubmodulePage({ params }: ModulePageProps) {
       <div className="mx-auto max-w-lg">
         <SubmoduleInteractiveClient module={module} couple={couple} />
       </div>
+
+      {/* Floating Bottom App Navigation */}
+      <BottomNav slug={couple.slug} />
     </main>
   );
 }
