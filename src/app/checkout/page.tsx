@@ -96,7 +96,54 @@ export default function CheckoutPage() {
                 setUserCoupleSlug(data.coupleSlug || 'demo');
                 return;
               }
+
+              // Check if pendingCoupleSlug is already paid
+              if (data.pendingCoupleSlug) {
+                try {
+                  const cSnap = await getDoc(doc(db, 'couples', data.pendingCoupleSlug));
+                  if (cSnap.exists()) {
+                    const cData = cSnap.data();
+                    if (cData.isPaid || cData.is_active || cData.isActive) {
+                      await setDoc(userRef, { hasPurchasedSite: true, coupleSlug: data.pendingCoupleSlug }, { merge: true });
+                      setHasPurchased(true);
+                      setUserCoupleSlug(data.pendingCoupleSlug);
+                      return;
+                    }
+                  }
+                } catch (e) {}
+              }
             }
+
+            // Also check couples collection where owner_uid == firebaseUser.uid
+            try {
+              const { collection, query, where, getDocs } = await import('firebase/firestore');
+              const qOwner = query(collection(db, 'couples'), where('owner_uid', '==', firebaseUser.uid));
+              const snapOwner = await getDocs(qOwner);
+              if (!snapOwner.empty) {
+                const paidCouple = snapOwner.docs.map((d) => d.data()).find((c) => c.isPaid || c.is_active || c.isActive);
+                if (paidCouple?.slug) {
+                  await setDoc(userRef, { hasPurchasedSite: true, coupleSlug: paidCouple.slug }, { merge: true });
+                  setHasPurchased(true);
+                  setUserCoupleSlug(paidCouple.slug);
+                  return;
+                }
+              }
+
+              if (firebaseUser.email) {
+                const cleanEmail = firebaseUser.email.trim().toLowerCase();
+                const qEmail = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', cleanEmail));
+                const snapEmail = await getDocs(qEmail);
+                if (!snapEmail.empty) {
+                  const paidCouple = snapEmail.docs.map((d) => d.data()).find((c) => c.isPaid || c.is_active || c.isActive);
+                  if (paidCouple?.slug) {
+                    await setDoc(userRef, { hasPurchasedSite: true, coupleSlug: paidCouple.slug }, { merge: true });
+                    setHasPurchased(true);
+                    setUserCoupleSlug(paidCouple.slug);
+                    return;
+                  }
+                }
+              }
+            } catch (e) {}
           } catch (e) {}
         }
         setHasPurchased(false);
