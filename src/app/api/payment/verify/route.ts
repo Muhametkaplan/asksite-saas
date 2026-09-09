@@ -42,6 +42,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 3. If orderId is provided, check Shopier REST API directly using PAT token
+    const shopierToken = (process.env.SHOPIER_API_TOKEN || '').trim().replace(/^"|"$/g, '');
+    if (orderId && shopierToken) {
+      try {
+        const sRes = await fetch(`https://api.shopier.com/v1/orders/${encodeURIComponent(orderId)}`, {
+          headers: { Authorization: `Bearer ${shopierToken}` },
+        });
+        if (sRes.ok) {
+          const sOrder = await sRes.json();
+          if (sOrder && (sOrder.paymentStatus === 'paid' || sOrder.status === 'fulfilled' || sOrder.status === 'unfulfilled')) {
+            const sEmail = sOrder.shippingInfo?.email || sOrder.billingInfo?.email;
+            const sProdId = sOrder.lineItems?.[0]?.productId;
+            if (sProdId === '50201191' || sProdId === '50201195') plan = 'lifetime';
+            if (!targetSlug && sEmail) {
+              const cleanEmail = sEmail.trim().toLowerCase();
+              const q = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', cleanEmail));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                const list = snap.docs.map((d) => d.data());
+                const target = list.find((c) => !c.isPaid) || list[0];
+                targetSlug = target.slug;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Shopier API direct order lookup non-fatal error:', err);
+      }
+    }
+
     if (!targetSlug || targetSlug === 'demo') {
       return NextResponse.json(
         { success: false, error: 'Eşleşen aktif veya beklemede olan bir çift siparişi bulunamadı. Lütfen e-posta veya sipariş bilgilerinizi kontrol ediniz.' },

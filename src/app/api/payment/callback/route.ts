@@ -80,16 +80,18 @@ export async function POST(req: NextRequest) {
       console.log('[Shopier Callback Received JSON]:', JSON.stringify(json, null, 2));
 
       orderId =
+        json.id ||
         json.platform_order_id ||
         json.order_id ||
         json.orderId ||
-        json.id ||
         json.data?.id ||
         json.data?.order_id ||
         '';
-      status = json.status || json.payment_status || json.event || '';
+      status = json.paymentStatus || json.status || json.payment_status || json.event || '';
       slug = json.slug || json.metadata?.slug || json.data?.metadata?.slug || '';
       buyerEmail =
+        json.shippingInfo?.email ||
+        json.billingInfo?.email ||
         json.buyer_email ||
         json.email ||
         json.buyer?.email ||
@@ -98,6 +100,8 @@ export async function POST(req: NextRequest) {
         json.data?.buyer?.email ||
         '';
       productId = String(
+        json.lineItems?.[0]?.productId ||
+        json.lineItems?.[0]?.product_id ||
         json.product_id ||
         json.productId ||
         json.data?.product_id ||
@@ -112,7 +116,7 @@ export async function POST(req: NextRequest) {
     } else {
       const formData = await req.formData().catch(() => new FormData());
       orderId = (formData.get('platform_order_id') || formData.get('order_id') || formData.get('orderId') || formData.get('id') || '') as string;
-      status = (formData.get('status') || formData.get('payment_status') || '') as string;
+      status = (formData.get('status') || formData.get('payment_status') || formData.get('paymentStatus') || '') as string;
       slug = (formData.get('slug') || '') as string;
       buyerEmail = (formData.get('buyer_email') || formData.get('email') || '') as string;
       productId = String(formData.get('product_id') || formData.get('productId') || '');
@@ -126,7 +130,7 @@ export async function POST(req: NextRequest) {
     const urlParams = req.nextUrl.searchParams;
     if (!slug) slug = urlParams.get('slug') || '';
     if (!orderId) orderId = urlParams.get('platform_order_id') || urlParams.get('order_id') || '';
-    if (!status) status = urlParams.get('status') || '';
+    if (!status) status = urlParams.get('status') || urlParams.get('paymentStatus') || '';
     if (!buyerEmail) buyerEmail = urlParams.get('email') || urlParams.get('buyer_email') || '';
     if (!productId) productId = urlParams.get('product_id') || '';
     if (urlParams.get('plan') === 'lifetime') plan = 'lifetime';
@@ -153,10 +157,13 @@ export async function POST(req: NextRequest) {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
+    const shopierEvent = req.headers.get('shopier-event') || '';
 
     // Payment Success Verification
     const normalizedStatus = status.trim().toLowerCase();
     const isSuccess =
+      shopierEvent === 'order.created' ||
+      normalizedStatus === 'paid' ||
       normalizedStatus === 'success' ||
       normalizedStatus === 'successful' ||
       normalizedStatus === '1' ||
@@ -175,6 +182,7 @@ export async function POST(req: NextRequest) {
 
       const isWebhook =
         contentType.includes('json') ||
+        shopierEvent !== '' ||
         req.headers.get('user-agent')?.toLowerCase().includes('shopier') ||
         !req.headers.get('accept')?.includes('text/html');
 
@@ -224,6 +232,7 @@ export async function GET(req: NextRequest) {
 
     const normalizedStatus = status.trim().toLowerCase();
     const isSuccess =
+      normalizedStatus === 'paid' ||
       normalizedStatus === 'success' ||
       normalizedStatus === 'successful' ||
       normalizedStatus === '1' ||
