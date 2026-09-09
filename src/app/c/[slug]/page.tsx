@@ -99,7 +99,7 @@ export default async function CouplePage({ params }: PageProps) {
   };
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-32 pt-6 sm:pt-8 overflow-x-hidden max-w-full">
+    <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 pb-40 pt-6 sm:pt-8 overflow-x-hidden max-w-full">
       {/* Dynamic Background Floating Hearts */}
       <FloatingHearts />
 
