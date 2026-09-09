@@ -13,29 +13,13 @@ export default function DayNightGreeting({ partner1, partner2 }: DayNightGreetin
   const [hour, setHour] = useState<number | null>(null);
 
   useEffect(() => {
-    const stored = typeof window !== 'undefined' ? sessionStorage.getItem('asksite_theme_is_night') : null;
-    if (stored !== null) {
-      setIsNight(stored === 'true');
-    } else {
-      const currentHour = new Date().getHours();
-      setHour(currentHour);
-      // Night is defined as 22:00 to 06:00
-      setIsNight(currentHour >= 22 || currentHour < 6);
-    }
+    const currentHour = new Date().getHours();
+    setHour(currentHour);
+    // Night is defined as 22:00 to 06:00
+    setIsNight(currentHour >= 22 || currentHour < 6);
   }, []);
 
-  const toggleDayNight = () => {
-    const nextState = !isNight;
-    setIsNight(nextState);
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('asksite_theme_is_night', String(nextState));
-      window.dispatchEvent(
-        new CustomEvent('asksite_theme_change', {
-          detail: { isNight: nextState },
-        })
-      );
-    }
-  };
+  if (hour === null) return null;
 
   return (
     <div
@@ -58,29 +42,26 @@ export default function DayNightGreeting({ partner1, partner2 }: DayNightGreetin
       )}
 
       <div className="relative z-10 flex flex-col items-center justify-center gap-1.5">
-        <button
-          type="button"
-          onClick={toggleDayNight}
-          title="Modu değiştirmek için tıklayın"
-          className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold tracking-wide backdrop-blur-sm border shadow-xs transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ${
+        <div
+          className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold tracking-wide backdrop-blur-sm border shadow-xs select-none ${
             isNight
-              ? 'bg-indigo-950/60 border-indigo-500/40 text-indigo-200 hover:bg-indigo-900/60'
-              : 'bg-white/80 border-amber-300 text-amber-900 hover:bg-white'
+              ? 'bg-indigo-950/60 border-indigo-500/40 text-indigo-200'
+              : 'bg-white/80 border-amber-300 text-amber-900'
           }`}
         >
           {isNight ? (
             <>
               <Moon className="h-4 w-4 text-indigo-300 animate-pulse" />
-              <span>Gece Modu (Değiştir)</span>
+              <span>Gece Modu</span>
               <Stars className="h-3.5 w-3.5 text-yellow-300" />
             </>
           ) : (
             <>
               <Sun className="h-4 w-4 text-amber-500 animate-spin-slow" />
-              <span>Gündüz Modu (Değiştir)</span>
+              <span>Gündüz Modu</span>
             </>
           )}
-        </button>
+        </div>
 
         <h2 className="text-lg font-bold sm:text-xl tracking-tight">
           {isNight ? (

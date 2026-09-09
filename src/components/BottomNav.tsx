@@ -17,25 +17,8 @@ export default function BottomNav({ slug }: BottomNavProps) {
   const [isNight, setIsNight] = useState(false);
 
   useEffect(() => {
-    // 1. Initial check: session storage or time-based (22:00 - 06:00)
-    const stored = typeof window !== 'undefined' ? sessionStorage.getItem('asksite_theme_is_night') : null;
-    if (stored !== null) {
-      setIsNight(stored === 'true');
-    } else {
-      const h = new Date().getHours();
-      setIsNight(h >= 22 || h < 6);
-    }
-
-    // 2. Listen to theme changes dispatched from DayNightGreeting
-    const handleThemeChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ isNight: boolean }>;
-      if (customEvent.detail && typeof customEvent.detail.isNight === 'boolean') {
-        setIsNight(customEvent.detail.isNight);
-      }
-    };
-
-    window.addEventListener('asksite_theme_change', handleThemeChange);
-    return () => window.removeEventListener('asksite_theme_change', handleThemeChange);
+    const h = new Date().getHours();
+    setIsNight(h >= 22 || h < 6);
   }, []);
 
   const isHome = pathname === prefix || pathname === `${prefix}/`;
