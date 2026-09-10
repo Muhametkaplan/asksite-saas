@@ -144,7 +144,7 @@ export default async function CouplePage({ params }: PageProps) {
         <RelationshipTimer startDateISO={couple.start_date} />
 
         {toggles.countdown !== false && (
-          <EventCountdown event={couple.upcoming_event} />
+          <EventCountdown event={couple.upcoming_event} slug={couple.slug} isDemo={couple.slug === 'demo'} />
         )}
 
         {/* Real-time Collaborative Live Canvas */}

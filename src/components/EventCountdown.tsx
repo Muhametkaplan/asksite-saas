@@ -1,20 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CalendarHeart, MapPin, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { CalendarHeart, CalendarPlus, MapPin, Sparkles } from 'lucide-react';
 import { UpcomingEvent } from '@/types/couple';
 import { parseLocalStartDate } from './RelationshipTimer';
 
 interface EventCountdownProps {
-  event?: UpcomingEvent;
+  event?: UpcomingEvent | null;
+  slug?: string;
+  isDemo?: boolean;
 }
 
-export default function EventCountdown({ event }: EventCountdownProps) {
-  const targetEvent = event || {
-    title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈',
-    date: '2026-09-15T00:00:00.000Z',
-    location: 'Kapadokya',
-  };
+export default function EventCountdown({ event, slug, isDemo = false }: EventCountdownProps) {
+  // Check if a valid, non-placeholder upcoming event is configured
+  const hasCustomEvent = Boolean(
+    event &&
+    event.title &&
+    event.title.trim() !== '' &&
+    event.date &&
+    event.date.trim() !== '' &&
+    !(event.title.includes('Yıldönümü Kaçamağı 🎈') && event.location === 'Kapadokya' && !isDemo)
+  );
 
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
@@ -24,7 +31,9 @@ export default function EventCountdown({ event }: EventCountdownProps) {
   });
 
   useEffect(() => {
-    const targetDate = parseLocalStartDate(targetEvent.date).getTime();
+    if (!hasCustomEvent || !event?.date) return;
+
+    const targetDate = parseLocalStartDate(event.date).getTime();
 
     const updateCountdown = () => {
       const now = new Date().getTime();
@@ -42,7 +51,39 @@ export default function EventCountdown({ event }: EventCountdownProps) {
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [targetEvent.date]);
+  }, [hasCustomEvent, event?.date]);
+
+  // If no event has been created yet, show the "Hadi Bir Etkinlik Oluştur" card
+  if (!hasCustomEvent) {
+    const editUrl = slug ? `/dashboard?slug=${slug}&tab=modules#event-editor` : '/dashboard?tab=modules#event-editor';
+
+    return (
+      <div className="event-countdown-card my-6 rounded-3xl bg-gradient-to-br from-purple-600/90 to-indigo-700/90 p-6 text-center text-white shadow-xl backdrop-blur-md relative overflow-hidden">
+        {/* Background Subtle Glows */}
+        <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-purple-400/10 blur-xl pointer-events-none" />
+
+        <div className="flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-[2px] opacity-90 mb-2">
+          <CalendarHeart className="h-4 w-4 text-pink-300" /> Yaklaşan Etkinlik Geri Sayımı <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+        </div>
+
+        <h3 className="text-lg font-black sm:text-xl text-white mb-1.5">
+          Hadi Bir Etkinlik Oluşturun! 🎈
+        </h3>
+
+        <p className="text-xs text-purple-200 max-w-sm mx-auto mb-4 leading-relaxed font-medium">
+          Birlikte gideceğiniz bir tatil, yıl dönümü kutlaması veya özel bir buluşma için geri sayım başlatın.
+        </p>
+
+        <Link
+          href={editUrl}
+          className="inline-flex items-center gap-2 rounded-2xl bg-white text-purple-700 hover:bg-purple-50 px-5 py-2.5 text-xs font-black shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+        >
+          <CalendarPlus className="h-4 w-4 text-purple-600" /> Etkinlik Oluştur ➔
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="event-countdown-card my-6 rounded-3xl bg-gradient-to-br from-purple-600/90 to-indigo-700/90 p-6 text-center text-white shadow-xl backdrop-blur-md relative overflow-hidden">
@@ -54,12 +95,12 @@ export default function EventCountdown({ event }: EventCountdownProps) {
       </div>
 
       <h3 className="text-base font-extrabold sm:text-lg mb-1 text-purple-100">
-        {targetEvent.title}
+        {event!.title}
       </h3>
 
-      {targetEvent.location && (
+      {event!.location && (
         <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-200 bg-white/10 px-3 py-1 rounded-full mb-4 border border-white/10">
-          <MapPin className="h-3 w-3 text-rose-300" /> {targetEvent.location}
+          <MapPin className="h-3 w-3 text-rose-300" /> {event!.location}
         </div>
       )}
 

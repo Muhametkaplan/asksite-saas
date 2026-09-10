@@ -298,7 +298,7 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           quiz_partner2_created_at: data.quiz_partner2_created_at || null,
           quiz_partner1_expires_at: data.quiz_partner1_expires_at || null,
           quiz_partner2_expires_at: data.quiz_partner2_expires_at || null,
-          upcoming_event: data.upcoming_event || DEMO_COUPLE.upcoming_event,
+          upcoming_event: data.upcoming_event !== undefined ? data.upcoming_event : null,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
           is_active: data.isActive !== undefined ? data.isActive : true,

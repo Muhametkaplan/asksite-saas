@@ -178,11 +178,7 @@ export async function POST(req: NextRequest) {
         { id: `b-${Date.now()}-2`, title: 'Kapadokya Balon Turu 🎈', category: 'activity' as const, completed: false },
         { id: `b-${Date.now()}-3`, title: 'Romantik Sinema Gecesi 🍿', category: 'movie' as const, completed: true },
       ],
-      upcoming_event: {
-        title: `${partner1_name} & ${partner2_name} Yıldönümü Kaçamağı 🎈`,
-        date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        location: 'Kapadokya',
-      },
+      upcoming_event: null,
       feature_toggles: {
         spotify: true,
         memory: true,

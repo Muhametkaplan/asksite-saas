@@ -143,7 +143,7 @@ export interface CoupleConfig {
   quiz_partner2_created_at?: string;
   quiz_partner1_expires_at?: string;
   quiz_partner2_expires_at?: string;
-  upcoming_event?: UpcomingEvent;
+  upcoming_event?: UpcomingEvent | null;
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;
   is_active?: boolean;

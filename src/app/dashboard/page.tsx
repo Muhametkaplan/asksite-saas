@@ -54,7 +54,10 @@ function DashboardContent() {
   const [hasPurchased, setHasPurchased] = useState<boolean | null>(null);
   const [userCoupleSlug, setUserCoupleSlug] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'quiz' | 'map' | 'qr'>('info');
+  const initialTab = (searchParams.get('tab') as any) || 'info';
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'quiz' | 'map' | 'qr'>(
+    ['info', 'media', 'modules', 'coupons', 'diary', 'capsule', 'cinema', 'wheel', 'quiz', 'map', 'qr'].includes(initialTab) ? initialTab : 'info'
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -82,7 +85,7 @@ function DashboardContent() {
     memories: [],
     bucket_list: [],
     coupons: [],
-    upcoming_event: { title: 'Kapadokya Yıl Dönümü Kaçamağı 🎈', date: '2026-09-15' },
+    upcoming_event: undefined,
     feature_toggles: {
       spotify: true,
       memory: true,
@@ -131,7 +134,7 @@ function DashboardContent() {
           ...data,
           start_date: data.start_date ? data.start_date.split('T')[0] : '2023-01-01',
           upcoming_event: data.upcoming_event
-            ? { ...data.upcoming_event, date: data.upcoming_event.date ? data.upcoming_event.date.split('T')[0] : '2026-09-15' }
+            ? { ...data.upcoming_event, date: data.upcoming_event.date ? data.upcoming_event.date.split('T')[0] : '' }
             : undefined,
           feature_toggles: data.feature_toggles || {
             spotify: true,
@@ -154,6 +157,21 @@ function DashboardContent() {
     loadData();
   }, [slugFromUrl, userCoupleSlug]);
 
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as any;
+    if (tabParam && ['info', 'media', 'modules', 'coupons', 'diary', 'capsule', 'cinema', 'wheel', 'quiz', 'map', 'qr'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+    if (typeof window !== 'undefined' && window.location.hash === '#event-editor') {
+      setTimeout(() => {
+        const el = document.getElementById('event-editor');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 500);
+    }
+  }, [searchParams]);
+
   const handleSave = async () => {
     setSaving(true);
     setSavedSuccess(false);
@@ -161,8 +179,13 @@ function DashboardContent() {
     const saved = await saveCoupleConfig({
       ...config,
       start_date: new Date(config.start_date).toISOString(),
-      upcoming_event: config.upcoming_event
-        ? { ...config.upcoming_event, date: new Date(config.upcoming_event.date).toISOString() }
+      upcoming_event: config.upcoming_event && config.upcoming_event.title?.trim() && config.upcoming_event.date?.trim()
+        ? {
+            ...config.upcoming_event,
+            date: !isNaN(new Date(config.upcoming_event.date).getTime())
+              ? new Date(config.upcoming_event.date).toISOString()
+              : config.upcoming_event.date,
+          }
         : undefined,
     });
 
@@ -1727,15 +1750,28 @@ function DashboardContent() {
               </div>
 
               {/* 4. Upcoming Event Editor */}
-              <div className="space-y-3 pt-4 border-t">
-                <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-                  ⏳ Yaklaşan Etkinlik Geri Sayımı
-                </h4>
+              {/* 4. Upcoming Event Editor */}
+              <div id="event-editor" className="space-y-3 pt-4 border-t scroll-mt-24 transition-all duration-300">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                    ⏳ Yaklaşan Etkinlik Geri Sayımı
+                  </h4>
+                  {config.upcoming_event?.title && (
+                    <button
+                      type="button"
+                      onClick={() => setConfig({ ...config, upcoming_event: undefined })}
+                      className="text-[11px] font-bold text-rose-500 hover:text-rose-700 transition cursor-pointer"
+                    >
+                      Etkinliği Kaldır / Temizle 🗑️
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Etkinlik Başlığı</label>
                     <input
                       type="text"
+                      placeholder="Örn: Roma Tatilimiz 🇮🇹"
                       value={config.upcoming_event?.title || ''}
                       onChange={(e) =>
                         setConfig({
@@ -1743,7 +1779,7 @@ function DashboardContent() {
                           upcoming_event: { ...config.upcoming_event, title: e.target.value, date: config.upcoming_event?.date || '' },
                         })
                       }
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
                     />
                   </div>
                   <div>
@@ -1757,13 +1793,14 @@ function DashboardContent() {
                           upcoming_event: { ...config.upcoming_event, title: config.upcoming_event?.title || '', date: e.target.value },
                         })
                       }
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Konum / Şehir</label>
                     <input
                       type="text"
+                      placeholder="Örn: Roma, İtalya"
                       value={config.upcoming_event?.location || ''}
                       onChange={(e) =>
                         setConfig({
@@ -1771,7 +1808,7 @@ function DashboardContent() {
                           upcoming_event: { ...config.upcoming_event, title: config.upcoming_event?.title || '', date: config.upcoming_event?.date || '', location: e.target.value },
                         })
                       }
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-500"
                     />
                   </div>
                 </div>
