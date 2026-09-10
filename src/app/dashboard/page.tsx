@@ -910,13 +910,6 @@ function DashboardContent() {
 
                   {hasPurchased === true && (userCoupleSlug || searchParams.get('slug')) ? (
                     <>
-                      <Link
-                        href={`/dashboard?slug=${userCoupleSlug || searchParams.get('slug')}`}
-                        onClick={() => setProfileDropdownOpen(false)}
-                        className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition"
-                      >
-                        <LayoutDashboard className="h-4 w-4 text-rose-500" /> Çift Sitem / Panel ➔
-                      </Link>
                       <a
                         href={`/c/${userCoupleSlug || searchParams.get('slug')}`}
                         target="_blank"
@@ -926,6 +919,27 @@ function DashboardContent() {
                       >
                         <ExternalLink className="h-4 w-4 text-purple-500" /> Sitemi Gör 🔗
                       </a>
+                      {config.is_active !== false ? (
+                        <button
+                          onClick={() => {
+                            setProfileDropdownOpen(false);
+                            setDisableModalOpen(true);
+                          }}
+                          className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4 text-rose-500" /> Sitemi Sil / Kapat 🚫
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setProfileDropdownOpen(false);
+                            handleToggleSiteActive(true);
+                          }}
+                          className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 transition cursor-pointer"
+                        >
+                          <CheckCircle className="h-4 w-4 text-emerald-500" /> Sitemi Yeniden Yayına Al 🟢
+                        </button>
+                      )}
                     </>
                   ) : (
                     <Link
@@ -1018,22 +1032,6 @@ function DashboardContent() {
             >
               <ExternalLink className="h-3.5 w-3.5" /> Siteme Git 🔗
             </a>
-
-            {config.is_active !== false ? (
-              <button
-                onClick={() => setDisableModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition active:scale-95"
-              >
-                Sitemi Yayından Kaldır / Kapat 🚫
-              </button>
-            ) : (
-              <button
-                onClick={() => handleToggleSiteActive(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-3.5 py-2 text-xs font-extrabold text-white shadow-md hover:scale-102 transition active:scale-95"
-              >
-                Sitemi Yeniden Yayına Al 🟢
-              </button>
-            )}
           </div>
         </div>
 
