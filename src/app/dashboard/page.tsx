@@ -44,6 +44,7 @@ import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
+import PhoneInput from '@/components/PhoneInput';
 
 function DashboardContent() {
   const searchParams = useSearchParams();
@@ -1339,11 +1340,10 @@ function DashboardContent() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">WhatsApp Sarılma Numarası</label>
-                  <input
-                    type="text"
+                  <PhoneInput
                     value={config.whatsapp_number}
-                    onChange={(e) => setConfig({ ...config, whatsapp_number: e.target.value })}
-                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-xs outline-none focus:border-rose-500"
+                    onChange={(val) => setConfig({ ...config, whatsapp_number: val })}
+                    placeholder="5XX XXX XX XX"
                   />
                 </div>
               </div>
@@ -2654,12 +2654,10 @@ function DashboardContent() {
               {/* Telefon Numarası */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Telefon Numarası</label>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={accountPhone}
-                  onChange={(e) => setAccountPhone(e.target.value)}
-                  placeholder="905520000000"
-                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-xs outline-none focus:border-rose-500"
+                  onChange={setAccountPhone}
+                  placeholder="5XX XXX XX XX"
                 />
               </div>
 

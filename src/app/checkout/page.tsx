@@ -29,6 +29,7 @@ import { CoupleConfig } from '@/types/couple';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
 import Footer from '@/components/Footer';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
+import PhoneInput from '@/components/PhoneInput';
 import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
@@ -878,14 +879,12 @@ export default function CheckoutPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                WhatsApp Numarası (Ülke kodu ile)
+                WhatsApp Numarası *
               </label>
-              <input
-                type="text"
-                placeholder="905524185530"
+              <PhoneInput
                 value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
+                onChange={setWhatsapp}
+                placeholder="5XX XXX XX XX"
               />
             </div>
           </div>
