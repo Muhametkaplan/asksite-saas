@@ -140,8 +140,8 @@ export default function PhoneInput({
           title="Ülke Kodu Seçin"
         >
           {COUNTRY_CODES.map((c) => (
-            <option key={`${c.dialCode}-${c.name}`} value={c.dialCode}>
-              {c.flag} {c.dialCode} ({c.name})
+            <option key={`${c.dialCode}-${c.name}`} value={c.dialCode} title={`${c.name} (${c.dialCode})`}>
+              {c.flag} {c.dialCode}
             </option>
           ))}
         </select>
