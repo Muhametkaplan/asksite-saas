@@ -64,12 +64,10 @@ export async function sendVerificationEmail({ to, name, verificationLink }: Send
 
           <!-- Brand Logo Header -->
           <tr>
-            <td align="center" style="padding: 40px 30px 15px 30px;">
-              <div style="display: inline-block; background: rgba(244, 63, 94, 0.12); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 24px; padding: 10px 24px;">
-                <span style="font-size: 24px; vertical-align: middle;">💖</span>
-                <span style="font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff; vertical-align: middle; margin-left: 8px;">AskSite<span style="color: #ff4d6d;">.</span></span>
-              </div>
-              <p style="margin: 12px 0 0 0; font-size: 13px; color: #94a3b8; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">Aşkınızı Dijitalde Ölümsüzleştirin</p>
+            <td align="center" style="padding: 36px 30px 15px 30px;">
+              <img src="https://www.asksite.com.tr/logo.png" alt="AskSite" width="80" height="80" style="border-radius: 20px; border: 1px solid #334155; display: block; margin: 0 auto 10px auto; box-shadow: 0 10px 25px rgba(244, 63, 94, 0.2);" />
+              <div style="font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff;">AskSite<span style="color: #ff4d6d;">.</span></div>
+              <p style="margin: 6px 0 0 0; font-size: 11px; color: #f43f5e; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Hikayeniz, Sizinle...</p>
             </td>
           </tr>
 
@@ -220,11 +218,10 @@ export async function sendOrderSuccessEmail({
 
           <!-- Brand Header -->
           <tr>
-            <td align="center" style="padding: 38px 30px 10px 30px;">
-              <div style="display: inline-block; background: rgba(244, 63, 94, 0.12); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 24px; padding: 10px 24px;">
-                <span style="font-size: 24px; vertical-align: middle;">💖</span>
-                <span style="font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff; vertical-align: middle; margin-left: 8px;">AskSite<span style="color: #ff4d6d;">.</span></span>
-              </div>
+            <td align="center" style="padding: 36px 30px 15px 30px;">
+              <img src="https://www.asksite.com.tr/logo.png" alt="AskSite" width="80" height="80" style="border-radius: 20px; border: 1px solid #334155; display: block; margin: 0 auto 10px auto; box-shadow: 0 10px 25px rgba(244, 63, 94, 0.2);" />
+              <div style="font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff;">AskSite<span style="color: #ff4d6d;">.</span></div>
+              <p style="margin: 6px 0 0 0; font-size: 11px; color: #f43f5e; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Hikayeniz, Sizinle...</p>
             </td>
           </tr>
 

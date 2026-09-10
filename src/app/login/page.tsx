@@ -355,10 +355,20 @@ function LoginContent() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo & Header */}
         <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2 text-2xl font-black text-rose-600 mb-2">
-            <Heart className="h-7 w-7 fill-rose-500 text-rose-500 animate-pulse" /> AskSite SaaS
+          <Link href="/" className="inline-block group mb-3">
+            <img
+              src="/logo.png"
+              alt="AskSite Logo"
+              className="h-24 w-24 mx-auto rounded-3xl object-cover shadow-2xl border-2 border-slate-800/10 shadow-rose-500/25 group-hover:scale-105 transition duration-300"
+            />
           </Link>
-          <p className="text-xs font-bold text-purple-600 uppercase tracking-wider">
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">
+            Ask<span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-500">Site</span>
+          </h1>
+          <p className="text-[11px] font-bold text-rose-500 tracking-widest uppercase mt-0.5 mb-1.5">
+            Hikayeniz, Sizinle...
+          </p>
+          <p className="text-xs font-semibold text-gray-500">
             {redirectTarget === 'checkout' ? 'Satın Almak Ve Başlamak İçin Giriş Yapın 🚀' : 'Yönetim Paneline Giriş Yapın ✨'}
           </p>
         </div>

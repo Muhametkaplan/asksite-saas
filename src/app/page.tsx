@@ -83,8 +83,15 @@ export default function SaaSPlatformHome() {
 
         {/* Hero Header */}
         <header className="container mx-auto max-w-5xl px-6 py-12 sm:py-16 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-4 py-1.5 text-xs font-bold text-rose-600 mb-6 shadow-sm">
-            <Sparkles className="h-4 w-4" /> B2C Micro-SaaS Dijital Hediye Platformu
+          <div className="flex flex-col items-center justify-center mb-6">
+            <img
+              src="/logo.png"
+              alt="AskSite Logo"
+              className="h-28 w-28 rounded-3xl object-cover shadow-2xl border-2 border-white/80 shadow-rose-500/20 mb-4 hover:scale-105 transition duration-300"
+            />
+            <div className="inline-flex items-center gap-2 rounded-full bg-rose-100/90 border border-rose-200/80 px-4 py-1.5 text-xs font-bold text-rose-600 shadow-xs">
+              <Sparkles className="h-4 w-4" /> B2C Micro-SaaS Dijital Hediye Platformu
+            </div>
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-gray-900 mb-6 leading-tight">

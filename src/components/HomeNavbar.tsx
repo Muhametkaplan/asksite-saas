@@ -72,8 +72,20 @@ export default function HomeNavbar() {
     <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-xs px-4 sm:px-8 py-3.5">
       <div className="mx-auto max-w-5xl flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2 text-xl font-black text-rose-600">
-            <Heart className="h-6 w-6 fill-rose-500 text-rose-500 animate-pulse" /> AskSite SaaS
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/logo.png"
+              alt="AskSite"
+              className="h-10 w-10 rounded-xl object-cover shadow-md shadow-rose-500/10 border border-slate-800/10 group-hover:scale-105 transition"
+            />
+            <div className="flex flex-col text-left leading-none">
+              <span className="text-xl font-black tracking-tight text-slate-900">
+                Ask<span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-500">Site</span>
+              </span>
+              <span className="text-[9px] font-bold text-rose-500 tracking-widest uppercase mt-0.5">
+                Hikayeniz, Sizinle
+              </span>
+            </div>
           </Link>
 
           <div className="hidden md:flex items-center gap-4 text-xs font-bold text-gray-600">

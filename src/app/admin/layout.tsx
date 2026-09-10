@@ -79,13 +79,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Top Admin Header Bar */}
       <header className="sticky top-0 z-40 w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link href="/admin" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-rose-500 to-purple-600 text-white shadow-md shadow-rose-500/20">
-              <ShieldCheck className="h-4 w-4" />
-            </span>
+          <Link href="/admin" className="flex items-center gap-2.5 group">
+            <img
+              src="/logo.png"
+              alt="AskSite"
+              className="h-8 w-8 rounded-xl object-cover shadow-md border border-slate-700/80 group-hover:scale-105 transition"
+            />
             <div className="flex flex-col text-left leading-tight">
               <span className="text-sm font-black text-white tracking-tight flex items-center gap-1.5">
-                AskSite <span className="text-rose-500">Süper Admin</span>
+                Ask<span className="text-rose-500">Site</span> <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-400 font-bold border border-rose-500/30">Süper Admin</span>
               </span>
               <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                 <Globe className="h-2.5 w-2.5 text-purple-400" /> admin.asksite.com.tr

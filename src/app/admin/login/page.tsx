@@ -57,8 +57,12 @@ export default function AdminLoginPage() {
         {/* Header Card */}
         <div className="rounded-3xl bg-slate-900/80 backdrop-blur-xl border border-slate-800 p-8 shadow-2xl space-y-6">
           <div className="text-center space-y-2">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-500 to-purple-600 text-white shadow-lg shadow-rose-500/30">
-              <ShieldCheck className="h-7 w-7" />
+            <div className="mx-auto flex items-center justify-center mb-2">
+              <img
+                src="/logo.png"
+                alt="AskSite"
+                className="h-20 w-20 rounded-3xl object-cover shadow-2xl border border-slate-700/80 shadow-rose-500/30"
+              />
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-[11px] font-bold text-rose-400 uppercase tracking-widest mt-2">
               <Sparkles className="h-3 w-3" /> Süper Admin Girişi

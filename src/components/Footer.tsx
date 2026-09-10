@@ -11,11 +11,20 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-gray-800/80">
           {/* Brand & About */}
           <div className="space-y-4">
-            <Link href="/" className="flex items-center gap-2 text-xl font-black text-white">
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 shadow-md shadow-rose-500/20">
-                <Heart className="h-5 w-5 fill-white text-white" />
-              </span>
-              <span>AskSite SaaS</span>
+            <Link href="/" className="flex items-center gap-3 group">
+              <img
+                src="/logo.png"
+                alt="AskSite"
+                className="h-12 w-12 rounded-2xl object-cover shadow-lg border border-slate-800 shadow-rose-500/20 group-hover:scale-105 transition"
+              />
+              <div className="flex flex-col text-left leading-tight">
+                <span className="text-2xl font-black tracking-tight text-white">
+                  Ask<span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-500">Site</span>
+                </span>
+                <span className="text-[10px] font-bold text-rose-400 tracking-widest uppercase">
+                  Hikayeniz, Sizinle...
+                </span>
+              </div>
             </Link>
             <p className="text-xs text-gray-400 leading-relaxed">
               Aşkınızı ve en güzel anılarınızı dijital dünyada ölümsüzleştiren, Türkiye&apos;nin lider çift web sitesi ve dijital hediye platformu.
