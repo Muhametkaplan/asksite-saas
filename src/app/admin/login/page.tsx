@@ -20,22 +20,28 @@ export default function AdminLoginPage() {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       });
 
-      const data = await res.json();
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.error('Response parse error:', parseErr);
+      }
 
-      if (res.ok && data.success) {
+      if (res.ok && data?.success) {
         if (typeof window !== 'undefined' && data.token) {
           localStorage.setItem('asksite_admin_token', data.token);
           localStorage.setItem('asksite_admin_email', data.email);
         }
-        router.push('/admin');
+        window.location.href = '/admin';
       } else {
-        setErrorMsg(data.error || 'Giriş yapılamadı. Bilgilerinizi kontrol ediniz.');
+        setErrorMsg(data?.error || `Giriş yapılamadı (HTTP ${res.status}). Bilgilerinizi kontrol ediniz.`);
       }
     } catch (err: any) {
-      setErrorMsg('Sunucu bağlantı hatası oluştu.');
+      console.error('Admin login fetch error:', err);
+      setErrorMsg(err.message || 'Sunucu bağlantı hatası oluştu.');
     } finally {
       setLoading(false);
     }

@@ -22,7 +22,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Verify session
     async function checkAuth() {
       try {
-        const res = await fetch('/api/admin/login');
+        const token = typeof window !== 'undefined' ? localStorage.getItem('asksite_admin_token') : null;
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/admin/login', { headers });
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated) {
@@ -42,7 +46,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/admin/login', { method: 'DELETE' });
+      const token = typeof window !== 'undefined' ? localStorage.getItem('asksite_admin_token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      await fetch('/api/admin/login', { method: 'DELETE', headers });
       if (typeof window !== 'undefined') {
         localStorage.removeItem('asksite_admin_token');
         localStorage.removeItem('asksite_admin_email');

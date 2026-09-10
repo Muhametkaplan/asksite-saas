@@ -71,15 +71,24 @@ export default function SuperAdminDashboard() {
     setTimeout(() => setActionErrorMsg(null), 4000);
   };
 
+  const adminFetch = (url: string, init?: RequestInit) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('asksite_admin_token') : null;
+    const headers = new Headers(init?.headers);
+    if (token && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return fetch(url, { credentials: 'include', ...init, headers });
+  };
+
   // Load All Dashboard Data
   const fetchAllData = async () => {
     setRefreshing(true);
     try {
       const [mRes, oRes, cRes, uRes] = await Promise.all([
-        fetch('/api/admin/metrics'),
-        fetch('/api/admin/orders'),
-        fetch('/api/admin/couples'),
-        fetch('/api/admin/users'),
+        adminFetch('/api/admin/metrics'),
+        adminFetch('/api/admin/orders'),
+        adminFetch('/api/admin/couples'),
+        adminFetch('/api/admin/users'),
       ]);
 
       if (mRes.ok) {
@@ -121,7 +130,7 @@ export default function SuperAdminDashboard() {
     }
 
     try {
-      const res = await fetch('/api/admin/orders', {
+      const res = await adminFetch('/api/admin/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -150,7 +159,7 @@ export default function SuperAdminDashboard() {
     if (!slug) return;
 
     try {
-      const res = await fetch('/api/admin/orders', {
+      const res = await adminFetch('/api/admin/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -178,7 +187,7 @@ export default function SuperAdminDashboard() {
   const handleToggleActive = async (couple: any) => {
     const nextStatus = !couple.is_active;
     try {
-      const res = await fetch('/api/admin/couples', {
+      const res = await adminFetch('/api/admin/couples', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -201,7 +210,7 @@ export default function SuperAdminDashboard() {
   const handleSaveEditCouple = async () => {
     if (!editingCouple) return;
     try {
-      const res = await fetch('/api/admin/couples', {
+      const res = await adminFetch('/api/admin/couples', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -235,7 +244,7 @@ export default function SuperAdminDashboard() {
     if (confirmation !== 'SİL') return;
 
     try {
-      const res = await fetch(`/api/admin/couples?slug=${encodeURIComponent(slug)}`, {
+      const res = await adminFetch(`/api/admin/couples?slug=${encodeURIComponent(slug)}`, {
         method: 'DELETE',
       });
       const data = await res.json();
@@ -254,7 +263,7 @@ export default function SuperAdminDashboard() {
   // Action: Manual Verify User Email
   const handleVerifyUserEmail = async (uid: string) => {
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await adminFetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'verify_email', uid }),
@@ -277,7 +286,7 @@ export default function SuperAdminDashboard() {
     setSendingTestEmail(true);
 
     try {
-      const res = await fetch('/api/admin/test-email', {
+      const res = await adminFetch('/api/admin/test-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targetEmail: testEmailAddress }),

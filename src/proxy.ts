@@ -17,7 +17,8 @@ export function proxy(request: NextRequest) {
   // Admin subdomain routing: admin.asksite.com.tr or admin.localhost:3000
   const isAdminSubdomain = host.startsWith('admin.');
   if (isAdminSubdomain) {
-    if (pathname.startsWith('/admin')) {
+    // Never rewrite API routes or paths already starting with /admin
+    if (pathname.startsWith('/api') || pathname.startsWith('/admin')) {
       return NextResponse.next();
     }
     const url = request.nextUrl.clone();
