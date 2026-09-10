@@ -143,12 +143,20 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Card Logos Badge */}
-          <div className="flex items-center gap-2 text-[11px] font-black tracking-wider text-gray-400">
-            <span className="px-2.5 py-1 rounded-md bg-gray-800 border border-gray-700 font-serif font-black text-white">VISA</span>
-            <span className="px-2.5 py-1 rounded-md bg-gray-800 border border-gray-700 font-black text-red-400">MasterCard</span>
-            <span className="px-2.5 py-1 rounded-md bg-gray-800 border border-gray-700 font-black text-cyan-400">TROY</span>
-            <span className="px-2.5 py-1 rounded-md bg-gray-800 border border-gray-700 font-mono text-[10px] text-gray-300">Havale/EFT</span>
+          {/* Shopier Güvenli Ödeme Badge */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gray-800/90 border border-gray-700/80 shadow-xs">
+              <span className="px-2.5 py-0.5 rounded-md bg-[#FFDF00] text-gray-950 font-black text-xs tracking-tight select-none shadow-xs">
+                shopier
+              </span>
+              <span className="text-xs font-bold text-gray-200">
+                Güvenli Ödeme
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-800/60 border border-gray-700/60 text-xs font-semibold text-gray-300">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Shopier Altyapısıyla</span>
+            </div>
           </div>
         </div>
 
