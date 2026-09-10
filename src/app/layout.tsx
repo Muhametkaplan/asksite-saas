@@ -26,9 +26,9 @@ export const metadata: Metadata = {
     title: 'Aşk Dünyamız',
   },
   icons: {
-    icon: '/icon.png?v=3',
+    icon: '/icon.png?v=4',
     apple: [
-      { url: '/apple-icon.png?v=3', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-icon.png?v=4', sizes: '180x180', type: 'image/png' },
     ],
   },
 };
