@@ -472,7 +472,7 @@ export default function SuperAdminDashboard() {
                 </span>
               </div>
               <div className="text-2xl sm:text-3xl font-black text-white">
-                ₺{metrics?.totalRevenue?.toLocaleString('tr-TR') || 0}
+                ₺{Number(metrics?.totalRevenue || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <p className="text-[11px] font-semibold text-emerald-400 mt-2 flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" /> Shopier Net Tahsilat
@@ -491,7 +491,7 @@ export default function SuperAdminDashboard() {
                 {metrics?.totalOrders || 0}
               </div>
               <p className="text-[11px] font-semibold text-slate-400 mt-2">
-                Tamamlanan: <strong className="text-purple-400">{metrics?.completedOrders || 0}</strong>
+                Açık / Ödenen: <strong className="text-purple-400">{metrics?.completedOrders || 0}</strong>
               </p>
             </div>
 
@@ -623,8 +623,9 @@ export default function SuperAdminDashboard() {
                       <td className="p-3">
                         <div className="font-bold text-white">{o.buyerName}</div>
                         <div className="text-[11px] text-slate-400">{o.buyerEmail}</div>
+                        {o.productTitle && <div className="text-[10px] text-purple-400 font-semibold">{o.productTitle}</div>}
                       </td>
-                      <td className="p-3 font-black text-emerald-400">₺{o.total} {o.currency}</td>
+                      <td className="p-3 font-black text-emerald-400">₺{Number(o.total || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {o.currency}</td>
                       <td className="p-3">
                         {o.matchedCoupleSlug ? (
                           <Link
@@ -711,9 +712,10 @@ export default function SuperAdminDashboard() {
                     <td className="p-3">
                       <div className="font-bold text-white">{o.buyerName}</div>
                       <div className="text-[11px] text-slate-400">{o.buyerEmail}</div>
+                      {o.productTitle && <div className="text-[10px] text-purple-400 font-semibold">{o.productTitle}</div>}
                       {o.buyerPhone && <div className="text-[10px] text-slate-500">{o.buyerPhone}</div>}
                     </td>
-                    <td className="p-3 font-black text-emerald-400">₺{o.total} {o.currency}</td>
+                    <td className="p-3 font-black text-emerald-400">₺{Number(o.total || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {o.currency}</td>
                     <td className="p-3">
                       {o.matchedCoupleSlug ? (
                         <div>
@@ -734,7 +736,7 @@ export default function SuperAdminDashboard() {
                     </td>
                     <td className="p-3">
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                        <CheckCircle2 className="h-3 w-3" /> Ödendi
+                        <CheckCircle2 className="h-3 w-3" /> {o.statusDisplay || 'Ödendi'}
                       </span>
                     </td>
                     <td className="p-3 text-slate-400">

@@ -59,19 +59,39 @@ export async function GET(req: NextRequest) {
     // Correlate and format orders
     let enriched = rawOrders.map((o: any) => {
       const orderId = String(o.id || o.order_id || '');
-      const email = (o.buyer_email || o.email || '').toLowerCase().trim();
+      const email = (
+        o.shippingInfo?.email ||
+        o.buyer_email ||
+        o.email ||
+        ''
+      ).toLowerCase().trim();
       const matchedCouple = orderIdToCoupleMap[orderId] || emailToCoupleMap[email] || null;
+
+      const buyerName = o.shippingInfo
+        ? `${o.shippingInfo.firstName || ''} ${o.shippingInfo.lastName || ''}`.trim()
+        : `${o.buyer_name || ''} ${o.buyer_surname || ''}`.trim() || 'Müşteri';
+
+      const totalVal = parseFloat(o.totals?.total ?? o.total_amount ?? o.price ?? 0);
+      const phone = o.shippingInfo?.phone || o.buyer_phone || o.phone || '';
+      const address = o.shippingInfo
+        ? `${o.shippingInfo.address || ''}${o.shippingInfo.district ? ', ' + o.shippingInfo.district : ''}${o.shippingInfo.city ? ' / ' + o.shippingInfo.city : ''}`.trim()
+        : '';
+      const productTitle = o.lineItems?.[0]?.title || '';
+      const isPaid = (o.paymentStatus || '').toLowerCase() === 'paid' || (o.status || '').toLowerCase() === 'unfulfilled';
 
       return {
         id: orderId,
-        total: parseFloat(o.total_amount || o.price || 0),
+        total: totalVal,
         currency: o.currency || 'TRY',
-        status: o.status || 'success',
-        buyerName: `${o.buyer_name || ''} ${o.buyer_surname || ''}`.trim() || 'Müşteri',
+        status: isPaid ? 'paid' : (o.status || 'unfulfilled'),
+        statusDisplay: (o.status || '').toLowerCase() === 'unfulfilled' ? 'Açık Sipariş' : 'Tamamlandı',
+        productTitle,
+        buyerName,
         buyerEmail: email,
-        buyerPhone: o.buyer_phone || o.phone || '',
-        shippingAddress: o.shipping_address ? `${o.shipping_address.address || ''}, ${o.shipping_address.city || ''}` : '',
-        createdAt: o.created_at || o.createdAt,
+        buyerPhone: phone,
+        shippingAddress: address,
+        note: o.note || '',
+        createdAt: o.dateCreated || o.created_at || o.createdAt,
         matchedCoupleSlug: matchedCouple ? matchedCouple.slug : null,
         matchedCoupleNames: matchedCouple ? `${matchedCouple.partner1_name} & ${matchedCouple.partner2_name}` : null,
         matchedCouplePaid: matchedCouple ? matchedCouple.isPaid : false,

@@ -82,26 +82,38 @@ export async function GET(req: NextRequest) {
           totalOrders = items.length;
 
           items.forEach((item: any) => {
-            const price = parseFloat(item.total_amount || item.price || item.total || 0);
+            const price = parseFloat(
+              item.totals?.total ?? item.total_amount ?? item.price ?? item.total ?? 0
+            );
+            const paymentStatus = (item.paymentStatus || '').toLowerCase();
             const status = (item.status || '').toLowerCase();
-            const isCompleted = status === 'completed' || status === 'paid' || status === 'success';
+            const isCompleted = paymentStatus === 'paid' || status === 'completed' || status === 'unfulfilled' || status === 'success';
 
-            if (isCompleted || !status) {
+            if (isCompleted) {
               totalRevenue += isNaN(price) ? 0 : price;
               completedOrders++;
             }
           });
 
-          recentOrders = items.slice(0, 5).map((o: any) => ({
-            id: o.id || o.order_id,
-            total: o.total_amount || o.price || 0,
-            currency: o.currency || 'TRY',
-            buyer: `${o.buyer_name || ''} ${o.buyer_surname || ''}`.trim() || o.email,
-            email: o.buyer_email || o.email,
-            phone: o.buyer_phone || o.phone,
-            createdAt: o.created_at || o.createdAt,
-            status: o.status,
-          }));
+          recentOrders = items.slice(0, 5).map((o: any) => {
+            const buyerName = o.shippingInfo
+              ? `${o.shippingInfo.firstName || ''} ${o.shippingInfo.lastName || ''}`.trim()
+              : `${o.buyer_name || ''} ${o.buyer_surname || ''}`.trim() || 'Müşteri';
+            const email = o.shippingInfo?.email || o.buyer_email || o.email || '';
+            const phone = o.shippingInfo?.phone || o.buyer_phone || o.phone || '';
+            const total = parseFloat(o.totals?.total ?? o.total_amount ?? o.price ?? 0);
+
+            return {
+              id: o.id || o.order_id,
+              total,
+              currency: o.currency || 'TRY',
+              buyer: buyerName || email,
+              email,
+              phone,
+              createdAt: o.dateCreated || o.created_at || o.createdAt,
+              status: o.paymentStatus === 'paid' ? 'Ödendi' : (o.status || 'Açık'),
+            };
+          });
         } else {
           shopierStatus = `api_error_${sRes.status}`;
         }
@@ -111,8 +123,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // If no shopier revenue yet, estimate from paid couples
-    if (totalRevenue === 0 && paidCouples > 0) {
+    // If Shopier returned 0 orders, estimate from paid couples
+    if (totalOrders === 0 && totalRevenue === 0 && paidCouples > 0) {
       totalRevenue =
         packageCounts.yearly * 199 +
         packageCounts.lifetime * 349 +
@@ -122,7 +134,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       metrics: {
-        totalRevenue: Math.round(totalRevenue),
+        totalRevenue: Number(totalRevenue.toFixed(2)),
         totalOrders,
         completedOrders,
         totalCouples,
