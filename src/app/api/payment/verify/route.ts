@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { activateCouplePayment, getCoupleBySlug } from '@/lib/couples';
+import { sendOrderSuccessEmail } from '@/lib/mail';
 
 export async function POST(req: NextRequest) {
   try {
@@ -86,6 +87,20 @@ export async function POST(req: NextRequest) {
 
     // Activate the couple site
     await activateCouplePayment(targetSlug, plan);
+
+    // Send confirmation email
+    const targetEmail = email || couple?.partner1_email || couple?.authorized_emails?.[0];
+    if (targetEmail) {
+      sendOrderSuccessEmail({
+        to: targetEmail,
+        partner1Name: couple?.partner1_name || 'Partner 1',
+        partner2Name: couple?.partner2_name || 'Partner 2',
+        slug: targetSlug,
+        plan,
+        inviteCode: couple?.inviteCode || couple?.pair_code || '',
+        orderId: orderId || undefined,
+      }).catch((err) => console.error('Error sending order success email in verify route:', err));
+    }
 
     // If orderId is provided, record it in couple config
     if (orderId) {

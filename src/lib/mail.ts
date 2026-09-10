@@ -141,3 +141,208 @@ export async function sendVerificationEmail({ to, name, verificationLink }: Send
 
   return { success: true, messageId: info.messageId };
 }
+
+export interface SendOrderSuccessEmailParams {
+  to: string;
+  partner1Name?: string;
+  partner2Name?: string;
+  slug: string;
+  plan?: '1_year' | 'lifetime';
+  inviteCode?: string;
+  orderId?: string;
+}
+
+export async function sendOrderSuccessEmail({
+  to,
+  partner1Name = 'Sevda',
+  partner2Name = 'Mehmet',
+  slug,
+  plan = '1_year',
+  inviteCode,
+  orderId,
+}: SendOrderSuccessEmailParams) {
+  function cleanString(val?: string): string {
+    if (!val) return '';
+    let clean = val.trim();
+    while ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
+      clean = clean.slice(1, -1).trim();
+    }
+    return clean;
+  }
+
+  const rawUser = process.env.GMAIL_USER || process.env.SMTP_USER || 'asksitesaas@gmail.com';
+  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+
+  const user = cleanString(rawUser);
+  const pass = cleanString(rawPass).replace(/\s+/g, '');
+
+  if (!pass) {
+    console.warn('[Mail] No SMTP / Gmail App Password configured in environment variables.');
+    return { success: false, reason: 'NO_SMTP_CONFIGURED' };
+  }
+
+  const transporter = process.env.SMTP_HOST
+    ? nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: Number(process.env.SMTP_PORT) === 465 || !process.env.SMTP_PORT,
+        auth: { user, pass },
+      })
+    : nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass },
+      });
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
+  const siteUrl = `${appUrl}/c/${slug}`;
+  const dashboardUrl = `${appUrl}/dashboard?slug=${slug}`;
+  const planTitle = plan === 'lifetime' ? 'Ömür Boyu VIP Aşk Paketi ♾️' : '1 Yıllık Çift Paketi 🌟';
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AskSite • Siteniz Hazır!</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0b0f19; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 580px; background: #111827; border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 28px; overflow: hidden; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);">
+          
+          <!-- Top Accent Gradient -->
+          <tr>
+            <td style="background: linear-gradient(90deg, #ff4d6d 0%, #ec4899 50%, #8b5cf6 100%); height: 6px; font-size: 0; line-height: 0;">&nbsp;</td>
+          </tr>
+
+          <!-- Brand Header -->
+          <tr>
+            <td align="center" style="padding: 38px 30px 10px 30px;">
+              <div style="display: inline-block; background: rgba(244, 63, 94, 0.12); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 24px; padding: 10px 24px;">
+                <span style="font-size: 24px; vertical-align: middle;">💖</span>
+                <span style="font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff; vertical-align: middle; margin-left: 8px;">AskSite<span style="color: #ff4d6d;">.</span></span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 15px 36px 30px 36px; text-align: center;">
+              <div style="display: inline-block; background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 6px 16px; border-radius: 9999px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 18px;">
+                ✨ Siparişiniz Onaylandı • Siteniz Yayında
+              </div>
+
+              <h1 style="margin: 0 0 14px 0; font-size: 24px; font-weight: 900; color: #ffffff; line-height: 1.3;">
+                Tebrikler, <span style="color: #ff6b8b;">${partner1Name} & ${partner2Name}</span>! 🎉
+              </h1>
+              <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #cbd5e1;">
+                Aşkınızı ölümsüzleştiren kişisel çift web siteniz başarıyla kuruldu ve anında yayına alındı!
+              </p>
+
+              <!-- Details Summary Box -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; margin-bottom: 24px; text-align: left;">
+                <tr>
+                  <td style="padding: 18px 22px;">
+                    <div style="margin-bottom: 10px;">
+                      <span style="font-size: 12px; color: #94a3b8; font-weight: 600;">Paket Türü:</span>
+                      <span style="font-size: 13px; color: #f8fafc; font-weight: 700; float: right;">${planTitle}</span>
+                    </div>
+                    ${orderId ? `
+                    <div style="margin-bottom: 10px;">
+                      <span style="font-size: 12px; color: #94a3b8; font-weight: 600;">Sipariş No:</span>
+                      <span style="font-size: 13px; color: #f8fafc; font-weight: 700; float: right;">#${orderId}</span>
+                    </div>
+                    ` : ''}
+                    <div>
+                      <span style="font-size: 12px; color: #94a3b8; font-weight: 600;">Site Adresiniz:</span>
+                      <span style="font-size: 13px; color: #38bdf8; font-weight: 700; float: right;">/c/${slug}</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              ${inviteCode ? `
+              <!-- Invite Code Highlight -->
+              <div style="background: linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%); border: 1px dashed rgba(244, 63, 94, 0.4); border-radius: 18px; padding: 18px; margin-bottom: 28px;">
+                <div style="font-size: 12px; color: #f43f5e; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                  💌 Partner Eşleşme Kodunuz
+                </div>
+                <div style="font-size: 24px; font-weight: 900; letter-spacing: 3px; color: #ffffff; font-family: monospace;">
+                  ${inviteCode}
+                </div>
+                <div style="font-size: 12px; color: #94a3b8; margin-top: 6px;">
+                  Bu kodu sevgilinize göndererek sitenize ortak yönetici olarak ücretsiz bağlanmasını sağlayabilirsiniz.
+                </div>
+              </div>
+              ` : ''}
+
+              <!-- Primary Action Buttons -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto 18px auto; width: 100%;">
+                <tr>
+                  <td align="center" style="padding-bottom: 12px;">
+                    <a href="${siteUrl}" target="_blank" style="display: block; width: 85%; max-width: 380px; padding: 15px 24px; font-size: 15px; font-weight: 800; color: #ffffff; text-decoration: none; border-radius: 50px; background: linear-gradient(135deg, #ff4d6d 0%, #e11d48 100%); box-shadow: 0 10px 24px rgba(225, 29, 72, 0.4); text-align: center;">
+                      💖 Aşk Sitenize Git
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center">
+                    <a href="${dashboardUrl}" target="_blank" style="display: block; width: 85%; max-width: 380px; padding: 13px 24px; font-size: 14px; font-weight: 700; color: #cbd5e1; text-decoration: none; border-radius: 50px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); text-align: center;">
+                      ⚙️ Yönetim Paneline Giriş Yap
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Pro Tips -->
+              <div style="text-align: left; background: rgba(255, 255, 255, 0.02); border-radius: 14px; padding: 16px; margin-top: 26px;">
+                <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #e2e8f0;">Neler Yapabilirsiniz?</p>
+                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #94a3b8; line-height: 1.6;">
+                  <li>Fotoğraflarınızı ve anılarınızı yükleyin</li>
+                  <li>İlk tanışma tarihinizi ve canlı sayacı ayarlayın</li>
+                  <li>Spotify aşk çalma listenizi ekleyin</li>
+                  <li>Romantik aşk haritanıza gezdiğiniz yerleri işaretleyin</li>
+                </ul>
+              </div>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 22px 36px; background: rgba(0, 0, 0, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.06); text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8; font-weight: 500;">
+                Sorularınız mı var? Destek: <a href="mailto:asksitesaas@gmail.com" style="color: #ff6b8b; text-decoration: none;">asksitesaas@gmail.com</a> | WhatsApp: <a href="https://wa.me/905524185530" style="color: #ff6b8b; text-decoration: none;">+90 552 418 55 30</a>
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #475569;">
+                © 2026 AskSite • Tüm Hakları Saklıdır. Aşkla tasarlandı.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"AskSite • Aşk Platformu" <${user}>`,
+      to,
+      subject: `Tebrikler! ${partner1Name} & ${partner2Name} Özel Aşk Siteniz Hazır 🎉💖`,
+      html: htmlContent,
+    });
+    console.log(`[Order Success Mail Sent] To: ${to}, MessageId: ${info.messageId}`);
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error('[Order Success Mail Error]:', err);
+    return { success: false, error: err };
+  }
+}
+

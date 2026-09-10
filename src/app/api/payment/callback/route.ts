@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { activateCouplePayment, getCoupleBySlug } from '@/lib/couples';
+import { sendOrderSuccessEmail } from '@/lib/mail';
 
 function extractSlugFromOrderId(orderId: string): string {
   if (!orderId) return '';
@@ -180,6 +181,20 @@ export async function POST(req: NextRequest) {
       await activateCouplePayment(slug, plan);
       console.log(`[Shopier Verified Callback] Activated couple: ${slug} (${plan})`);
 
+      // Send congratulations and site ready email asynchronously
+      const targetEmail = buyerEmail || existing?.partner1_email || existing?.authorized_emails?.[0];
+      if (targetEmail) {
+        sendOrderSuccessEmail({
+          to: targetEmail,
+          partner1Name: existing?.partner1_name || 'Partner 1',
+          partner2Name: existing?.partner2_name || 'Partner 2',
+          slug,
+          plan,
+          inviteCode: existing?.inviteCode || existing?.pair_code || '',
+          orderId: orderId || undefined,
+        }).catch((err) => console.error('Error sending order success email in callback:', err));
+      }
+
       const isWebhook =
         contentType.includes('json') ||
         shopierEvent !== '' ||
@@ -248,6 +263,20 @@ export async function GET(req: NextRequest) {
 
       await activateCouplePayment(slug, plan);
       console.log(`[Shopier GET Verified Callback] Activated couple: ${slug} (${plan})`);
+
+      // Send congratulations and site ready email asynchronously
+      const targetEmail = buyerEmail || existing?.partner1_email || existing?.authorized_emails?.[0];
+      if (targetEmail) {
+        sendOrderSuccessEmail({
+          to: targetEmail,
+          partner1Name: existing?.partner1_name || 'Partner 1',
+          partner2Name: existing?.partner2_name || 'Partner 2',
+          slug,
+          plan,
+          inviteCode: existing?.inviteCode || existing?.pair_code || '',
+          orderId: orderId || undefined,
+        }).catch((err) => console.error('Error sending order success email in GET callback:', err));
+      }
 
       const redirectUrl = new URL(`/c/${slug}?payment=success`, appUrl);
       return NextResponse.redirect(redirectUrl, { status: 302 });
