@@ -20,8 +20,10 @@ import {
   Gift,
   Film,
   Star,
-  ExternalLink
+  ExternalLink,
+  Plus
 } from 'lucide-react';
+import Link from 'next/link';
 import { CoupleConfig, CouponItem as LibCouponItem, MemoryItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion, CanvasDrawing } from '@/types/couple';
 import {
   useCoupon,
@@ -2761,55 +2763,79 @@ function CouponsWidget({ couple }: { couple: CoupleConfig }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {safeCoupons.map((c) => {
-          const style = CATEGORY_STYLES[c.category] || CATEGORY_STYLES.custom;
-          return (
-            <div
-              key={c.id}
-              onClick={() => handleOpenModal(c)}
-              className={`relative overflow-hidden rounded-3xl p-5 shadow-lg transition-all duration-300 ${c.is_used
-                ? 'bg-gray-100 border-2 border-gray-200 opacity-65 cursor-not-allowed grayscale-[40%]'
-                : `bg-gradient-to-r ${style.bg} text-white hover:scale-[1.02] cursor-pointer shadow-rose-500/20 active:scale-98`
-                }`}
+      {safeCoupons.length === 0 ? (
+        <div className="my-8 rounded-3xl bg-white/80 backdrop-blur-md p-8 text-center border border-rose-100 shadow-xl space-y-4 animate-in fade-in duration-300">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 text-3xl shadow-inner">
+            🎟️
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-base font-black text-gray-900">
+              Henüz Aşk Kuponu Eklenmedi 💌
+            </h3>
+            <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">
+              Partnerinize özel masaj, romantik akşam yemeği veya affetme kuponları oluşturarak sürpriz yapın!
+            </p>
+          </div>
+          <div className="pt-2">
+            <Link
+              href={couple?.slug ? `/dashboard?slug=${couple.slug}&tab=coupons` : '/dashboard?tab=coupons'}
+              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-6 py-3 text-xs font-black text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
             >
-              {/* Used Stamp Badge */}
-              {c.is_used && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] z-10">
-                  <div className="rotate-[-12deg] rounded-2xl border-4 border-red-500 bg-white/95 px-6 py-2 shadow-2xl text-center">
-                    <span className="text-lg font-black tracking-widest text-red-600 uppercase drop-shadow-xs">
-                      ❌ KULLANILDI
-                    </span>
-                    <div className="text-[10px] text-gray-500 font-bold">
-                      {c.used_at ? new Date(c.used_at).toLocaleDateString('tr-TR') : 'Tamamlandı'}
+              <Plus className="h-4 w-4" /> Kupon Oluştur ➔
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4">
+          {safeCoupons.map((c) => {
+            const style = CATEGORY_STYLES[c.category] || CATEGORY_STYLES.custom;
+            return (
+              <div
+                key={c.id}
+                onClick={() => handleOpenModal(c)}
+                className={`relative overflow-hidden rounded-3xl p-5 shadow-lg transition-all duration-300 ${c.is_used
+                  ? 'bg-gray-100 border-2 border-gray-200 opacity-65 cursor-not-allowed grayscale-[40%]'
+                  : `bg-gradient-to-r ${style.bg} text-white hover:scale-[1.02] cursor-pointer shadow-rose-500/20 active:scale-98`
+                  }`}
+              >
+                {/* Used Stamp Badge */}
+                {c.is_used && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px] z-10">
+                    <div className="rotate-[-12deg] rounded-2xl border-4 border-red-500 bg-white/95 px-6 py-2 shadow-2xl text-center">
+                      <span className="text-lg font-black tracking-widest text-red-600 uppercase drop-shadow-xs">
+                        ❌ KULLANILDI
+                      </span>
+                      <div className="text-[10px] text-gray-500 font-bold">
+                        {c.used_at ? new Date(c.used_at).toLocaleDateString('tr-TR') : 'Tamamlandı'}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl">{c.icon || '🎟️'}</span>
-                    <h4 className={`text-base font-extrabold ${c.is_used ? 'text-gray-800' : 'text-white'}`}>
-                      {c.title}
-                    </h4>
-                  </div>
-                  <p className={`text-xs leading-relaxed ${c.is_used ? 'text-gray-500' : 'text-white/90'}`}>
-                    {c.description}
-                  </p>
-                </div>
-
-                {!c.is_used && (
-                  <span className="rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs border border-white/30">
-                    Kullan 🎟️
-                  </span>
                 )}
+
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-2xl">{c.icon || '🎟️'}</span>
+                      <h4 className={`text-base font-extrabold ${c.is_used ? 'text-gray-800' : 'text-white'}`}>
+                        {c.title}
+                      </h4>
+                    </div>
+                    <p className={`text-xs leading-relaxed ${c.is_used ? 'text-gray-500' : 'text-white/90'}`}>
+                      {c.description}
+                    </p>
+                  </div>
+
+                  {!c.is_used && (
+                    <span className="rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-xs border border-white/30">
+                      Kullan 🎟️
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Redemption Confirmation Modal */}
       {selectedCoupon && (
