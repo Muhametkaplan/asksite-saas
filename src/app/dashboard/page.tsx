@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Heart,
@@ -62,6 +62,8 @@ function DashboardContent() {
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+  const initialConfigRef = useRef<string>('');
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   // Form State
   const [config, setConfig] = useState<CoupleConfig>({
@@ -137,7 +139,7 @@ function DashboardContent() {
       const effectiveSlug = slugFromUrl || userCoupleSlug || 'demo';
       const data = await getCoupleBySlug(effectiveSlug);
       if (data) {
-        setConfig({
+        const formattedData: CoupleConfig = {
           ...data,
           start_date: data.start_date ? data.start_date.split('T')[0] : '2023-01-01',
           upcoming_event: data.upcoming_event
@@ -154,7 +156,9 @@ function DashboardContent() {
             love_jar: true,
             map: true,
           },
-        });
+        };
+        setConfig(formattedData);
+        initialConfigRef.current = JSON.stringify(formattedData);
 
         const existingMarkers = await getMapMarkers(data.id || effectiveSlug);
         setMarkers(existingMarkers);
@@ -163,6 +167,30 @@ function DashboardContent() {
     }
     loadData();
   }, [slugFromUrl, userCoupleSlug]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!initialConfigRef.current) return false;
+    return initialConfigRef.current !== JSON.stringify(config);
+  }, [config]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setHasScrolled(window.scrollY > 250);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as any;
@@ -197,11 +225,21 @@ function DashboardContent() {
     });
 
     if (saved) {
+      initialConfigRef.current = JSON.stringify(config);
       setSavedSuccess(true);
       setPreviewRefreshKey((prev) => prev + 1);
       setTimeout(() => setSavedSuccess(false), 3000);
     }
     setSaving(false);
+    return saved;
+  };
+
+  const handleGoToSite = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (hasUnsavedChanges) {
+      await handleSave();
+    }
+    window.open(`/c/${config.slug}`, '_blank', 'noopener,noreferrer');
   };
 
   const handleToggleFeature = (feature: keyof NonNullable<CoupleConfig['feature_toggles']>) => {
@@ -880,7 +918,7 @@ function DashboardContent() {
               <Sparkles className="h-3.5 w-3.5" /> SaaS Yönetim Paneli
             </span>
             <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-purple-600 uppercase tracking-wider bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
-              ₺399 VIP Paket Aktif
+              {isPremium ? '💎 Premium VIP Paket Aktif' : '🌟 Standart Paket Aktif'}
             </span>
           </div>
           <h1 className="text-2xl font-extrabold text-gray-900">
@@ -946,15 +984,15 @@ function DashboardContent() {
 
                   {hasPurchased === true && (userCoupleSlug || searchParams.get('slug')) ? (
                     <>
-                      <a
-                        href={`/c/${userCoupleSlug || searchParams.get('slug')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setProfileDropdownOpen(false)}
+                      <button
+                        onClick={(e) => {
+                          setProfileDropdownOpen(false);
+                          handleGoToSite(e);
+                        }}
                         className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition"
                       >
                         <ExternalLink className="h-4 w-4 text-purple-500" /> Sitemi Gör 🔗
-                      </a>
+                      </button>
                       {config.is_active !== false ? (
                         <button
                           onClick={() => {
@@ -1077,14 +1115,12 @@ function DashboardContent() {
               <Copy className="h-3.5 w-3.5" /> {copiedLink ? 'Kopyalandı! ✓' : 'Link Kopyala'}
             </button>
 
-            <a
-              href={`/c/${config.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-4 py-2 text-xs font-extrabold text-white shadow-md hover:scale-102 transition active:scale-95"
+            <button
+              onClick={handleGoToSite}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-4 py-2 text-xs font-extrabold text-white shadow-md hover:scale-102 transition active:scale-95 cursor-pointer"
             >
               <ExternalLink className="h-3.5 w-3.5" /> Siteme Git 🔗
-            </a>
+            </button>
           </div>
         </div>
 
@@ -2622,7 +2658,7 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* TAB 4: HD QR KOD & NFC KART */}
+          {/* TAB 11: HD QR KOD KARTI */}
           {activeTab === 'qr' && (
             <QRCodeGenerator
               slug={config.slug}
@@ -2630,6 +2666,35 @@ function DashboardContent() {
               partner2={config.partner2_name}
             />
           )}
+
+          {/* Bottom Tab Save Strip for Long Forms */}
+          <div className="rounded-3xl bg-white/90 backdrop-blur-md border border-rose-100 p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+            <div>
+              <h4 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
+                <Save className="h-4 w-4 text-rose-500" /> Değişikliklerinizi Kaydedin
+              </h4>
+              <p className="text-xs text-gray-500 mt-1">
+                {hasUnsavedChanges
+                  ? '⚠️ Sayfada henüz kaydedilmemiş düzenlemeleriniz var. Canlı sitenize yansıması için kaydedin.'
+                  : '✨ Tüm ayarlarınız güncel. İstediğiniz zaman kaydedebilir veya sitenize gidebilirsiniz.'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-md hover:scale-102 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                <Save className="h-4 w-4" /> {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+              </button>
+              <button
+                onClick={handleGoToSite}
+                className="flex items-center justify-center gap-1.5 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-100 transition active:scale-95 cursor-pointer"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-rose-500" /> Siteme Git 🔗
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Right Desktop Live Preview (5 cols) */}
@@ -2822,6 +2887,75 @@ function DashboardContent() {
           </div>
         </div>
       )}
+
+      {/* Floating Bottom Quick Action Bar (Visible when scrolling down or when unsaved changes exist) */}
+      <div
+        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 max-w-[95vw] ${
+          hasScrolled || hasUnsavedChanges
+            ? 'opacity-100 translate-y-0 pointer-events-auto'
+            : 'opacity-0 translate-y-8 pointer-events-none'
+        }`}
+      >
+        <div className="flex items-center gap-2 sm:gap-3 rounded-full bg-slate-950/90 backdrop-blur-xl border border-slate-700/80 p-2 pl-3.5 sm:pl-4 pr-2 shadow-2xl text-white">
+          <div className="flex items-center gap-2 pr-1">
+            {hasUnsavedChanges ? (
+              <>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                </span>
+                <span className="text-xs font-bold text-amber-300 hidden sm:inline">
+                  Kaydedilmemiş Değişiklikler
+                </span>
+              </>
+            ) : savedSuccess ? (
+              <>
+                <CheckCircle className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs font-bold text-emerald-300 hidden sm:inline">
+                  Kaydedildi!
+                </span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 text-rose-400" />
+                <span className="text-xs font-semibold text-slate-300 hidden sm:inline">
+                  Hızlı Menü
+                </span>
+              </>
+            )}
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black text-white shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer ${
+              hasUnsavedChanges
+                ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:brightness-110 ring-2 ring-rose-400/50 animate-pulse'
+                : 'bg-gradient-to-r from-rose-500 to-pink-600 hover:brightness-105'
+            }`}
+          >
+            <Save className="h-3.5 w-3.5" />
+            {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+          </button>
+
+          <button
+            onClick={handleGoToSite}
+            className="flex items-center gap-1.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-200 transition active:scale-95 cursor-pointer"
+            title="Değişiklikleri kaydedip sitenize gider"
+          >
+            <ExternalLink className="h-3.5 w-3.5 text-rose-400" />
+            <span className="hidden sm:inline">Siteme Git</span>
+          </button>
+
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+            title="Sayfa Başına Çık"
+          >
+            <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

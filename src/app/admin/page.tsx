@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'couples' | 'users' | 'shipping' | 'tools'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'couples' | 'users' | 'tools'>('overview');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -463,7 +463,6 @@ export default function SuperAdminDashboard() {
     );
   });
 
-  const shippingOrders = couples.filter((c) => c.shipping_address && c.shipping_address.trim() !== '');
 
   if (loading) {
     return (
@@ -531,7 +530,6 @@ export default function SuperAdminDashboard() {
           { id: 'orders', label: '🛍️ Shopier Siparişleri', count: orders.length },
           { id: 'couples', label: '💑 Çift Siteleri', count: couples.length },
           { id: 'users', label: '👥 Kayıtlı Üyeler', count: users.length },
-          { id: 'shipping', label: '📦 NFC Kargo', count: shippingOrders.length },
           { id: 'tools', label: '🛠️ Sistem Araçları', count: null },
         ].map((tab) => (
           <button
@@ -1170,73 +1168,7 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* TAB 5: NFC & KARGO (SHIPPING) */}
-      {activeTab === 'shipping' && (
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-4">
-          <div>
-            <h2 className="text-lg font-black text-white flex items-center gap-2">
-              <Truck className="h-5 w-5 text-amber-400" /> NFC Kartlı Özel Kutu Siparişleri ({shippingOrders.length})
-            </h2>
-            <p className="text-xs text-slate-400">
-              Fiziksel NFC akıllı kart kutusu satın alan çiftlerin kargo teslimat adresleri.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {shippingOrders.map((c) => (
-              <div key={c.slug} className="rounded-2xl bg-slate-950 border border-slate-800 p-5 space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                  <div className="font-extrabold text-white text-sm">
-                    {c.partner1_name} & {c.partner2_name}
-                  </div>
-                  <a
-                    href={getPublicCoupleUrl(c.slug)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-bold text-rose-400 hover:underline flex items-center gap-1"
-                  >
-                    {c.slug} <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <div className="text-slate-400">
-                    İletişim: <strong className="text-slate-200">{c.partner1_email || c.owner_email}</strong> ({c.whatsapp_number})
-                  </div>
-                  <div className="text-slate-400 mt-2">Teslimat Adresi:</div>
-                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs font-medium text-white leading-relaxed select-all">
-                    {c.shipping_address}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${c.partner1_name} & ${c.partner2_name}\n${c.whatsapp_number}\n${c.shipping_address}`);
-                      showSuccess('Kargo adresi panoya kopyalandı! 📋');
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 hover:bg-slate-700 transition cursor-pointer"
-                  >
-                    <Copy className="h-3.5 w-3.5" /> Adresi Kopyala
-                  </button>
-
-                  <span className="text-[11px] font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20">
-                    NFC Kutusu Hazırlanacak 📦
-                  </span>
-                </div>
-              </div>
-            ))}
-
-            {shippingOrders.length === 0 && (
-              <div className="col-span-2 p-12 text-center text-slate-500 italic bg-slate-950 rounded-2xl border border-slate-800">
-                Henüz kargo teslimat adresi içeren NFC kart siparişi bulunmuyor.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 6: SİSTEM ARAÇLARI & SAĞLIK (TOOLS) */}
+      {/* TAB 5: SİSTEM ARAÇLARI & SAĞLIK (TOOLS) */}
       {activeTab === 'tools' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
