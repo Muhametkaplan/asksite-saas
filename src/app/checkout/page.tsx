@@ -34,7 +34,7 @@ import confetti from 'canvas-confetti';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const [packageType, setPackageType] = useState<'yearly' | 'lifetime' | 'nfc' | 'digital'>('lifetime');
+  const [packageType, setPackageType] = useState<'yearly_standard' | 'yearly_premium'>('yearly_premium');
   const [loading, setLoading] = useState(false);
 
   const [partner1, setPartner1] = useState('');
@@ -43,11 +43,6 @@ export default function CheckoutPage() {
   const [partner2Email, setPartner2Email] = useState('');
   const [startDate, setStartDate] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-
-  // NFC Shipping Address fields
-  const [fullName, setFullName] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
 
   // Auth User & Subscription State
   const [currentUser, setCurrentUser] = useState<{ displayName?: string; email?: string } | null>(null);
@@ -63,12 +58,10 @@ export default function CheckoutPage() {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const planParam = urlParams.get('plan');
-      if (planParam === 'yearly' || planParam === '1_year' || planParam === 'digital') {
-        setPackageType('yearly');
-      } else if (planParam === 'lifetime') {
-        setPackageType('lifetime');
-      } else if (planParam === 'nfc') {
-        setPackageType('nfc');
+      if (planParam === 'yearly_standard' || planParam === 'standard' || planParam === 'standart' || planParam === 'yearly' || planParam === 'digital') {
+        setPackageType('yearly_standard');
+      } else if (planParam === 'yearly_premium' || planParam === 'premium' || planParam === 'vip' || planParam === 'lifetime') {
+        setPackageType('yearly_premium');
       }
     }
 
@@ -282,11 +275,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (packageType === 'nfc' && (!address || !city)) {
-      alert('Lütfen NFC Kart teslimat adresinizi eksiksiz doldurun.');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -304,7 +292,7 @@ export default function CheckoutPage() {
           package_type: packageType,
           start_date: startDate,
           whatsapp_number: whatsapp,
-          shipping_address: packageType === 'nfc' ? `${fullName} - ${address}, ${city}` : null,
+          shipping_address: null,
           owner_uid: currentUid,
           owner_email: currentEmail,
         }),
@@ -690,121 +678,101 @@ export default function CheckoutPage() {
               </p>
             </div>
 
-        {/* Package Selector */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {/* 1 Yıllık Çift Paketi */}
+        {/* Package Selector (2 Yıllık Abonelik Seçeneği) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {/* Standart Yıllık Çift Paketi */}
           <div
-            onClick={() => setPackageType('yearly')}
-            className={`cursor-pointer rounded-3xl p-5 transition-all border-2 flex flex-col justify-between ${
-              packageType === 'yearly' || packageType === 'digital'
+            onClick={() => setPackageType('yearly_standard')}
+            className={`cursor-pointer rounded-3xl p-6 transition-all border-2 flex flex-col justify-between ${
+              packageType === 'yearly_standard'
                 ? 'border-rose-500 bg-white shadow-xl ring-2 ring-rose-500/20'
                 : 'border-white/80 bg-white/60 hover:bg-white/90'
             }`}
           >
             <div>
               <div className="flex justify-between items-start mb-3">
-                <span className="text-[11px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-100">
-                  Standart
+                <span className="text-[11px] font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
+                  Standart 1 Yıllık
                 </span>
                 <CheckCircle2
-                  className={`h-5 w-5 ${
-                    packageType === 'yearly' || packageType === 'digital' ? 'text-rose-500' : 'text-gray-300'
+                  className={`h-6 w-6 ${
+                    packageType === 'yearly_standard' ? 'text-rose-500' : 'text-gray-300'
                   }`}
                 />
               </div>
-              <h3 className="text-lg font-black text-gray-900">1 Yıllık Çift Paketi</h3>
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-2 mb-3">
-                ₺199 <span className="text-xs font-normal text-gray-500">/ Yıl</span>
+              <h3 className="text-xl font-black text-gray-900">Standart Yıllık Paket</h3>
+              <div className="text-3xl font-black text-gray-900 mt-2 mb-3">
+                ₺250 <span className="text-xs font-normal text-gray-500">/ 1 Yıl (365 Gün)</span>
               </div>
-              <ul className="space-y-1.5 text-xs text-gray-600">
-                <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> Özel Çift Linki (/c/...)
+              <ul className="space-y-2 text-xs text-gray-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> Size Özel Çift Linki (/c/...)
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> 4 Efsane Çift Oyunu
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> İlişki Sayacı & Spotify Çalar
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> Canlı Çizim & Spotify
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> 5 Mini Oyun (Düello, XOX, Hafıza, TKM, D/C)
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> Canlı Çizim & Aşk Kuponları
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> Sinemamız Arşivi, Test & Çarkıfelek
                 </li>
               </ul>
             </div>
           </div>
 
-          {/* Ömür Boyu Aşk Paketi (Popüler) */}
+          {/* Premium VIP Yıllık Paket */}
           <div
-            onClick={() => setPackageType('lifetime')}
-            className={`cursor-pointer rounded-3xl p-5 transition-all border-2 relative overflow-hidden flex flex-col justify-between ${
-              packageType === 'lifetime'
+            onClick={() => setPackageType('yearly_premium')}
+            className={`cursor-pointer rounded-3xl p-6 transition-all border-2 relative overflow-hidden flex flex-col justify-between ${
+              packageType === 'yearly_premium'
                 ? 'border-purple-600 bg-white shadow-xl ring-2 ring-purple-600/20'
                 : 'border-white/80 bg-white/60 hover:bg-white/90'
             }`}
           >
-            <div className="absolute top-2 right-2 rounded-full bg-gradient-to-r from-rose-500 to-purple-600 px-2.5 py-0.5 text-[9px] font-black text-white shadow-xs">
-              EN POPÜLER
+            <div className="absolute top-2 right-2 rounded-full bg-gradient-to-r from-rose-500 to-purple-600 px-3 py-0.5 text-[9px] font-black text-white shadow-xs">
+              EN POPÜLER V.I.P
             </div>
 
             <div>
               <div className="flex justify-between items-start mb-3">
-                <span className="text-[11px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-100">
-                  Ömür Boyu V.I.P
+                <span className="text-[11px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-100">
+                  Tam Erişim 1 Yıllık
                 </span>
                 <CheckCircle2
-                  className={`h-5 w-5 ${
-                    packageType === 'lifetime' ? 'text-purple-600' : 'text-gray-300'
+                  className={`h-6 w-6 ${
+                    packageType === 'yearly_premium' ? 'text-purple-600' : 'text-gray-300'
                   }`}
                 />
               </div>
-              <h3 className="text-lg font-black text-gray-900">Ömür Boyu Paket</h3>
-              <div className="text-2xl sm:text-3xl font-black text-purple-700 mt-2 mb-3">
-                ₺349 <span className="text-xs font-normal text-gray-500">/ Tek Seferlik</span>
+              <h3 className="text-xl font-black text-gray-900">Premium VIP Yıllık Paket</h3>
+              <div className="text-3xl font-black text-purple-700 mt-2 mb-3">
+                ₺400 <span className="text-xs font-normal text-gray-500">/ 1 Yıl (365 Gün)</span>
               </div>
-              <ul className="space-y-1.5 text-xs text-gray-700">
-                <li className="flex items-center gap-1.5 font-semibold">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600 shrink-0" /> Ömür Boyu Sınırsız Yayın
+              <ul className="space-y-2 text-xs text-gray-700">
+                <li className="flex items-center gap-2 font-bold text-purple-700">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0" /> Standart Paketteki Tüm Özellikler
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600 shrink-0" /> Gemini AI Film Robotu
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0" /> 📌 Aşk Haritası (Bizim Haritamız)
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-600 shrink-0" /> HD QR Kod & VIP Destek
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0" /> 📖 Özel Anı Defteri & Günlük
                 </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Fiziksel NFC Paketi */}
-          <div
-            onClick={() => setPackageType('nfc')}
-            className={`cursor-pointer rounded-3xl p-5 transition-all border-2 flex flex-col justify-between ${
-              packageType === 'nfc'
-                ? 'border-amber-500 bg-white shadow-xl ring-2 ring-amber-500/20'
-                : 'border-white/80 bg-white/60 hover:bg-white/90'
-            }`}
-          >
-            <div>
-              <div className="flex justify-between items-start mb-3">
-                <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-100">
-                  Fiziksel Kart
-                </span>
-                <CheckCircle2
-                  className={`h-5 w-5 ${
-                    packageType === 'nfc' ? 'text-amber-500' : 'text-gray-300'
-                  }`}
-                />
-              </div>
-              <h3 className="text-lg font-black text-gray-900">NFC Akıllı Kart</h3>
-              <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2 mb-3">
-                ₺499 <span className="text-xs font-normal text-gray-500">/ Kargo Dahil</span>
-              </div>
-              <ul className="space-y-1.5 text-xs text-gray-600">
-                <li className="flex items-center gap-1.5 font-semibold text-amber-700">
-                  <Truck className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Adrese Ücretsiz Kargo
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0" /> 📸 Günün Anısı Sürpriz Kartı
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Temassız NFC Çipli Kart
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0" /> ⏳ Mühürlü Zaman Kapsülü
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-600 shrink-0" /> Ömür Boyu Dijital Erişim
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0" /> 🎮 4 Büyük Arcade Oyun (Dino, Flappy, 2048, Tower)
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-purple-600 shrink-0" /> 📱 HD QR Kod Kartı & VIP WhatsApp Destek
                 </li>
               </ul>
             </div>
@@ -898,47 +866,6 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* NFC Shipping Address Form */}
-          {packageType === 'nfc' && (
-            <div className="mb-6 rounded-2xl bg-purple-50 p-4 border border-purple-100 animate-in fade-in duration-300">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-purple-700 mb-3 flex items-center gap-1.5">
-                <Truck className="h-4 w-4" /> NFC Kart Teslimat Adresi
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Alıcı Ad Soyad</label>
-                  <input
-                    type="text"
-                    placeholder="Adınız Soyadınız"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Şehir</label>
-                  <input
-                    type="text"
-                    placeholder="İstanbul"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Açık Adres</label>
-                <textarea
-                  rows={2}
-                  placeholder="Mahalle, Sokak, No, Daire..."
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Payment Button */}
           <button
             type="submit"
@@ -950,7 +877,7 @@ export default function CheckoutPage() {
             ) : (
               <>
                 <CreditCard className="h-5 w-5" /> Shopier ile Güvenli Öde (
-                {packageType === 'yearly' || packageType === 'digital' ? '₺199' : packageType === 'lifetime' ? '₺349' : '₺499'}
+                {packageType === 'yearly_standard' ? '₺250' : '₺400'}
                 ) ve Başlat <ArrowRight className="h-5 w-5" />
               </>
             )}

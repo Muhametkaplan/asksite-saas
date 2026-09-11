@@ -25,23 +25,23 @@ export default function PricingSection() {
 
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch max-w-4xl mx-auto">
-          {/* Card 1: 1 Yıllık Çift Paketi */}
+          {/* Card 1: Standart Yıllık Çift Paketi */}
           <div className="relative flex flex-col justify-between rounded-3xl bg-white/90 backdrop-blur-md p-8 sm:p-10 border border-gray-200/80 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <div className="space-y-6">
               <div className="space-y-2">
                 <span className="text-xs font-black uppercase tracking-wider text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
-                  Standart Yıllık Yayın
+                  1 Yıllık Abonelik
                 </span>
-                <h3 className="text-2xl font-black text-gray-900">1 Yıllık Çift Paketi</h3>
-                <p className="text-xs text-gray-500">
-                  İlişkinizin en güzel yılını ölümsüzleştirmek ve eğlenceli anlar biriktirmek için ideal.
+                <h3 className="text-2xl font-black text-gray-900">Standart Yıllık Paket</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  İlişkinizin 1 yılını ölümsüzleştirmek, müzik ve temel çift aktiviteleriyle keyifli vakit geçirmek için ideal paket.
                 </p>
               </div>
 
               {/* Price */}
               <div className="flex items-baseline gap-2 pt-2 border-t border-gray-100">
-                <span className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight">199 ₺</span>
-                <span className="text-xs font-bold text-gray-500">/ 1 Yıl (KDV Dahil)</span>
+                <span className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tight">250 ₺</span>
+                <span className="text-xs font-bold text-gray-500">/ 1 Yıl (365 Gün)</span>
               </div>
 
               {/* Features List */}
@@ -56,31 +56,43 @@ export default function PricingSection() {
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>4 Efsane Çift Oyunu:</strong> 2048, Dinozor, Flappy Bird, Tower</span>
+                  <span><strong>İlişki & Zaman Sayacı:</strong> Gün, saat ve saniye sayımı</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>Canlı Çizim Tuvali:</strong> Partnerinizle anlık resim çizin</span>
+                  <span><strong>Spotify Müzik Çalar:</strong> Ortak şarkınız ve arka plan müziği</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>İlişki & Zaman Sayacı:</strong> Gün, saat ve saniye takibi</span>
+                  <span><strong>Sevgi Kavanozu & Acil Sarıl:</strong> Romantik mesajlar</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>Spotify Entegrasyonu:</strong> Özel şarkı çalar ve karaoke akışı</span>
+                  <span><strong>5 Eğlenceli Mini Oyun:</strong> Düello, Neon XOX, Hafıza, TKM, D/C</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>1 Yıl Kesintisiz & Reklamsız Yayın</strong></span>
+                  <span><strong>Canlı Sanat Tuvali & Aşk Kuponları</strong></span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                    <Check className="h-3 w-3 stroke-[3]" />
+                  </span>
+                  <span><strong>Aşk Çarkı, Test & Sinemamız Arşivi</strong></span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                    <Check className="h-3 w-3 stroke-[3]" />
+                  </span>
+                  <span><strong>365 Gün Kesintisiz & Reklamsız Yayın</strong></span>
                 </li>
               </ul>
             </div>
@@ -88,10 +100,10 @@ export default function PricingSection() {
             {/* CTA */}
             <div className="pt-8 space-y-3">
               <Link
-                href="/checkout?plan=yearly"
+                href="/checkout?plan=yearly_standard"
                 className="flex items-center justify-center gap-2 w-full rounded-2xl bg-gray-900 hover:bg-black text-white py-4 px-6 text-sm font-black shadow-lg hover:shadow-xl transition-all duration-200 active:scale-98"
               >
-                <span>1 Yıllık Paketi Başlat 🚀</span>
+                <span>Standart Yıllık Paketi Başlat 🚀</span>
               </Link>
               <p className="text-center text-[11px] text-gray-400 font-semibold flex items-center justify-center gap-1">
                 <Lock className="h-3 w-3 text-emerald-500" /> 256-Bit SSL ile Anında Aktivasyon
@@ -99,7 +111,7 @@ export default function PricingSection() {
             </div>
           </div>
 
-          {/* Card 2: Ömür Boyu Aşk Paketi (Featured) */}
+          {/* Card 2: Premium VIP Yıllık Paket (Featured) */}
           <div className="relative flex flex-col justify-between rounded-3xl bg-gradient-to-b from-white via-rose-50/70 to-purple-50/70 p-8 sm:p-10 border-2 border-rose-500 shadow-2xl hover:shadow-rose-500/20 transition-all duration-300 hover:-translate-y-1 overflow-hidden">
             {/* Top Badge */}
             <div className="absolute top-0 right-0 bg-gradient-to-r from-rose-500 to-purple-600 text-white text-[11px] font-black uppercase tracking-wider py-1.5 px-4 rounded-bl-2xl shadow-md flex items-center gap-1">
@@ -109,20 +121,20 @@ export default function PricingSection() {
             <div className="space-y-6">
               <div className="space-y-2">
                 <span className="text-xs font-black uppercase tracking-wider text-purple-700 bg-purple-100 px-3 py-1 rounded-full border border-purple-200 inline-block">
-                  Sınırsız & Kalıcı Erişim
+                  1 Yıllık Tam Erişim (Tüm Özellikler Açık)
                 </span>
-                <h3 className="text-2xl font-black text-gray-900">Ömür Boyu Aşk Paketi</h3>
-                <p className="text-xs text-gray-600">
-                  Bir kere ödeyin, aşk siteniz ve tüm anılarınız ömür boyu hiçbir yenileme ücreti olmadan yayında kalsın.
+                <h3 className="text-2xl font-black text-gray-900">Premium VIP Yıllık Paket</h3>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Harita, anı defteri, zaman kapsülü ve tüm büyük arcade oyunların açık olduğu eksiksiz aşk paketi.
                 </p>
               </div>
 
               {/* Price */}
               <div className="flex items-baseline gap-2 pt-2 border-t border-rose-100">
                 <span className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent tracking-tight">
-                  349 ₺
+                  400 ₺
                 </span>
-                <span className="text-xs font-bold text-gray-600">/ Tek Seferlik (Ömür Boyu)</span>
+                <span className="text-xs font-bold text-gray-600">/ 1 Yıl (365 Gün)</span>
               </div>
 
               {/* Features List */}
@@ -131,37 +143,49 @@ export default function PricingSection() {
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-xs">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>1 Yıllık Paketteki TÜM Özellikler</strong></span>
+                  <span><strong>Standart Paketteki TÜM Özellikler</strong></span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-xs">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>ÖMÜR BOYU Sınırsız & Kesintisiz Yayın</strong> (Yıllık ücret yok)</span>
+                  <span><strong>📌 Aşk Haritası (Bizim Haritamız):</strong> Gezdiğiniz yerleri kalplerle işaretleyin</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-xs">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>Gemini AI Film Robotu:</strong> Çift modunuza özel sinema önerisi</span>
+                  <span><strong>📖 Özel Anı Defteri:</strong> Sevgilinize özel günlükler ve unutulmaz anılar</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-xs">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>Sınırsız Fotoğraf & Anı Depolama:</strong> Fotoğraf albümü ve aşk kuponları</span>
+                  <span><strong>📸 Günün Anısı Sürpriz Kartı:</strong> Her gün sevgilinize nostaljik sürpriz</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-xs">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>İndirilebilir HD QR Kod Kartı:</strong> Hediye kartlarına baskıya uygun</span>
+                  <span><strong>⏳ Zaman Kapsülü:</strong> Geleceğe mühürlü mektuplar ve anılar bırakın</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-xs">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
-                  <span><strong>VIP Öncelikli WhatsApp Destek</strong></span>
+                  <span><strong>🎮 4 Büyük Arcade Çift Oyunu:</strong> Dino Runner, Flappy Bird, 2048, Tower Stacker (Tüm 9 Oyun Açık!)</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-xs">
+                    <Check className="h-3 w-3 stroke-[3]" />
+                  </span>
+                  <span><strong>📱 HD Yazdırılabilir QR Kod Kartı</strong></span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-xs">
+                    <Check className="h-3 w-3 stroke-[3]" />
+                  </span>
+                  <span><strong>💎 VIP Öncelikli WhatsApp Destek</strong></span>
                 </li>
               </ul>
             </div>
@@ -169,11 +193,11 @@ export default function PricingSection() {
             {/* CTA */}
             <div className="pt-8 space-y-3">
               <Link
-                href="/checkout?plan=lifetime"
+                href="/checkout?plan=yearly_premium"
                 className="flex items-center justify-center gap-2 w-full rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white py-4 px-6 text-sm font-black shadow-xl shadow-rose-500/25 transition-all duration-200 active:scale-98"
               >
                 <Heart className="h-4 w-4 fill-white" />
-                <span>Ömür Boyu Paketi Satın Al 💖</span>
+                <span>Premium VIP Paketi Başlat 💖</span>
               </Link>
               <p className="text-center text-[11px] text-gray-500 font-semibold flex items-center justify-center gap-1">
                 <ShieldCheck className="h-3.5 w-3.5 text-rose-500" /> Güvenli Ödeme (256-Bit SSL & 3D Secure)

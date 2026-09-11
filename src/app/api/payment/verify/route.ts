@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const { orderId, email, slug: inputSlug, uid } = body;
 
     let targetSlug = inputSlug || '';
-    let plan: '1_year' | 'lifetime' = '1_year';
+    let plan: 'yearly_standard' | 'yearly_premium' | '1_year' | 'lifetime' | string = 'yearly_standard';
 
     const { db } = await import('@/lib/firebase');
     const { doc, getDoc, collection, query, where, getDocs, setDoc, serverTimestamp } = await import('firebase/firestore');
@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
       if (userSnap.exists()) {
         const udata = userSnap.data();
         targetSlug = udata.pendingCoupleSlug || udata.coupleSlug || '';
-        if (udata.pendingPackageType === 'lifetime' || udata.pendingPackageType === 'nfc') {
-          plan = 'lifetime';
+        if (udata.pendingPackageType === 'yearly_premium' || udata.pendingPackageType === 'premium' || udata.pendingPackageType === 'lifetime' || udata.pendingPackageType === 'nfc') {
+          plan = 'yearly_premium';
         }
       }
     }
@@ -55,7 +55,8 @@ export async function POST(req: NextRequest) {
           if (sOrder && (sOrder.paymentStatus === 'paid' || sOrder.status === 'fulfilled' || sOrder.status === 'unfulfilled')) {
             const sEmail = sOrder.shippingInfo?.email || sOrder.billingInfo?.email;
             const sProdId = sOrder.lineItems?.[0]?.productId;
-            if (sProdId === '50201191' || sProdId === '50201195') plan = 'lifetime';
+            if (sProdId === '50201191') plan = 'yearly_premium';
+            else if (sProdId === '50201181') plan = 'yearly_standard';
             if (!targetSlug && sEmail) {
               const cleanEmail = sEmail.trim().toLowerCase();
               const q = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', cleanEmail));
@@ -81,7 +82,9 @@ export async function POST(req: NextRequest) {
     }
 
     const couple = await getCoupleBySlug(targetSlug);
-    if (couple?.plan === 'lifetime' || couple?.package_type === 'lifetime' || couple?.package_type === 'nfc') {
+    if (couple?.plan === 'yearly_premium' || couple?.package_type === 'yearly_premium') {
+      plan = 'yearly_premium';
+    } else if (couple?.plan === 'lifetime' || couple?.package_type === 'lifetime' || couple?.package_type === 'nfc') {
       plan = 'lifetime';
     }
 

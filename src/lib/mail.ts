@@ -145,7 +145,7 @@ export interface SendOrderSuccessEmailParams {
   partner1Name?: string;
   partner2Name?: string;
   slug: string;
-  plan?: '1_year' | 'lifetime';
+  plan?: 'yearly_standard' | 'yearly_premium' | '1_year' | 'lifetime' | string;
   inviteCode?: string;
   orderId?: string;
 }
@@ -155,7 +155,7 @@ export async function sendOrderSuccessEmail({
   partner1Name = 'Sevda',
   partner2Name = 'Mehmet',
   slug,
-  plan = '1_year',
+  plan = 'yearly_standard',
   inviteCode,
   orderId,
 }: SendOrderSuccessEmailParams) {
@@ -194,7 +194,10 @@ export async function sendOrderSuccessEmail({
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
   const siteUrl = `${appUrl}/c/${slug}`;
   const dashboardUrl = `${appUrl}/dashboard?slug=${slug}`;
-  const planTitle = plan === 'lifetime' ? 'Ömür Boyu VIP Aşk Paketi ♾️' : '1 Yıllık Çift Paketi 🌟';
+  const planTitle =
+    plan === 'yearly_premium' || plan === 'premium' || plan === 'lifetime'
+      ? 'Premium VIP 1 Yıllık Aşk Paketi 💎'
+      : 'Standart 1 Yıllık Çift Paketi 🌟';
 
   const htmlContent = `
 <!DOCTYPE html>

@@ -14,10 +14,9 @@ export async function GET(req: NextRequest) {
     let passiveCouples = 0;
     let paidCouples = 0;
     const packageCounts: Record<string, number> = {
-      yearly: 0,
+      yearly_standard: 0,
+      yearly_premium: 0,
       lifetime: 0,
-      nfc: 0,
-      digital: 0,
       other: 0,
     };
 
@@ -38,10 +37,15 @@ export async function GET(req: NextRequest) {
         if (data.isPaid === true) paidCouples++;
 
         const pkg = (data.package_type || data.plan || '').toLowerCase();
-        if (pkg.includes('nfc')) packageCounts.nfc++;
-        else if (pkg.includes('lifetime') || pkg.includes('vip') || pkg.includes('349') || pkg.includes('399')) packageCounts.lifetime++;
-        else if (pkg.includes('year') || pkg.includes('199') || pkg.includes('digital')) packageCounts.yearly++;
-        else packageCounts.other++;
+        if (pkg === 'yearly_premium' || pkg.includes('premium') || pkg.includes('vip') || pkg.includes('400')) {
+          packageCounts.yearly_premium++;
+        } else if (pkg === 'yearly_standard' || pkg.includes('standard') || pkg.includes('standart') || pkg.includes('250') || pkg.includes('year') || pkg.includes('199') || pkg.includes('digital')) {
+          packageCounts.yearly_standard++;
+        } else if (pkg.includes('lifetime')) {
+          packageCounts.lifetime++;
+        } else {
+          packageCounts.other++;
+        }
       });
     } catch (e) {
       console.error('Error fetching couples for metrics:', e);
@@ -125,9 +129,9 @@ export async function GET(req: NextRequest) {
     // If Shopier returned 0 orders, estimate from paid couples
     if (totalOrders === 0 && totalRevenue === 0 && paidCouples > 0) {
       totalRevenue =
-        packageCounts.yearly * 199 +
-        packageCounts.lifetime * 349 +
-        packageCounts.nfc * 499;
+        (packageCounts.yearly_standard || 0) * 250 +
+        (packageCounts.yearly_premium || 0) * 400 +
+        (packageCounts.lifetime || 0) * 349;
     }
 
     return NextResponse.json({

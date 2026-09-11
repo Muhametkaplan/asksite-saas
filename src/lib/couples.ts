@@ -307,8 +307,11 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           is_active: data.is_active !== undefined ? data.is_active : (data.isActive !== undefined ? data.isActive : true),
           isActive: data.isActive !== undefined ? data.isActive : (data.is_active !== undefined ? data.is_active : true),
           isPaid: data.isPaid === true,
-          plan: data.plan || data.package_type || 'standard',
-          package_type: data.package_type || data.plan || 'digital',
+          plan: data.plan || data.package_type || 'yearly_standard',
+          package_type: data.package_type || data.plan || 'yearly_standard',
+          expires_at: data.expires_at || null,
+          paid_at: data.paid_at || null,
+          subscription_status: data.subscription_status || (data.expires_at && new Date(data.expires_at).getTime() < Date.now() ? 'expired' : 'active'),
           owner_uid: data.owner_uid || null,
           owner_email: data.owner_email || data.partner1_email || null,
           partner1_uid: data.partner1_uid || data.owner_uid || null,
@@ -420,7 +423,10 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         ].filter(Boolean))),
         co_owners: config.co_owners || [],
         feature_toggles: config.feature_toggles || {},
-        packageType: config.package_type || config.packageType || 'digital',
+        packageType: config.package_type || config.packageType || 'yearly_standard',
+        package_type: config.package_type || config.packageType || 'yearly_standard',
+        plan: config.plan || 'yearly_standard',
+        expires_at: config.expires_at !== undefined ? config.expires_at : null,
         isActive: config.isActive === true || config.is_active === true ? true : false,
         is_active: config.is_active === true || config.isActive === true ? true : false,
         isPaid: config.isPaid === true ? true : false,
@@ -1701,14 +1707,15 @@ export async function get2048State(
 
 export async function activateCouplePayment(
   slug: string,
-  plan: '1_year' | 'lifetime' = '1_year'
+  plan: 'yearly_standard' | 'yearly_premium' | '1_year' | 'lifetime' | string = 'yearly_standard'
 ): Promise<boolean> {
   const cleanSlug = validateSlug(slug);
-  const isYearly = plan === '1_year';
+  const isLifetime = plan === 'lifetime';
   const now = new Date();
-  const expiresAt = isYearly
-    ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString()
-    : null;
+  // 1 Year = 365 days expiration for both yearly_standard and yearly_premium
+  const expiresAt = isLifetime
+    ? null
+    : new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
   if (localCouplesMemoryStore.has(cleanSlug)) {
     const existing = localCouplesMemoryStore.get(cleanSlug)!;
@@ -1717,8 +1724,10 @@ export async function activateCouplePayment(
       isPaid: true,
       is_active: true,
       plan,
+      package_type: plan,
       paid_at: now.toISOString(),
       expires_at: expiresAt || undefined,
+      subscription_status: 'active',
     });
   }
 
@@ -1735,9 +1744,12 @@ export async function activateCouplePayment(
           isActive: true,
           is_active: true,
           plan,
+          package_type: plan,
+          packageType: plan,
           paidAt: serverTimestamp(),
           paid_at: now.toISOString(),
           expires_at: expiresAt,
+          subscription_status: 'active',
         },
         { merge: true }
       );
@@ -1754,7 +1766,9 @@ export async function activateCouplePayment(
             coupleSlug: cleanSlug,
             isPaid: true,
             plan,
+            package_type: plan,
             paidAt: serverTimestamp(),
+            expires_at: expiresAt,
           },
           { merge: true }
         );
@@ -1768,6 +1782,57 @@ export async function activateCouplePayment(
   }
 
   return true;
+}
+
+export type FeatureKey = 'map' | 'diary' | 'daily_memory' | 'capsule' | 'arcade_games';
+
+/**
+ * Feature Gating Helper
+ * Standart Package (250₺/year):
+ *  - Harita: LOCKED
+ *  - Anı Defteri: LOCKED
+ *  - Günün Anısı: LOCKED
+ *  - Zaman Kapsülü: LOCKED
+ *  - 4 Arcade Oyun (Dino, Flappy, 2048, Tower): LOCKED (Other 5 games are open)
+ * Premium VIP Package (400₺/year) & Legacy Lifetime:
+ *  - Everything: UNLOCKED
+ */
+export function isFeatureAllowedForPackage(
+  packageTypeOrPlan: string | undefined | null,
+  feature: FeatureKey
+): boolean {
+  if (!packageTypeOrPlan) return true; // Default fallback to allow
+  const norm = packageTypeOrPlan.toLowerCase().trim();
+
+  // If it's yearly_standard or standard:
+  if (norm === 'yearly_standard' || norm === 'standard' || norm === 'standart' || norm === 'yearly') {
+    if (
+      feature === 'map' ||
+      feature === 'diary' ||
+      feature === 'daily_memory' ||
+      feature === 'capsule' ||
+      feature === 'arcade_games'
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  // Premium VIP, lifetime, or other tiers have full access
+  return true;
+}
+
+/**
+ * Check if a subscription has expired
+ */
+export function isSubscriptionExpired(expiresAt: string | null | undefined): boolean {
+  if (!expiresAt) return false;
+  try {
+    const expDate = new Date(expiresAt);
+    return expDate.getTime() < Date.now();
+  } catch {
+    return false;
+  }
 }
 
 

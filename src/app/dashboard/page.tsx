@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Heart,
@@ -99,6 +99,13 @@ function DashboardContent() {
       coupons: true,
     },
   });
+
+  const isPremium = config?.plan === 'yearly_premium' || config?.package_type === 'yearly_premium';
+  const remainingDays = useMemo(() => {
+    if (!config?.expires_at) return 365;
+    const diff = new Date(config.expires_at).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }, [config?.expires_at]);
 
   const [newReasonText, setNewReasonText] = useState('');
   
@@ -1014,7 +1021,7 @@ function DashboardContent() {
             href="/checkout"
             className="shrink-0 rounded-2xl bg-white px-6 py-3 text-xs font-black text-rose-600 shadow-xl hover:bg-rose-50 transition active:scale-95 flex items-center gap-1.5"
           >
-            Satın Almayı Tamamla (₺399) 🛒
+            Paket Seç & Başlat (₺250&apos;den Başlayan) 🛒
           </Link>
         </div>
       )}
@@ -1035,6 +1042,23 @@ function DashboardContent() {
                 <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full">
                   Pasif / Kapatıldı 🔴
                 </span>
+              )}
+              {isPremium ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                  ⭐ Premium VIP Yıllık (₺400) • {remainingDays} Gün Kaldı
+                </span>
+              ) : (
+                <>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-gray-700 bg-gray-100 border border-gray-200 px-2.5 py-0.5 rounded-full">
+                    Standart Yıllık (₺250) • {remainingDays} Gün Kaldı
+                  </span>
+                  <a
+                    href="/checkout?plan=yearly_premium"
+                    className="inline-flex items-center gap-1 text-[11px] font-black text-white bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-0.5 rounded-full shadow-xs hover:opacity-90 transition"
+                  >
+                    ⭐ Premium VIP&apos;ye Yükselt (₺150 Farkla)
+                  </a>
+                </>
               )}
             </div>
             <h2 className="text-xl font-black text-gray-900">
@@ -1254,7 +1278,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <BookOpen className="h-3.5 w-3.5" /> 5. Anı Defteri
+              <BookOpen className="h-3.5 w-3.5" /> 5. Anı Defteri {!isPremium && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded-full font-black">VIP</span>}
             </button>
             <button
               onClick={() => setActiveTab('capsule')}
@@ -1264,7 +1288,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <Hourglass className="h-3.5 w-3.5" /> 6. Zaman Kapsülü
+              <Hourglass className="h-3.5 w-3.5" /> 6. Zaman Kapsülü {!isPremium && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded-full font-black">VIP</span>}
             </button>
             <button
               onClick={() => setActiveTab('cinema')}
@@ -1304,7 +1328,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <MapPin className="h-3.5 w-3.5" /> 10. Harita
+              <MapPin className="h-3.5 w-3.5" /> 10. Harita {!isPremium && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded-full font-black">VIP</span>}
             </button>
             <button
               onClick={() => setActiveTab('qr')}
@@ -1314,7 +1338,7 @@ function DashboardContent() {
                   : 'text-gray-600 hover:text-rose-500'
               }`}
             >
-              <QrCode className="h-3.5 w-3.5" /> 11. QR & NFC
+              <QrCode className="h-3.5 w-3.5" /> 11. HD QR Kod Kartı
             </button>
           </div>
 
@@ -1883,6 +1907,23 @@ function DashboardContent() {
           {/* TAB 5: ANI DEFTERİ */}
           {activeTab === 'diary' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-6">
+              {!isPremium && (
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-left flex items-start gap-3">
+                  <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1 flex-1">
+                    <h4 className="text-xs font-bold text-amber-900">Bu Özellik Premium VIP Pakete Özeldir 🔒</h4>
+                    <p className="text-[11px] text-amber-700">
+                      Standart paketinizde anı defteri çift sayfanızda kilitli görünür. Sitenizde aktif etmek için paketinizi yükseltebilirsiniz.
+                    </p>
+                  </div>
+                  <a
+                    href="/checkout?plan=yearly_premium"
+                    className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1.5 text-[11px] font-black text-white shadow-xs shrink-0 hover:opacity-90 transition"
+                  >
+                    Yükselt ✨
+                  </a>
+                </div>
+              )}
               <div className="flex items-center justify-between border-b pb-3">
                 <div>
                   <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -1939,6 +1980,23 @@ function DashboardContent() {
           {/* TAB 6: ZAMAN KAPSÜLÜ */}
           {activeTab === 'capsule' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-6">
+              {!isPremium && (
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-left flex items-start gap-3">
+                  <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1 flex-1">
+                    <h4 className="text-xs font-bold text-amber-900">Bu Özellik Premium VIP Pakete Özeldir 🔒</h4>
+                    <p className="text-[11px] text-amber-700">
+                      Standart paketinizde zaman kapsülü çift sayfanızda kilitli görünür. Sitenizde aktif etmek için paketinizi yükseltebilirsiniz.
+                    </p>
+                  </div>
+                  <a
+                    href="/checkout?plan=yearly_premium"
+                    className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1.5 text-[11px] font-black text-white shadow-xs shrink-0 hover:opacity-90 transition"
+                  >
+                    Yükselt ✨
+                  </a>
+                </div>
+              )}
               <div className="flex items-center justify-between border-b pb-3">
                 <div>
                   <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -2474,6 +2532,23 @@ function DashboardContent() {
           {/* TAB 10: HARİTA NOKTALARI */}
           {activeTab === 'map' && (
             <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-4">
+              {!isPremium && (
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 text-left flex items-start gap-3">
+                  <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1 flex-1">
+                    <h4 className="text-xs font-bold text-amber-900">Aşk Haritası Premium VIP Pakete Özeldir 🔒</h4>
+                    <p className="text-[11px] text-amber-700">
+                      Standart paketinizde harita bileşeni çift sayfanızda kilitli rozetle görünür. Kalp noktalarınızı sitede yayınlamak için paketinizi yükseltebilirsiniz.
+                    </p>
+                  </div>
+                  <a
+                    href="/checkout?plan=yearly_premium"
+                    className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1.5 text-[11px] font-black text-white shadow-xs shrink-0 hover:opacity-90 transition"
+                  >
+                    Yükselt ✨
+                  </a>
+                </div>
+              )}
               <h3 className="text-base font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-rose-500" /> Harita Anı Noktaları Ekle / Çıkar
               </h3>

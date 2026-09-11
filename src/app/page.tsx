@@ -147,9 +147,9 @@ export default function SaaSPlatformHome() {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-600">
                 <Gamepad2 className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">4 Mini Oyun & Canlı Skor</h3>
+              <h3 className="text-lg font-bold text-gray-900">9 Eğlenceli Çift Oyunu</h3>
               <p className="text-sm text-gray-600 leading-relaxed">
-                2048, Chrome Dinozor, Flappy Bird ve Tower Stacker oyunlarında partnerinizle eş zamanlı yarışın.
+                Çift düellosu, XOX, hafıza kartları, Dinozor, Flappy Bird ve daha fazlasıyla partnerinizle eş zamanlı yarışın.
               </p>
             </div>
 
@@ -157,9 +157,9 @@ export default function SaaSPlatformHome() {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
                 <Gift className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">NFC & HD QR Kod Hediyesi</h3>
+              <h3 className="text-lg font-bold text-gray-900">Özel HD QR Kod Hediyesi</h3>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Sitenize doğrudan erişim sağlayan özel indirilebilir HD QR kod ve akıllı hediye kartı altyapısı.
+                Sitenize doğrudan erişim sağlayan özel indirilebilir HD QR kod ve romantik hediye kartı altyapısı.
               </p>
             </div>
           </div>

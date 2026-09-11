@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     let slug = '';
     let buyerEmail = '';
     let productId = '';
-    let plan: '1_year' | 'lifetime' = '1_year';
+    let plan: 'yearly_standard' | 'yearly_premium' | '1_year' | 'lifetime' | string = 'yearly_standard';
 
     const contentType = req.headers.get('content-type') || '';
 
@@ -111,8 +111,8 @@ export async function POST(req: NextRequest) {
         json.line_items?.[0]?.id ||
         ''
       );
-      if (json.plan === 'lifetime' || json.metadata?.plan === 'lifetime' || json.data?.plan === 'lifetime') {
-        plan = 'lifetime';
+      if (json.plan === 'yearly_premium' || json.plan === 'premium' || json.plan === 'lifetime' || json.metadata?.plan === 'lifetime') {
+        plan = 'yearly_premium';
       }
     } else {
       const formData = await req.formData().catch(() => new FormData());
@@ -122,8 +122,8 @@ export async function POST(req: NextRequest) {
       buyerEmail = (formData.get('buyer_email') || formData.get('email') || '') as string;
       productId = String(formData.get('product_id') || formData.get('productId') || '');
       const planStr = (formData.get('plan') || '') as string;
-      if (planStr === 'lifetime') {
-        plan = 'lifetime';
+      if (planStr === 'yearly_premium' || planStr === 'premium' || planStr === 'lifetime') {
+        plan = 'yearly_premium';
       }
     }
 
@@ -134,13 +134,15 @@ export async function POST(req: NextRequest) {
     if (!status) status = urlParams.get('status') || urlParams.get('paymentStatus') || '';
     if (!buyerEmail) buyerEmail = urlParams.get('email') || urlParams.get('buyer_email') || '';
     if (!productId) productId = urlParams.get('product_id') || '';
-    if (urlParams.get('plan') === 'lifetime') plan = 'lifetime';
+    if (urlParams.get('plan') === 'yearly_premium' || urlParams.get('plan') === 'premium' || urlParams.get('plan') === 'lifetime') {
+      plan = 'yearly_premium';
+    }
 
     // Map Shopier live product IDs to plan
-    if (productId === '50201191' || productId === '50201195') {
-      plan = 'lifetime';
+    if (productId === '50201191') {
+      plan = 'yearly_premium';
     } else if (productId === '50201181') {
-      plan = '1_year';
+      plan = 'yearly_standard';
     }
 
     // Resolve slug if not explicitly passed

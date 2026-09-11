@@ -64,13 +64,7 @@ export default function IptalVeIadeKosullariPage() {
         </div>
       </section>
 
-      {/* 4. Fiziksel NFC Kart Siparişlerinin İptali */}
-      <section className="space-y-3">
-        <h2 className="text-base font-bold text-gray-900">4. Fiziksel NFC Kart ve Hediye Ürünleri</h2>
-        <p className="leading-relaxed">
-          Eğer sipariş kapsamında adrese teslim edilecek fiziksel bir NFC akıllı kart veya hediye ürünü satın alınmışsa; ürün kargoya verilmeden önce ALICI sipariş iptali talebinde bulunabilir. Ürün kargoya teslim edildikten sonra ambalajı açılmamış ve kişiselleştirilmemiş ürünler 14 gün içinde iade edilebilir; ancak çift web sitesi yazılım lisans bedeli dijital olarak ifa edildiğinden fiziksel ürün harici yazılım bedeli iade kapsamı dışındadır.
-        </p>
-      </section>
+
 
       {/* 5. İade ve İptal Süreci Başvurusu */}
       <section className="space-y-3">

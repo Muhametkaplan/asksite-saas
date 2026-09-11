@@ -99,24 +99,22 @@ export async function POST(req: NextRequest) {
     const ownerEmail = sanitizeEmail(owner_email || p1Email);
 
     // Determine package pricing & plan
-    const selectedPkg = (package_type || 'yearly').toLowerCase();
-    let price = 199;
-    let packageName = 'AskSite 1 Yillik Cift Paketi';
-    let plan: '1_year' | 'lifetime' = '1_year';
+    const selectedPkg = (package_type || 'yearly_standard').toLowerCase();
+    let price = 250;
+    let packageName = 'AskSite Standart Yillik Cift Paketi';
+    let plan: 'yearly_standard' | 'yearly_premium' = 'yearly_standard';
 
-    if (selectedPkg === 'lifetime') {
-      price = 349;
-      packageName = 'AskSite Omur Boyu Ask Paketi';
-      plan = 'lifetime';
-    } else if (selectedPkg === 'nfc') {
-      price = 499;
-      packageName = 'AskSite NFC Akilli Kart VIP Paketi';
-      plan = 'lifetime';
+    if (selectedPkg === 'yearly_premium' || selectedPkg === 'premium' || selectedPkg === 'vip' || selectedPkg === 'lifetime') {
+      price = 400;
+      packageName = 'AskSite Premium VIP Yillik Paket';
+      plan = 'yearly_premium';
     } else {
-      price = 199;
-      packageName = 'AskSite 1 Yillik Cift Paketi';
-      plan = '1_year';
+      price = 250;
+      packageName = 'AskSite Standart Yillik Cift Paketi';
+      plan = 'yearly_standard';
     }
+
+    const oneYearLater = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
     // 1. Pre-register couple in Firestore (STRICTLY PENDING PAYMENT: isActive = false, isPaid = false)
     const newCouple = {
@@ -137,7 +135,9 @@ export async function POST(req: NextRequest) {
       isActive: false, // STRICT: Only activated via verified Shopier webhook
       is_active: false,
       plan,
-      package_type: selectedPkg,
+      package_type: plan,
+      expires_at: oneYearLater,
+      subscription_status: 'active' as const,
       price,
       owner_uid: ownerUid,
       owner_email: ownerEmail,
@@ -197,14 +197,11 @@ export async function POST(req: NextRequest) {
     let paymentUrl = '';
     let shopierProductId = '50201181';
 
-    if (selectedPkg === 'lifetime') {
-      paymentUrl = process.env.SHOPIER_PRODUCT_URL_LIFETIME || 'https://www.shopier.com/50201191';
+    if (plan === 'yearly_premium') {
+      paymentUrl = process.env.SHOPIER_PRODUCT_URL_PREMIUM || process.env.SHOPIER_PRODUCT_URL_LIFETIME || 'https://www.shopier.com/50201191';
       shopierProductId = '50201191';
-    } else if (selectedPkg === 'nfc') {
-      paymentUrl = process.env.SHOPIER_PRODUCT_URL_NFC || 'https://www.shopier.com/50201195';
-      shopierProductId = '50201195';
     } else {
-      paymentUrl = process.env.SHOPIER_PRODUCT_URL_YEARLY || 'https://www.shopier.com/50201181';
+      paymentUrl = process.env.SHOPIER_PRODUCT_URL_STANDARD || process.env.SHOPIER_PRODUCT_URL_YEARLY || 'https://www.shopier.com/50201181';
       shopierProductId = '50201181';
     }
 

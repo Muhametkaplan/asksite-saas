@@ -143,16 +143,19 @@ export async function POST(req: NextRequest) {
       }
 
       const docRef = doc(db, 'couples', slug);
-      const isLifetime = (plan || '').toLowerCase().includes('lifetime') || (plan || '').toLowerCase().includes('nfc');
+      const isLifetime = (plan || '').toLowerCase() === 'lifetime';
+      const isPremium = (plan || '').toLowerCase().includes('premium') || (plan || '').toLowerCase().includes('vip') || isLifetime;
       const oneYearLater = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+      const finalPlan = isLifetime ? 'lifetime' : isPremium ? 'yearly_premium' : 'yearly_standard';
 
       await updateDoc(docRef, {
         isPaid: true,
         is_active: true,
-        package_type: plan || 'lifetime',
-        plan: isLifetime ? 'lifetime' : '1_year',
+        package_type: finalPlan,
+        plan: finalPlan,
         paid_at: new Date().toISOString(),
         expires_at: isLifetime ? null : oneYearLater,
+        subscription_status: 'active',
         shopier_order_id: orderId ? String(orderId) : 'MANUAL_ADMIN_ACTIVATION',
       });
 
@@ -168,12 +171,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'E-posta ve slug gereklidir.' }, { status: 400 });
       }
 
-      const isLifetime = (plan || '').toLowerCase().includes('lifetime') || (plan || '').toLowerCase().includes('nfc');
-      const planName = (plan || '').toLowerCase().includes('nfc')
-        ? 'NFC Akıllı Kartlı Özel Hediye Kutusu'
-        : isLifetime
-        ? 'Ömür Boyu Sınırsız VIP Paket'
-        : '1 Yıllık Dijital Aşk Paketi';
+      const isPremium = (plan || '').toLowerCase().includes('premium') || (plan || '').toLowerCase().includes('vip') || (plan || '').toLowerCase().includes('lifetime');
+      const planName = isPremium
+        ? 'Premium VIP Yıllık Aşk Paketi'
+        : 'Standart Yıllık Çift Paketi';
 
       const mailRes = await sendOrderSuccessEmail({
         to: email,
@@ -181,7 +182,7 @@ export async function POST(req: NextRequest) {
         partner2Name: partner2 || 'Partner 2',
         slug: slug,
         orderId: orderId || 'MANUAL-' + Date.now(),
-        plan: isLifetime ? 'lifetime' : '1_year',
+        plan: isPremium ? 'yearly_premium' : 'yearly_standard',
       });
 
       return NextResponse.json({

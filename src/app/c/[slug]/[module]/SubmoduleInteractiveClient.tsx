@@ -57,10 +57,10 @@ import {
   Game2048StateData,
   formatDiaryDate,
   CanvasStrokeData,
+  isFeatureAllowedForPackage,
 } from '@/lib/couples';
 import { isDeviceAuthorized } from '@/lib/deviceSession';
 import RomanticMap from '@/components/RomanticMap';
-import AskSiteAIWidget from '@/components/CineAIWidget';
 
 // Helper for dynamic window/DOM confetti execution without SSR hydration crash
 const triggerConfetti = async (options?: any) => {
@@ -165,10 +165,6 @@ function SubmoduleContent({ module, couple }: SubmoduleClientProps) {
     return <RomanticMap coupleId={couple.id || couple.slug} />;
   }
 
-  if (module === 'ai' || module === 'asksite-ai') {
-    return <AskSiteAIWidget partnerName={partner1} slug={couple.slug} />;
-  }
-
   return (
     <div className="rounded-3xl bg-white p-6 text-center text-gray-500 shadow-md">
       Bu modül şu an aktif.
@@ -191,6 +187,20 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
   const slug = couple?.slug || 'demo';
 
   const [activeTab, setActiveTab] = useState<'menu' | 'dino' | 'flappy' | '2048' | 'tower' | 'duel' | 'memory' | 'tod' | 'xox' | 'tkm'>('menu');
+
+  // Arcade Games Feature Gating (Dino, Flappy, 2048, Tower are Premium VIP only)
+  const hasArcadeAccess = slug === 'demo' || isFeatureAllowedForPackage(couple?.plan || couple?.package_type, 'arcade_games');
+  const [vipModalOpen, setVipModalOpen] = useState(false);
+  const [vipGameTitle, setVipGameTitle] = useState('');
+
+  const handleArcadeClick = (tab: 'dino' | 'flappy' | '2048' | 'tower', title: string) => {
+    if (hasArcadeAccess) {
+      setActiveTab(tab);
+    } else {
+      setVipGameTitle(title);
+      setVipModalOpen(true);
+    }
+  };
 
   // Read Session Auth for seamless uninterrupted play across devices
   const authState = useMemo<{ role: 'partner1' | 'partner2' | 'guest'; author: string; isPartner: boolean }>(() => {
@@ -255,9 +265,14 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
           <div className="grid grid-cols-2 gap-3.5">
             {/* Dino Runner */}
             <button
-              onClick={() => setActiveTab('dino')}
-              className="col-span-2 flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition text-center group active:scale-98"
+              onClick={() => handleArcadeClick('dino', 'Sonsuz Aşk Koşusu (Dino Runner)')}
+              className="col-span-2 relative flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-emerald-500 via-teal-600 to-cyan-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition text-center group active:scale-98"
             >
+              {!hasArcadeAccess && (
+                <span className="absolute top-3 right-3 rounded-full bg-black/40 backdrop-blur-sm px-2.5 py-0.5 text-[10px] font-black text-amber-300 border border-amber-300/40 shadow-xs">
+                  🔒 VIP
+                </span>
+              )}
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🦖🏃‍♂️</div>
               <h4 className="text-sm font-black text-white">Sonsuz Aşk Koşusu (Dino Runner)</h4>
               <p className="text-xs text-white/90 font-bold mt-0.5">Chrome Dino Orijinal Motoru 🏆</p>
@@ -265,9 +280,14 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
 
             {/* Flappy Bird */}
             <button
-              onClick={() => setActiveTab('flappy')}
-              className="flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md hover:shadow-xl transition text-center group active:scale-95"
+              onClick={() => handleArcadeClick('flappy', 'Flappy Bird')}
+              className="relative flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md hover:shadow-xl transition text-center group active:scale-95"
             >
+              {!hasArcadeAccess && (
+                <span className="absolute top-2 right-2 rounded-full bg-black/40 backdrop-blur-sm px-2 py-0.5 text-[9px] font-black text-amber-300 border border-amber-300/40 shadow-xs">
+                  🔒 VIP
+                </span>
+              )}
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🐤</div>
               <h4 className="text-xs font-black text-white">Flappy Bird</h4>
               <p className="text-[10px] text-sky-100 font-bold mt-0.5">Orijinal Fizik & Borular</p>
@@ -275,9 +295,14 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
 
             {/* 2048 */}
             <button
-              onClick={() => setActiveTab('2048')}
-              className="flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md hover:shadow-xl transition text-center group active:scale-95"
+              onClick={() => handleArcadeClick('2048', '2048 Klasik')}
+              className="relative flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md hover:shadow-xl transition text-center group active:scale-95"
             >
+              {!hasArcadeAccess && (
+                <span className="absolute top-2 right-2 rounded-full bg-black/40 backdrop-blur-sm px-2 py-0.5 text-[9px] font-black text-amber-300 border border-amber-300/40 shadow-xs">
+                  🔒 VIP
+                </span>
+              )}
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🧩</div>
               <h4 className="text-xs font-black text-white">2048 Klasik</h4>
               <p className="text-[10px] text-amber-100 font-bold mt-0.5">Stratejik Matris</p>
@@ -285,9 +310,14 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
 
             {/* Tower Stacker */}
             <button
-              onClick={() => setActiveTab('tower')}
-              className="col-span-2 flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition text-center group active:scale-98"
+              onClick={() => handleArcadeClick('tower', 'Tower Stacker (Kule Denge)')}
+              className="col-span-2 relative flex flex-col items-center justify-center p-5 rounded-3xl bg-gradient-to-r from-purple-600 via-fuchsia-600 to-pink-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition text-center group active:scale-98"
             >
+              {!hasArcadeAccess && (
+                <span className="absolute top-3 right-3 rounded-full bg-black/40 backdrop-blur-sm px-2.5 py-0.5 text-[10px] font-black text-amber-300 border border-amber-300/40 shadow-xs">
+                  🔒 VIP
+                </span>
+              )}
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform duration-300">🏰</div>
               <h4 className="text-sm font-black text-white">Tower Stacker (Kule Denge)</h4>
               <p className="text-xs text-white/90 font-bold mt-0.5">Sonsuz Kule İnşası 🧱</p>
@@ -404,6 +434,40 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
 
       {/* 7. ROCK PAPER SCISSORS (TKM) */}
       {activeTab === 'tkm' && <RockPaperScissorsGame slug={slug} playerName={authState.author} />}
+
+      {/* VIP Upgrade Modal for Locked Arcade Games */}
+      {vipModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl border border-rose-100 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-100 text-purple-600 text-3xl">
+              🎮
+            </div>
+            <div>
+              <span className="inline-block rounded-full bg-purple-100 px-3 py-0.5 text-[10px] font-extrabold text-purple-700 uppercase tracking-wider mb-2">
+                Premium VIP Pakete Özeldir 🔒
+              </span>
+              <h3 className="text-lg font-black text-gray-900">{vipGameTitle}</h3>
+              <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                Dino Runner, Flappy Bird, 2048 ve Tower Stacker oyunlarımız yalnızca <strong>Premium VIP Yıllık Paket</strong> abonelerine açıktır.
+              </p>
+            </div>
+            <div className="space-y-2 pt-2">
+              <a
+                href="/checkout?plan=yearly_premium"
+                className="w-full block rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 py-3 text-xs font-black text-white shadow-md hover:opacity-95 transition active:scale-95"
+              >
+                ⭐ Premium VIP&apos;ye Yükselt (₺150 Farkla)
+              </a>
+              <button
+                onClick={() => setVipModalOpen(false)}
+                className="w-full block rounded-xl bg-gray-100 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-200 transition active:scale-95"
+              >
+                Kapat ve Diğer Oyunları Oyna
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

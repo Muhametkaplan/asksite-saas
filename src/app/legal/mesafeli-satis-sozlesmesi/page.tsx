@@ -54,7 +54,7 @@ export default function MesafeliSatisSozlesmesiPage() {
               1.2. ALICI (Müşteri / Kullanıcı)
             </h3>
             <p className="leading-relaxed">
-              AskSite SaaS platformu (https://www.asksite.com.tr) üzerinden dijital çift sitesi hizmeti, yıllık/ömür boyu erişim paketi veya NFC kart siparişi veren, ödeme aşamasında ad, soyad ve iletişim bilgilerini elektronik ortamda beyan eden gerçek veya tüzel kişi.
+              AskSite SaaS platformu (https://www.asksite.com.tr) üzerinden dijital çift sitesi hizmeti, 1 yıllık abonelik paketleri siparişi veren, ödeme aşamasında ad, soyad ve iletişim bilgilerini elektronik ortamda beyan eden gerçek veya tüzel kişi.
             </p>
           </div>
         </div>
@@ -64,7 +64,7 @@ export default function MesafeliSatisSozlesmesiPage() {
       <section className="space-y-3">
         <h2 className="text-base font-bold text-gray-900">Madde 2 – Sözleşmenin Konusu</h2>
         <p className="leading-relaxed">
-          İşbu Sözleşme, ALICI&apos;nın SATICI&apos;ya ait <strong>https://www.asksite.com.tr</strong> internet sitesi üzerinden elektronik ortamda siparişini verdiği aşağıda nitelikleri ve satış fiyatı belirtilen <strong>dijital çift web sitesi SaaS (Software as a Service) yazılım/bulut hizmeti</strong> ve isteğe bağlı NFC akıllı hediye kartı ürünlerinin satışı, anında ifası ve teslimi ile ilgili olarak 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği hükümleri gereğince tarafların hak ve yükümlülüklerini kapsamaktadır.
+          İşbu Sözleşme, ALICI&apos;nın SATICI&apos;ya ait <strong>https://www.asksite.com.tr</strong> internet sitesi üzerinden elektronik ortamda siparişini verdiği aşağıda nitelikleri ve satış fiyatı belirtilen <strong>dijital çift web sitesi SaaS (Software as a Service) yazılım/bulut hizmeti</strong> ürünlerinin satışı, anında ifası ve teslimi ile ilgili olarak 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler Yönetmeliği hükümleri gereğince tarafların hak ve yükümlülüklerini kapsamaktadır.
         </p>
       </section>
 
@@ -72,12 +72,12 @@ export default function MesafeliSatisSozlesmesiPage() {
       <section className="space-y-3">
         <h2 className="text-base font-bold text-gray-900">Madde 3 – Hizmetin Niteliği, Paketler ve Ödeme Koşulları</h2>
         <p className="leading-relaxed">
-          Sözleşmeye konu hizmet; ALICI&apos;ya özel bir alt alan adı veya dinamik slug (örn. <code>/c/partner1-partner2</code>) üzerinde barındırılan, etkileşimli mini oyunlar (2048, Dinozor, Flappy Bird, Tower Stacker), anı defteri, sevgi kavanozu, ilişki sayacı, canlı çizim tuvali, Spotify müzik çalar ve Gemini AI film öneri robotu içeren kişiselleştirilmiş dijital web uygulaması erişimidir.
+          Sözleşmeye konu hizmet; ALICI&apos;ya özel bir alt alan adı veya dinamik slug (örn. <code>/c/partner1-partner2</code>) üzerinde barındırılan, etkileşimli mini oyunlar, anı defteri, sevgi kavanozu, ilişki sayacı, canlı çizim tuvali, Spotify müzik çalar ve aşk aktiviteleri içeren kişiselleştirilmiş dijital web uygulaması erişimidir.
         </p>
         <ul className="list-disc pl-5 space-y-1.5 text-xs text-gray-600">
-          <li><strong>1 Yıllık Çift Paketi:</strong> 199 ₺ (Tüm vergiler ve yasal KDV dahildir). 1 yıl süreyle kesintisiz bulut barındırma ve yayın.</li>
-          <li><strong>Ömür Boyu Aşk Paketi:</strong> 349 ₺ (Tüm vergiler ve yasal KDV dahildir). Sınırsız & ömür boyu kalıcı yayın ve ek depolama.</li>
-          <li>Ödemeler; BDDK lisanslı güvenli ödeme aracıları (PayTR / iyzico) üzerinden 256-Bit SSL şifreleme ve 3D Secure güvencesiyle kredi kartı, banka kartı veya havale/EFT ile tahsil edilir.</li>
+          <li><strong>Standart Yıllık Paket:</strong> 250 ₺ (Tüm vergiler ve yasal KDV dahildir). 1 yıl (365 gün) süreyle kesintisiz bulut barındırma ve temel özellikler yayını.</li>
+          <li><strong>Premium VIP Yıllık Paket:</strong> 400 ₺ (Tüm vergiler ve yasal KDV dahildir). 1 yıl (365 gün) süreyle harita, anı defteri, zaman kapsülü ve tüm arcade oyunların dahil olduğu tam erişim yayını.</li>
+          <li>Ödemeler; BDDK lisanslı güvenli ödeme aracıları (Shopier) üzerinden 256-Bit SSL şifreleme ve 3D Secure güvencesiyle kredi kartı veya banka kartı ile tahsil edilir.</li>
         </ul>
       </section>
 

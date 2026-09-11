@@ -83,21 +83,7 @@ export default function TeslimatVeOdemePage() {
         </div>
       </section>
 
-      {/* 4. Fiziksel NFC Ürünleri Kargo Teslimatı */}
-      <section className="space-y-3">
-        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-          <Truck className="h-5 w-5 text-purple-500" />
-          <span>4. Fiziksel NFC Akıllı Kart Kargo Teslimatı</span>
-        </h2>
-        <p className="leading-relaxed">
-          Fiziksel NFC Akıllı Kart veya hediye ürünü içeren paketler satın alındığında:
-        </p>
-        <ul className="list-disc pl-5 space-y-1.5 text-xs text-gray-600 leading-relaxed">
-          <li><strong>Ücretsiz Kargo:</strong> Fiziksel ürünlerde Türkiye&apos;nin 81 iline anlaşmalı kargo ile gönderim ücretsizdir.</li>
-          <li><strong>Kargoya Veriliş Süresi:</strong> Kişiye özel NFC çip kodlamasının ardından ürünler 1-2 iş günü içinde kargo firmasına teslim edilir.</li>
-          <li><strong>Kargo Takip Bilgisi:</strong> Kargo takip numarası sipariş sırasında beyan edilen e-posta adresinize veya WhatsApp numaranıza iletilir.</li>
-        </ul>
-      </section>
+
 
       {/* 5. Satıcı & İletişim Bilgileri */}
       <section className="space-y-3">

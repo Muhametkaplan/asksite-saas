@@ -149,12 +149,13 @@ export interface CoupleConfig {
   is_active?: boolean;
   isActive?: boolean;
   isPaid?: boolean;
-  plan?: '1_year' | 'lifetime' | string;
-  package_type?: 'yearly' | 'lifetime' | 'nfc' | 'digital' | string;
+  plan?: 'yearly_standard' | 'yearly_premium' | '1_year' | 'lifetime' | string;
+  package_type?: 'yearly_standard' | 'yearly_premium' | 'yearly' | 'lifetime' | 'nfc' | 'digital' | string;
   packageType?: string;
   paid_at?: string;
   paidAt?: any;
   expires_at?: string | null;
+  subscription_status?: 'active' | 'expired';
   price?: number;
   owner_uid?: string;
   owner_email?: string;

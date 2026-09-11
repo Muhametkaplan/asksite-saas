@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getCoupleBySlug } from '@/lib/couples';
+import { getCoupleBySlug, isSubscriptionExpired, isFeatureAllowedForPackage } from '@/lib/couples';
 
 import FloatingHearts from '@/components/FloatingHearts';
 import MusicPlayer from '@/components/MusicPlayer';
@@ -8,7 +8,6 @@ import RelationshipTimer from '@/components/RelationshipTimer';
 import NavigationGrid from '@/components/NavigationGrid';
 import RomanticMap from '@/components/RomanticMap';
 import LoveJar from '@/components/LoveJar';
-import CineAIWidget from '@/components/CineAIWidget';
 import EmergencyHug from '@/components/EmergencyHug';
 import BottomNav from '@/components/BottomNav';
 import Ticker from '@/components/Ticker';
@@ -88,6 +87,39 @@ export default async function CouplePage({ params }: PageProps) {
           </div>
           <div className="pt-2 text-xs text-gray-400 font-mono">
             AskSite SaaS • Ödeme Bekleniyor ⏳
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Check 1-Year Subscription Expiry (365 days)
+  if (slug !== 'demo' && isSubscriptionExpired(couple.expires_at)) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-rose-950 to-slate-900 flex items-center justify-center p-6 text-center text-white">
+        <div className="max-w-md rounded-3xl bg-white/10 backdrop-blur-xl p-8 border border-white/20 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 text-3xl">
+            ⏳
+          </div>
+          <h1 className="text-2xl font-black text-rose-300">
+            {couple.partner1_name} & {couple.partner2_name}
+          </h1>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 px-3.5 py-1 text-xs font-bold text-rose-300">
+            Abonelik Süresi Doldu
+          </div>
+          <p className="text-sm font-medium text-gray-200 leading-relaxed">
+            Bu çift sitesinin 1 yıllık (365 gün) yayın süresi tamamlanmıştır. Aşk sayfanızı yeniden yayına almak ve tüm anılarınızı korumaya devam etmek için aboneliğinizi yenileyin.
+          </p>
+          <div className="pt-3">
+            <a
+              href="/checkout"
+              className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold text-sm shadow-lg hover:brightness-110 transition-all"
+            >
+              Aboneliği 1 Yıl Yenile (₺250) ✨
+            </a>
+          </div>
+          <div className="pt-2 text-xs text-gray-400 font-mono">
+            AskSite SaaS • 365 Günlük Abonelik Modeli
           </div>
         </div>
       </main>
@@ -190,8 +222,8 @@ export default async function CouplePage({ params }: PageProps) {
           <SpotifyWidget spotifyUrl={couple.spotify_url} lyrics={couple.spotify_lyrics} />
         )}
 
-        {/* Random Memory Surprise Card */}
-        {toggles.memory !== false && (
+        {/* Random Memory Surprise Card (Premium'a Özel) */}
+        {toggles.memory !== false && isFeatureAllowedForPackage(couple.plan || couple.package_type, 'daily_memory') && (
           <RandomMemoryWidget memories={couple.memories} />
         )}
 
@@ -203,9 +235,29 @@ export default async function CouplePage({ params }: PageProps) {
         {/* Navigation Grid to Subpages */}
         <NavigationGrid slug={couple.slug} />
 
-        {/* Romantic Map Widget */}
+        {/* Romantic Map Widget (Standart pakette kilitli, Premium'da açık) */}
         {toggles.map !== false && (
-          <RomanticMap coupleId={couple.id || couple.slug} />
+          isFeatureAllowedForPackage(couple.plan || couple.package_type, 'map') ? (
+            <RomanticMap coupleId={couple.id || couple.slug} />
+          ) : (
+            <div className="my-6 rounded-3xl bg-white/70 backdrop-blur-md p-6 border border-white/80 shadow-md text-center space-y-3">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-600 text-2xl">
+                📍
+              </div>
+              <h3 className="text-base font-extrabold text-gray-800">
+                Aşk Haritası (Bizim Haritamız) 🔒
+              </h3>
+              <p className="text-xs text-gray-500 max-w-xs mx-auto">
+                Birlikte gezdiğiniz yerleri kalplerle haritaya işaretleme özelliği <strong>Premium VIP Yıllık Pakete</strong> özeldir.
+              </p>
+              <a
+                href="/checkout?plan=yearly_premium"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-bold shadow-md hover:opacity-90 transition"
+              >
+                ⭐ Premium VIP&apos;ye Yükselt (₺150 Farkla)
+              </a>
+            </div>
+          )
         )}
 
         {/* Love Jar */}

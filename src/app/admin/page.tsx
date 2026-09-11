@@ -590,18 +590,18 @@ export default function SuperAdminDashboard() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div className="rounded-2xl bg-slate-950 p-4 border border-slate-800">
-                  <div className="text-xs text-slate-400 mb-1">1 Yıllık Dijital (₺199)</div>
-                  <div className="text-xl font-black text-white">{metrics?.packageCounts?.yearly || 0} Adet</div>
+                  <div className="text-xs text-slate-400 mb-1">Standart Yıllık (₺250)</div>
+                  <div className="text-xl font-black text-white">{metrics?.packageCounts?.yearly_standard || 0} Adet</div>
                 </div>
 
                 <div className="rounded-2xl bg-slate-950 p-4 border border-slate-800">
-                  <div className="text-xs text-slate-400 mb-1">Ömür Boyu VIP (₺349)</div>
-                  <div className="text-xl font-black text-purple-400">{metrics?.packageCounts?.lifetime || 0} Adet</div>
+                  <div className="text-xs text-slate-400 mb-1">Premium VIP Yıllık (₺400)</div>
+                  <div className="text-xl font-black text-purple-400">{metrics?.packageCounts?.yearly_premium || 0} Adet</div>
                 </div>
 
                 <div className="rounded-2xl bg-slate-950 p-4 border border-slate-800">
-                  <div className="text-xs text-slate-400 mb-1">NFC Kartlı Kutu (₺499)</div>
-                  <div className="text-xl font-black text-rose-400">{metrics?.packageCounts?.nfc || 0} Adet</div>
+                  <div className="text-xs text-slate-400 mb-1">Eski / Diğer Kayıtlar</div>
+                  <div className="text-xl font-black text-slate-400">{(metrics?.packageCounts?.lifetime || 0) + (metrics?.packageCounts?.other || 0)} Adet</div>
                 </div>
               </div>
             </div>
@@ -1302,9 +1302,8 @@ export default function SuperAdminDashboard() {
                   onChange={(e) => setEditingCouple({ ...editingCouple, package_type: e.target.value })}
                   className="w-full rounded-xl bg-slate-950 border border-slate-800 p-2 text-white outline-none"
                 >
-                  <option value="yearly">1 Yıllık Dijital (₺199)</option>
-                  <option value="lifetime">Ömür Boyu VIP (₺349)</option>
-                  <option value="nfc">NFC Kartlı Kutu (₺499)</option>
+                  <option value="yearly_standard">Standart Yıllık (₺250)</option>
+                  <option value="yearly_premium">Premium VIP Yıllık (₺400)</option>
                 </select>
               </div>
 
