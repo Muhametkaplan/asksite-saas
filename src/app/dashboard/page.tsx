@@ -33,6 +33,7 @@ import {
   Users,
   Link2,
   LayoutDashboard,
+  Camera,
 } from 'lucide-react';
 
 import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
@@ -43,6 +44,7 @@ import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMa
 import { uploadFileToSupabase } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
+import StoryCardModal from '@/components/StoryCardModal';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 import PhoneInput from '@/components/PhoneInput';
 
@@ -55,8 +57,8 @@ function DashboardContent() {
   const [userCoupleSlug, setUserCoupleSlug] = useState<string | null>(null);
 
   const initialTab = (searchParams.get('tab') as any) || 'info';
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'quiz' | 'map' | 'qr'>(
-    ['info', 'media', 'modules', 'coupons', 'diary', 'capsule', 'cinema', 'wheel', 'quiz', 'map', 'qr'].includes(initialTab) ? initialTab : 'info'
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'quiz' | 'map' | 'qr' | 'story'>(
+    ['info', 'media', 'modules', 'coupons', 'diary', 'capsule', 'cinema', 'wheel', 'quiz', 'map', 'qr', 'story'].includes(initialTab) ? initialTab : 'info'
   );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -602,6 +604,7 @@ function DashboardContent() {
     setDisableModalOpen(false);
   };
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [storyModalOpen, setStoryModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Account Modal Form State
@@ -1124,6 +1127,14 @@ function DashboardContent() {
             </button>
 
             <button
+              onClick={() => setStoryModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 transition active:scale-95 cursor-pointer"
+              title="Instagram Story Kartı Oluştur"
+            >
+              <Camera className="h-3.5 w-3.5 text-purple-600" /> 📸 Story Kartı
+            </button>
+
+            <button
               onClick={() => setSiteManagementOpen(!siteManagementOpen)}
               className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition active:scale-95 cursor-pointer"
               title={siteManagementOpen ? 'Yönetim Kartını Daralt' : 'Hızlı Ayarlar & Eşleşme Kodunu Göster'}
@@ -1390,6 +1401,16 @@ function DashboardContent() {
               }`}
             >
               <QrCode className="h-3.5 w-3.5" /> 11. HD QR Kod Kartı
+            </button>
+            <button
+              onClick={() => setActiveTab('story')}
+              className={`flex-1 min-w-[125px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'story'
+                  ? 'bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-rose-500'
+              }`}
+            >
+              <Camera className="h-3.5 w-3.5" /> 12. 📸 Story Kartı
             </button>
           </div>
 
@@ -2681,6 +2702,29 @@ function DashboardContent() {
               partner2={config.partner2_name}
             />
           )}
+
+          {/* TAB 12: INSTAGRAM STORY KARTI */}
+          {activeTab === 'story' && (
+            <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-md border border-gray-100 text-center space-y-4">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-tr from-rose-500 via-pink-600 to-purple-600 text-white text-3xl shadow-xl shadow-rose-500/25">
+                📸
+              </div>
+              <h3 className="text-xl font-black text-gray-900">
+                Instagram & WhatsApp Story Kartı Stüdyosu ✨
+              </h3>
+              <p className="text-xs text-gray-500 max-w-lg mx-auto leading-relaxed">
+                Çift sayfanız için 9:16 formatında kristal netliğinde (1080x1920) hikaye kartları oluşturun. Aşk sayacı, Spotify çaları, retro polaroid, aşk uyumu veya VIP aşk haritası şablonlarından birini seçin; tek tıkla Instagram veya WhatsApp&apos;ta paylaşın!
+              </p>
+              <div className="pt-2">
+                <button
+                  onClick={() => setStoryModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 px-7 py-3.5 text-xs font-black text-white shadow-xl shadow-rose-500/25 hover:scale-105 active:scale-95 transition cursor-pointer"
+                >
+                  <Sparkles className="h-4 w-4" /> Story Kartı Stüdyosunu Başlat (Önizle & Paylaş)
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Desktop Live Preview (5 cols) */}
@@ -2942,6 +2986,14 @@ function DashboardContent() {
           </button>
         </div>
       </div>
+
+      {/* Instagram Story Card Generator Modal */}
+      <StoryCardModal
+        isOpen={storyModalOpen}
+        onClose={() => setStoryModalOpen(false)}
+        config={config}
+        isPremium={isPremium}
+      />
     </div>
   );
 }

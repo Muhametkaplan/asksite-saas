@@ -20,6 +20,7 @@ import CustomAudioPlayer from '@/components/CustomAudioPlayer';
 import PartnerAuthModal from '@/components/PartnerAuthModal';
 import LiveCanvasWidget from '@/components/LiveCanvasWidget';
 import QuickDashboardBar from '@/components/QuickDashboardBar';
+import StoryShareButton from '@/components/StoryShareButton';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -268,6 +269,9 @@ export default async function CouplePage({ params }: PageProps) {
         {/* Emergency Hug WhatsApp Button */}
         <EmergencyHug phone={couple.whatsapp_number} message={couple.whatsapp_message} />
       </div>
+
+      {/* Floating Instagram Story Share Button */}
+      <StoryShareButton couple={couple} />
 
       {/* Floating Bottom Nav */}
       <BottomNav slug={couple.slug} />
