@@ -1,9 +1,29 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Check, Sparkles, Heart, ShieldCheck, Zap, Lock, CreditCard, Gift, Star } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function PricingSection() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsLoggedIn(!!user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const standardUrl = isLoggedIn
+    ? '/checkout?plan=yearly_standard'
+    : `/login?redirect=${encodeURIComponent('/checkout?plan=yearly_standard')}`;
+
+  const premiumUrl = isLoggedIn
+    ? '/checkout?plan=yearly_premium'
+    : `/login?redirect=${encodeURIComponent('/checkout?plan=yearly_premium')}`;
+
   return (
     <section id="fiyatlandirma" className="relative py-20 px-6 sm:px-8 bg-gradient-to-b from-transparent via-rose-50/50 to-purple-50/50">
       {/* Decorative Glow */}
@@ -100,7 +120,7 @@ export default function PricingSection() {
             {/* CTA */}
             <div className="pt-8 space-y-3">
               <Link
-                href="/checkout?plan=yearly_standard"
+                href={standardUrl}
                 className="flex items-center justify-center gap-2 w-full rounded-2xl bg-gray-900 hover:bg-black text-white py-4 px-6 text-sm font-black shadow-lg hover:shadow-xl transition-all duration-200 active:scale-98"
               >
                 <span>Standart Yıllık Paketi Başlat 🚀</span>
@@ -193,7 +213,7 @@ export default function PricingSection() {
             {/* CTA */}
             <div className="pt-8 space-y-3">
               <Link
-                href="/checkout?plan=yearly_premium"
+                href={premiumUrl}
                 className="flex items-center justify-center gap-2 w-full rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white py-4 px-6 text-sm font-black shadow-xl shadow-rose-500/25 transition-all duration-200 active:scale-98"
               >
                 <Heart className="h-4 w-4 fill-white" />

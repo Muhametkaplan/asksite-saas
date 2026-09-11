@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -10,6 +10,7 @@ import {
   updateProfile,
   sendEmailVerification,
   signOut,
+  onAuthStateChanged,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
@@ -86,6 +87,9 @@ function LoginContent() {
         localStorage.setItem('asksite_couple_slug', targetSlugParam);
       }
       window.location.href = `/dashboard?slug=${targetSlugParam}`;
+    } else if (redirectTarget.includes('checkout')) {
+      const targetUrl = redirectTarget.startsWith('/') ? redirectTarget : `/${redirectTarget}`;
+      window.location.href = targetUrl;
     } else if (matchedSlug) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('activeCoupleSlug', matchedSlug);
@@ -97,6 +101,18 @@ function LoginContent() {
       window.location.href = targetUrl;
     }
   };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const isPassword = firebaseUser.providerData?.some((p) => p.providerId === 'password');
+        if (!isPassword || firebaseUser.emailVerified) {
+          handleSuccessAuth(firebaseUser);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [redirectTarget, targetSlugParam]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);

@@ -23,6 +23,7 @@ import {
   Users,
   Copy,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { connectPartnerWithPairCode, getCoupleBySlug } from '@/lib/couples';
 import { CoupleConfig } from '@/types/couple';
@@ -36,6 +37,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [packageType, setPackageType] = useState<'yearly_standard' | 'yearly_premium'>('yearly_premium');
   const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const [partner1, setPartner1] = useState('');
   const [partner2, setPartner2] = useState('');
@@ -67,14 +69,25 @@ export default function CheckoutPage() {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseAuthUser(firebaseUser);
-      if (firebaseUser) {
-        setCurrentUser({
-          displayName: firebaseUser.displayName || '',
-          email: firebaseUser.email || '',
-        });
-        if (firebaseUser.email) {
-          setPartner1Email((prev) => prev || firebaseUser.email || '');
+      if (!firebaseUser) {
+        // STRICT REQUIREMENT: Giriş yapmadan checkout sayfasına girilemez!
+        if (typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const planParam = urlParams.get('plan');
+          const redirectTarget = planParam ? `/checkout?plan=${planParam}` : '/checkout';
+          window.location.replace(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
         }
+        return;
+      }
+
+      setAuthLoading(false);
+      setCurrentUser({
+        displayName: firebaseUser.displayName || '',
+        email: firebaseUser.email || '',
+      });
+      if (firebaseUser.email) {
+        setPartner1Email(firebaseUser.email);
+      }
 
         if (db) {
           try {
@@ -147,15 +160,6 @@ export default function CheckoutPage() {
           } catch (e) {}
         }
         setHasPurchased(false);
-      } else if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('asksite_user');
-        if (stored) {
-          try {
-            setCurrentUser(JSON.parse(stored));
-          } catch (e) {}
-        }
-        setHasPurchased(false);
-      }
     });
     return () => unsubscribe();
   }, []);
@@ -364,6 +368,17 @@ export default function CheckoutPage() {
       setVerifyingOrder(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-rose-600 font-bold p-4">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-rose-500" />
+          <span className="text-xs font-black tracking-wide">Hesabınız Doğrulanıyor... ✨</span>
+        </div>
+      </div>
+    );
+  }
 
   if (firebaseAuthUser && !firebaseAuthUser.emailVerified && firebaseAuthUser.providerData.some((p: any) => p.providerId === 'password')) {
     return (
@@ -816,16 +831,21 @@ export default function CheckoutPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                1. Partner E-Postası *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-gray-700">
+                  1. Partner E-Postası (Hesabınız) *
+                </label>
+                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
+                  Kayıtlı Hesabınız
+                </span>
+              </div>
               <input
                 type="email"
                 required
+                readOnly
                 placeholder="partner1@asksite.com"
-                value={partner1Email}
-                onChange={(e) => setPartner1Email(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200"
+                value={partner1Email || currentUser?.email || firebaseAuthUser?.email || ''}
+                className="w-full rounded-xl border border-gray-200 bg-gray-100/80 px-4 py-2.5 text-sm font-medium text-gray-700 outline-none cursor-not-allowed select-none"
               />
             </div>
             <div>
