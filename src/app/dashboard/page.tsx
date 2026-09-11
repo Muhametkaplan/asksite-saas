@@ -2666,35 +2666,6 @@ function DashboardContent() {
               partner2={config.partner2_name}
             />
           )}
-
-          {/* Bottom Tab Save Strip for Long Forms */}
-          <div className="rounded-3xl bg-white/90 backdrop-blur-md border border-rose-100 p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-            <div>
-              <h4 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
-                <Save className="h-4 w-4 text-rose-500" /> Değişikliklerinizi Kaydedin
-              </h4>
-              <p className="text-xs text-gray-500 mt-1">
-                {hasUnsavedChanges
-                  ? '⚠️ Sayfada henüz kaydedilmemiş düzenlemeleriniz var. Canlı sitenize yansıması için kaydedin.'
-                  : '✨ Tüm ayarlarınız güncel. İstediğiniz zaman kaydedebilir veya sitenize gidebilirsiniz.'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2.5 w-full sm:w-auto">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-md hover:scale-102 transition active:scale-95 disabled:opacity-50 cursor-pointer"
-              >
-                <Save className="h-4 w-4" /> {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-              </button>
-              <button
-                onClick={handleGoToSite}
-                className="flex items-center justify-center gap-1.5 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-100 transition active:scale-95 cursor-pointer"
-              >
-                <ExternalLink className="h-3.5 w-3.5 text-rose-500" /> Siteme Git 🔗
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Right Desktop Live Preview (5 cols) */}
