@@ -28,14 +28,19 @@ export default function HomeNavbar() {
             if (snap.exists()) {
               const data = snap.data();
               const isPaid =
-                data.hasPurchasedSite === true ||
-                data.hasActiveSubscription === true ||
-                data.isPaid === true ||
-                (data.coupleSlug && data.coupleSlug !== 'demo');
+                (data.hasPurchasedSite === true || data.hasActiveSubscription === true || data.isPaid === true) &&
+                Boolean(data.coupleSlug && data.coupleSlug !== 'demo');
 
               if (isPaid && data.coupleSlug) {
-                setHasPurchased(true);
-                setUserCoupleSlug(data.coupleSlug);
+                // Verify couple actually has isPaid in Firestore
+                const cSnap = await getDoc(doc(db, 'couples', data.coupleSlug));
+                if (cSnap.exists() && cSnap.data().isPaid === true) {
+                  setHasPurchased(true);
+                  setUserCoupleSlug(data.coupleSlug);
+                } else {
+                  setHasPurchased(false);
+                  setUserCoupleSlug(null);
+                }
               } else {
                 setHasPurchased(false);
                 setUserCoupleSlug(null);

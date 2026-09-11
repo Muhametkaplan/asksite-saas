@@ -92,20 +92,26 @@ export default function CheckoutPage() {
             const snap = await getDoc(userRef);
             if (snap.exists()) {
               const data = snap.data();
-              if (data.hasPurchasedSite === true || data.coupleSlug) {
-                setHasPurchased(true);
-                setUserCoupleSlug(data.coupleSlug || 'demo');
-                return;
+              // Strictly verify that the couple exists AND isPaid === true
+              if (data.coupleSlug && data.coupleSlug !== 'demo') {
+                try {
+                  const cSnap = await getDoc(doc(db, 'couples', data.coupleSlug));
+                  if (cSnap.exists() && cSnap.data().isPaid === true) {
+                    setHasPurchased(true);
+                    setUserCoupleSlug(data.coupleSlug);
+                    return;
+                  }
+                } catch (e) {}
               }
 
-              // Check if pendingCoupleSlug is already paid
+              // Check if pendingCoupleSlug is already paid (e.g. Shopier webhook finished)
               if (data.pendingCoupleSlug) {
                 try {
                   const cSnap = await getDoc(doc(db, 'couples', data.pendingCoupleSlug));
                   if (cSnap.exists()) {
                     const cData = cSnap.data();
-                    if (cData.isPaid || cData.is_active || cData.isActive) {
-                      await setDoc(userRef, { hasPurchasedSite: true, coupleSlug: data.pendingCoupleSlug }, { merge: true });
+                    if (cData.isPaid === true) {
+                      await setDoc(userRef, { hasPurchasedSite: true, isPaid: true, coupleSlug: data.pendingCoupleSlug, pendingCoupleSlug: null }, { merge: true });
                       setHasPurchased(true);
                       setUserCoupleSlug(data.pendingCoupleSlug);
                       return;
@@ -121,9 +127,9 @@ export default function CheckoutPage() {
               const qOwner = query(collection(db, 'couples'), where('owner_uid', '==', firebaseUser.uid));
               const snapOwner = await getDocs(qOwner);
               if (!snapOwner.empty) {
-                const paidCouple = snapOwner.docs.map((d) => d.data()).find((c) => c.isPaid || c.is_active || c.isActive);
+                const paidCouple = snapOwner.docs.map((d) => d.data()).find((c) => c.isPaid === true);
                 if (paidCouple?.slug) {
-                  await setDoc(userRef, { hasPurchasedSite: true, coupleSlug: paidCouple.slug }, { merge: true });
+                  await setDoc(userRef, { hasPurchasedSite: true, isPaid: true, coupleSlug: paidCouple.slug }, { merge: true });
                   setHasPurchased(true);
                   setUserCoupleSlug(paidCouple.slug);
                   return;
@@ -135,9 +141,9 @@ export default function CheckoutPage() {
                 const qEmail = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', cleanEmail));
                 const snapEmail = await getDocs(qEmail);
                 if (!snapEmail.empty) {
-                  const paidCouple = snapEmail.docs.map((d) => d.data()).find((c) => c.isPaid || c.is_active || c.isActive);
+                  const paidCouple = snapEmail.docs.map((d) => d.data()).find((c) => c.isPaid === true);
                   if (paidCouple?.slug) {
-                    await setDoc(userRef, { hasPurchasedSite: true, coupleSlug: paidCouple.slug }, { merge: true });
+                    await setDoc(userRef, { hasPurchasedSite: true, isPaid: true, coupleSlug: paidCouple.slug }, { merge: true });
                     setHasPurchased(true);
                     setUserCoupleSlug(paidCouple.slug);
                     return;
@@ -177,15 +183,18 @@ export default function CheckoutPage() {
   useEffect(() => {
     async function loadCoupleConfig() {
       if (hasPurchased === true && userCoupleSlug && userCoupleSlug !== 'demo') {
+        const c = await getCoupleBySlug(userCoupleSlug);
+        if (!c || c.isPaid !== true) {
+          setHasPurchased(false);
+          return;
+        }
+
         if (typeof window !== 'undefined') {
           localStorage.setItem('activeCoupleSlug', userCoupleSlug);
           localStorage.setItem('asksite_couple_slug', userCoupleSlug);
         }
 
-        const c = await getCoupleBySlug(userCoupleSlug);
-        if (c) {
-          setUserCoupleConfig(c);
-        }
+        setUserCoupleConfig(c);
 
         if (auth.currentUser && db) {
           try {

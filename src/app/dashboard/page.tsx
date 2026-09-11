@@ -584,7 +584,18 @@ function DashboardContent() {
         : null;
       const targetSlug = slugFromUrl || userCoupleSlug || storedLocalSlug;
 
-      // 0. If partner has authorized PIN session for target slug, allow dashboard
+      // 0. If target couple is specified and not demo, verify it is paid
+      if (targetSlug && targetSlug !== 'demo') {
+        const c = await getCoupleBySlug(targetSlug);
+        if (!c || c.isPaid !== true) {
+          setHasPurchased(false);
+          setUserCoupleSlug(null);
+          router.push(`/checkout?unpaid=${encodeURIComponent(targetSlug)}`);
+          return;
+        }
+      }
+
+      // If partner has authorized PIN session for target slug, allow dashboard only if couple is verified paid
       if (targetSlug && typeof window !== 'undefined') {
         const storedAuth = sessionStorage.getItem(`asksite_auth_${targetSlug}`) || localStorage.getItem(`asksite_auth_${targetSlug}`);
         if (storedAuth) {
@@ -605,42 +616,28 @@ function DashboardContent() {
           const snap = await getDoc(userRef);
           if (snap.exists()) {
             const data = snap.data();
-            const isPaid =
-              data.hasPurchasedSite === true ||
-              data.hasActiveSubscription === true ||
-              data.isPaid === true ||
-              (data.coupleSlug && data.coupleSlug !== 'demo');
+            const activeSlug = data.coupleSlug || storedLocalSlug;
 
-            if (isPaid) {
-              if (data.coupleSlug) setUserCoupleSlug(data.coupleSlug);
-              setHasPurchased(true);
-            } else if (storedLocalSlug && storedLocalSlug !== 'demo') {
-              setUserCoupleSlug(storedLocalSlug);
-              setHasPurchased(true);
-            } else {
-              setHasPurchased(false);
-              setUserCoupleSlug(null);
-              router.push('/checkout');
+            if (activeSlug && activeSlug !== 'demo') {
+              const cSnap = await getDoc(doc(db, 'couples', activeSlug));
+              if (cSnap.exists() && cSnap.data().isPaid === true) {
+                setUserCoupleSlug(activeSlug);
+                setHasPurchased(true);
+                return;
+              }
             }
-          } else if (storedLocalSlug && storedLocalSlug !== 'demo') {
-            setUserCoupleSlug(storedLocalSlug);
-            setHasPurchased(true);
+            setHasPurchased(false);
+            setUserCoupleSlug(null);
+            router.push('/checkout');
           } else {
             setHasPurchased(false);
             router.push('/checkout');
           }
         } catch (e) {
-          if (storedLocalSlug && storedLocalSlug !== 'demo') {
-            setUserCoupleSlug(storedLocalSlug);
-            setHasPurchased(true);
-          }
+          setHasPurchased(false);
+          router.push('/checkout');
         }
       } else if (!auth.currentUser && typeof window !== 'undefined') {
-        if (storedLocalSlug && storedLocalSlug !== 'demo') {
-          setUserCoupleSlug(storedLocalSlug);
-          setHasPurchased(true);
-          return;
-        }
         const storedUser = localStorage.getItem('asksite_user');
         if (!storedUser) {
           router.push('/login?redirect=dashboard');
@@ -670,6 +667,14 @@ function DashboardContent() {
 
       // Security Guard for non-demo couples
       if (targetSlug !== 'demo') {
+        // STRICT PAYMENT CHECK: Unpaid couples cannot open dashboard!
+        if (fetched.isPaid !== true) {
+          setLoading(false);
+          setHasPurchased(false);
+          router.push(`/checkout?unpaid=${encodeURIComponent(targetSlug)}`);
+          return;
+        }
+
         const activeUid = auth.currentUser?.uid || (currentUser as any)?.uid;
         const activeEmail = (auth.currentUser?.email || currentUser?.email || '').toLowerCase().trim();
 

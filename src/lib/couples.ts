@@ -401,9 +401,10 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         ].filter(Boolean))),
         co_owners: config.co_owners || [],
         feature_toggles: config.feature_toggles || {},
-        packageType: 'digital',
-        isActive: true,
-        isPaid: config.isPaid !== undefined ? config.isPaid : true,
+        packageType: config.package_type || config.packageType || 'digital',
+        isActive: config.isActive === true || config.is_active === true ? true : false,
+        is_active: config.is_active === true || config.isActive === true ? true : false,
+        isPaid: config.isPaid === true ? true : false,
         inviteCode: config.inviteCode || config.pair_code || null,
         owner_uid: config.owner_uid || (config.co_owners && config.co_owners[0]) || null,
         owner_email: config.owner_email || config.partner1_email || null,
@@ -418,17 +419,33 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
       const primaryUid = config.owner_uid || config.partner1_uid || (config.co_owners && config.co_owners[0]);
       if (primaryUid) {
         const userRef = doc(db, 'users', primaryUid);
-        await setDoc(
-          userRef,
-          {
-            hasPurchasedSite: true,
-            hasActiveSubscription: true,
-            isPaid: true,
-            coupleSlug: config.slug,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
+        if (config.isPaid === true) {
+          await setDoc(
+            userRef,
+            {
+              hasPurchasedSite: true,
+              hasActiveSubscription: true,
+              isPaid: true,
+              coupleSlug: config.slug,
+              pendingCoupleSlug: null,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } else {
+          // Unpaid: strictly pending, NEVER mark as purchased or paid!
+          await setDoc(
+            userRef,
+            {
+              hasPurchasedSite: false,
+              hasActiveSubscription: false,
+              isPaid: false,
+              pendingCoupleSlug: config.slug,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
       }
 
       return config;
@@ -480,6 +497,13 @@ export async function autoClaimCoupleByEmail(user: { uid: string; email?: string
       const snapDoc = await getDoc(matchedDocRef);
       if (snapDoc.exists()) {
         const cData = snapDoc.data() as Record<string, any>;
+
+        // STRICT: Only auto-claim if the couple site is ACTUALLY PAID!
+        if (cData.isPaid !== true) {
+          console.log(`[autoClaimCoupleByEmail] Couple ${matchedSlug} is unpaid (isPaid=false). Skipping auto-claim.`);
+          return null;
+        }
+
         const coOwners: string[] = cData.co_owners || [];
         const authEmails: string[] = cData.authorized_emails || [];
 

@@ -44,6 +44,32 @@ export default async function SubmodulePage({ params }: ModulePageProps) {
     notFound();
   }
 
+  if (slug !== 'demo' && couple.isPaid !== true) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-rose-950 to-slate-900 flex items-center justify-center p-6 text-center text-white">
+        <div className="max-w-md rounded-3xl bg-white/10 backdrop-blur-xl p-8 border border-white/20 shadow-2xl space-y-5">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 text-3xl">
+            💳
+          </div>
+          <h1 className="text-xl font-black text-rose-300">
+            {couple.partner1_name} & {couple.partner2_name}
+          </h1>
+          <p className="text-sm font-medium text-gray-200">
+            Bu modüle erişebilmek için ödeme işleminin tamamlanması gerekmektedir.
+          </p>
+          <div className="pt-2">
+            <a
+              href="/checkout"
+              className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold text-sm shadow-lg hover:brightness-110 transition-all"
+            >
+              Ödemeyi Tamamla ve Siteni Aç ✨
+            </a>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (couple.is_active === false) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-gray-900 via-rose-950 to-slate-900 flex items-center justify-center p-6 text-center text-white">

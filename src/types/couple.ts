@@ -147,9 +147,11 @@ export interface CoupleConfig {
   allowed_users?: AllowedUsers;
   feature_toggles?: FeatureToggles;
   is_active?: boolean;
+  isActive?: boolean;
   isPaid?: boolean;
   plan?: '1_year' | 'lifetime' | string;
   package_type?: 'yearly' | 'lifetime' | 'nfc' | 'digital' | string;
+  packageType?: string;
   paid_at?: string;
   paidAt?: any;
   expires_at?: string | null;
