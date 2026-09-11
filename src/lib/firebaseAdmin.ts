@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import { getApps, initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
 function cleanString(val?: string): string {
   if (!val) return '';
@@ -14,6 +16,24 @@ function formatPrivateKey(rawKey?: string): string {
   let clean = cleanString(rawKey);
   clean = clean.replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
   return clean;
+}
+
+export function getAdminFirestore(): Firestore {
+  const projectId = cleanString(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) || 'asksite-saas';
+  const clientEmail = cleanString(process.env.FIREBASE_CLIENT_EMAIL);
+  const privateKey = formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+
+  if (!getApps().length) {
+    if (clientEmail && privateKey) {
+      initializeApp({
+        credential: cert({ projectId, clientEmail, privateKey }),
+      });
+    } else {
+      initializeApp({ projectId });
+    }
+  }
+
+  return getFirestore();
 }
 
 async function getGoogleAccessToken(clientEmail: string, privateKey: string): Promise<string> {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSessionFromRequest } from '@/lib/adminAuth';
-import { db } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { getAdminFirestore } from '@/lib/firebaseAdmin';
 
 export async function GET(req: NextRequest) {
   const session = getAdminSessionFromRequest(req);
@@ -25,39 +24,39 @@ export async function GET(req: NextRequest) {
     let totalUsers = 0;
     let verifiedUsers = 0;
 
+    const db = getAdminFirestore();
+
     // Fetch Couples
-    if (db) {
-      try {
-        const couplesSnap = await getDocs(collection(db, 'couples'));
-        totalCouples = couplesSnap.size;
-        couplesSnap.docs.forEach((doc) => {
-          const data = doc.data();
-          if (data.is_active !== false) activeCouples++;
-          else passiveCouples++;
+    try {
+      const couplesSnap = await db.collection('couples').get();
+      totalCouples = couplesSnap.size;
+      couplesSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        if (data.is_active !== false) activeCouples++;
+        else passiveCouples++;
 
-          if (data.isPaid === true) paidCouples++;
+        if (data.isPaid === true) paidCouples++;
 
-          const pkg = (data.package_type || data.plan || '').toLowerCase();
-          if (pkg.includes('nfc')) packageCounts.nfc++;
-          else if (pkg.includes('lifetime') || pkg.includes('vip') || pkg.includes('349') || pkg.includes('399')) packageCounts.lifetime++;
-          else if (pkg.includes('year') || pkg.includes('199') || pkg.includes('digital')) packageCounts.yearly++;
-          else packageCounts.other++;
-        });
-      } catch (e) {
-        console.error('Error fetching couples for metrics:', e);
-      }
+        const pkg = (data.package_type || data.plan || '').toLowerCase();
+        if (pkg.includes('nfc')) packageCounts.nfc++;
+        else if (pkg.includes('lifetime') || pkg.includes('vip') || pkg.includes('349') || pkg.includes('399')) packageCounts.lifetime++;
+        else if (pkg.includes('year') || pkg.includes('199') || pkg.includes('digital')) packageCounts.yearly++;
+        else packageCounts.other++;
+      });
+    } catch (e) {
+      console.error('Error fetching couples for metrics:', e);
+    }
 
-      // Fetch Users
-      try {
-        const usersSnap = await getDocs(collection(db, 'users'));
-        totalUsers = usersSnap.size;
-        usersSnap.docs.forEach((doc) => {
-          const data = doc.data();
-          if (data.emailVerified) verifiedUsers++;
-        });
-      } catch (e) {
-        console.error('Error fetching users for metrics:', e);
-      }
+    // Fetch Users
+    try {
+      const usersSnap = await db.collection('users').get();
+      totalUsers = usersSnap.size;
+      usersSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        if (data.emailVerified) verifiedUsers++;
+      });
+    } catch (e) {
+      console.error('Error fetching users for metrics:', e);
     }
 
     // Fetch Shopier Live Orders to compute Real Revenue

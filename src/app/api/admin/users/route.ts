@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSessionFromRequest } from '@/lib/adminAuth';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { getAdminFirestore } from '@/lib/firebaseAdmin';
 
 export async function GET(req: NextRequest) {
   const session = getAdminSessionFromRequest(req);
@@ -13,19 +12,17 @@ export async function GET(req: NextRequest) {
   const queryText = (searchParams.get('q') || '').toLowerCase().trim();
 
   try {
-    if (!db) {
-      return NextResponse.json({ error: 'Veritabanı bağlı değil.' }, { status: 500 });
-    }
-
-    const snap = await getDocs(collection(db, 'users'));
+    const db = getAdminFirestore();
+    const snap = await db.collection('users').get();
     let users = snap.docs.map((d) => {
       const data = d.data();
+      const coupleSlug = data.coupleSlug || data.couple_slug || data.pendingCoupleSlug || null;
       return {
         uid: d.id,
         displayName: data.displayName || 'İsimsiz Kullanıcı',
         email: data.email || '',
         phone: data.phone || '',
-        couple_slug: data.couple_slug || null,
+        couple_slug: coupleSlug,
         isPaid: data.isPaid === true,
         emailVerified: data.emailVerified === true,
         createdAt: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate().toISOString() : data.createdAt) : null,
@@ -49,6 +46,7 @@ export async function GET(req: NextRequest) {
       users,
     });
   } catch (err: any) {
+    console.error('Error fetching admin users:', err);
     return NextResponse.json({ error: err.message || 'Kullanıcılar alınamadı.' }, { status: 500 });
   }
 }
@@ -63,19 +61,20 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, uid, couple_slug } = body;
 
-    if (!uid || !db) {
+    if (!uid) {
       return NextResponse.json({ error: 'Kullanıcı UID bilgisi gereklidir.' }, { status: 400 });
     }
 
-    const userRef = doc(db, 'users', uid);
+    const db = getAdminFirestore();
+    const userRef = db.collection('users').doc(uid);
 
     if (action === 'verify_email') {
-      await updateDoc(userRef, { emailVerified: true });
+      await userRef.update({ emailVerified: true });
       return NextResponse.json({ success: true, message: 'Kullanıcı e-postası doğrulandı.' });
     }
 
     if (action === 'link_couple') {
-      await updateDoc(userRef, { couple_slug: couple_slug || null });
+      await userRef.update({ coupleSlug: couple_slug || null, couple_slug: couple_slug || null });
       return NextResponse.json({ success: true, message: 'Kullanıcı çift sitesi güncellendi.' });
     }
 
