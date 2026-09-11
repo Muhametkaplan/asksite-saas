@@ -15,7 +15,9 @@ import {
   X,
   Check,
   Calendar,
-  Flame,
+  Compass,
+  Plane,
+  Image as ImageIcon,
   Crown,
 } from 'lucide-react';
 import { CoupleConfig } from '@/types/couple';
@@ -29,21 +31,37 @@ interface StoryCardModalProps {
 
 type TemplateType = 'timer' | 'spotify' | 'polaroid' | 'quiz' | 'map';
 
+const DEFAULT_VINTAGE_PHOTOS = [
+  'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=800&auto=format&fit=crop&q=80', // Romantic sunset beach
+  'https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?w=800&auto=format&fit=crop&q=80', // Holding hands aesthetic
+  'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&auto=format&fit=crop&q=80', // Couple hug warm tone
+];
+
 export default function StoryCardModal({
   isOpen,
   onClose,
   config,
   isPremium = false,
 }: StoryCardModalProps) {
-  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('timer');
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('polaroid');
   const [exporting, setExporting] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
   const [customQuote, setCustomQuote] = useState(
-    config.subtitle || 'Seninle geçen her saniye bir ömre bedel ❤️'
+    config.subtitle || 'Seninle geçen her an bir ömre bedel ❤️'
   );
 
+  // Polaroid Custom Photo State
+  const initialPhoto =
+    config.memories?.find((m) => m.photo_url)?.photo_url ||
+    DEFAULT_VINTAGE_PHOTOS[0];
+  const [polaroidPhoto, setPolaroidPhoto] = useState<string>(initialPhoto);
+
+  // Map Route Point Names State
+  const [routePoint1, setRoutePoint1] = useState('İlk Buluşma 📍');
+  const [routePoint2, setRoutePoint2] = useState('İlk Tatilimiz ✈️');
+  const [routePoint3, setRoutePoint3] = useState('Sonsuz Aşkımız 💍');
+
   const qrRef = useRef<SVGSVGElement | null>(null);
-  const previewRef = useRef<HTMLDivElement | null>(null);
 
   // Time elapsed calculation
   const [timeElapsed, setTimeElapsed] = useState({
@@ -82,8 +100,30 @@ export default function StoryCardModal({
       })
     : 'Bilinmeyen Tarih';
 
-  // Number of memories or markers for map
+  // Vintage 90s date stamp for photo corner (e.g. '24 09 12)
+  const vintageDateStamp = config.start_date
+    ? `'${new Date(config.start_date).getFullYear().toString().slice(-2)} ${(
+        new Date(config.start_date).getMonth() + 1
+      )
+        .toString()
+        .padStart(2, '0')} ${new Date(config.start_date)
+        .getDate()
+        .toString()
+        .padStart(2, '0')}`
+    : "'24 09 12";
+
   const memoryCount = (config.memories || []).length || 5;
+
+  // Helper to load image for canvas
+  const loadImage = (src: string): Promise<HTMLImageElement | null> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  };
 
   // Render 1080x1920 HD Canvas and export
   const handleExport = async (action: 'download' | 'share') => {
@@ -192,7 +232,6 @@ export default function StoryCardModal({
         ctx.fillStyle = '#121212';
         ctx.fillRect(0, 0, 1080, 1920);
 
-        // Ambient Spotify Green / Purple Glow
         ctx.save();
         ctx.filter = 'blur(140px)';
         ctx.fillStyle = 'rgba(29, 185, 84, 0.25)';
@@ -206,7 +245,6 @@ export default function StoryCardModal({
         ctx.fill();
         ctx.restore();
 
-        // Card frame
         ctx.fillStyle = '#181818';
         ctx.strokeStyle = '#282828';
         ctx.lineWidth = 4;
@@ -214,33 +252,27 @@ export default function StoryCardModal({
         ctx.fill();
         ctx.stroke();
 
-        // Spotify Logo Bar
         ctx.fillStyle = '#1db954';
         ctx.font = '900 36px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('● Spotify Aşk Çaları', 540, 260);
 
-        // Album Art Mockup
         ctx.fillStyle = '#282828';
         roundRect(ctx, 240, 320, 600, 600, 40);
         ctx.fill();
 
-        // Heart Inside Album Art
         ctx.fillStyle = '#f43f5e';
         ctx.font = '160px sans-serif';
         ctx.fillText('❤️', 540, 680);
 
-        // Song Title
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 54px sans-serif';
         ctx.fillText(`${partner1} & ${partner2}`, 540, 1000);
 
-        // Artist / Subtitle
         ctx.fillStyle = '#b3b3b3';
         ctx.font = '34px sans-serif';
         ctx.fillText('Bizim Aşk Şarkımız • Özel Parça', 540, 1060);
 
-        // Progress Bar
         ctx.fillStyle = '#404040';
         roundRect(ctx, 190, 1130, 700, 16, 8);
         ctx.fill();
@@ -252,7 +284,6 @@ export default function StoryCardModal({
         ctx.arc(670, 1138, 14, 0, Math.PI * 2);
         ctx.fill();
 
-        // Timestamps
         ctx.fillStyle = '#a7a7a7';
         ctx.font = '28px sans-serif';
         ctx.textAlign = 'left';
@@ -261,66 +292,175 @@ export default function StoryCardModal({
         ctx.fillText('03:45', 890, 1180);
         ctx.textAlign = 'center';
 
-        // Play Controls Mock
         ctx.fillStyle = '#ffffff';
         ctx.font = '50px sans-serif';
         ctx.fillText('⏮   ▶   ⏭', 540, 1260);
 
-        // QR Code & asksite.com.tr
         await drawQrCodeToCanvas(ctx, 450, 1330, 180);
 
         ctx.fillStyle = '#1db954';
         ctx.font = 'bold 30px sans-serif';
         ctx.fillText('asksite.com.tr 🔗', 540, 1560);
       } else if (selectedTemplate === 'polaroid') {
-        // Vintage warm paper background
-        const grad = ctx.createLinearGradient(0, 0, 1080, 1920);
-        grad.addColorStop(0, '#fef2f2');
-        grad.addColorStop(0.5, '#fce7f3');
-        grad.addColorStop(1, '#fff1f2');
-        ctx.fillStyle = grad;
+        // --- REALISTIC VINTAGE NOSTALGIC POLAROID ---
+        // 1. Warm Antique Tabletop / Canvas Texture Background
+        const bgGrad = ctx.createLinearGradient(0, 0, 1080, 1920);
+        bgGrad.addColorStop(0, '#2e1c14');
+        bgGrad.addColorStop(0.5, '#452b1e');
+        bgGrad.addColorStop(1, '#1c100a');
+        ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, 1080, 1920);
 
-        // Polaroid Frame
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = 'rgba(0,0,0,0.18)';
-        ctx.shadowBlur = 40;
-        ctx.shadowOffsetY = 20;
-        roundRect(ctx, 120, 240, 840, 1280, 30);
-        ctx.fill();
-        ctx.shadowColor = 'transparent';
+        // Warm vintage radial ambient vignette
+        const radGlow = ctx.createRadialGradient(540, 900, 200, 540, 900, 900);
+        radGlow.addColorStop(0, 'rgba(251, 191, 36, 0.15)');
+        radGlow.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+        ctx.fillStyle = radGlow;
+        ctx.fillRect(0, 0, 1080, 1920);
 
-        // Photo Area inside Polaroid
-        ctx.fillStyle = '#1e293b';
-        roundRect(ctx, 170, 290, 740, 800, 20);
+        // 2. Realistic Polaroid Body with Multi-layered Drop Shadow
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = 60;
+        ctx.shadowOffsetY = 30;
+        ctx.fillStyle = '#fdfbf7'; // Warm photo paper
+        roundRect(ctx, 110, 220, 860, 1340, 32);
         ctx.fill();
+        ctx.restore();
 
-        // Photo Art & Emoji
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 64px serif';
+        // 3. Tilted Washi Masking Tape at Top
+        ctx.save();
+        ctx.translate(540, 195);
+        ctx.rotate(-0.04);
+        ctx.fillStyle = 'rgba(245, 230, 200, 0.88)';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 6;
+        roundRect(ctx, -140, -25, 280, 50, 8);
+        ctx.fill();
+        // Tape inner dashed fibers
+        ctx.strokeStyle = 'rgba(217, 119, 6, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.strokeRect(-135, -20, 270, 40);
+        ctx.restore();
+
+        // 4. Photo Area inside Polaroid
+        const photoX = 160;
+        const photoY = 280;
+        const photoW = 760;
+        const photoH = 820;
+
+        ctx.save();
+        roundRect(ctx, photoX, photoY, photoW, photoH, 16);
+        ctx.clip();
+
+        // Draw custom or preset photo
+        const loadedImg = await loadImage(polaroidPhoto);
+        if (loadedImg) {
+          // Object-fit cover draw
+          const imgAspect = loadedImg.width / loadedImg.height;
+          const boxAspect = photoW / photoH;
+          let sWidth = loadedImg.width;
+          let sHeight = loadedImg.height;
+          let sx = 0;
+          let sy = 0;
+
+          if (imgAspect > boxAspect) {
+            sWidth = loadedImg.height * boxAspect;
+            sx = (loadedImg.width - sWidth) / 2;
+          } else {
+            sHeight = loadedImg.width / boxAspect;
+            sy = (loadedImg.height - sHeight) / 2;
+          }
+
+          ctx.drawImage(loadedImg, sx, sy, sWidth, sHeight, photoX, photoY, photoW, photoH);
+
+          // Warm vintage sepia & golden-hour overlay
+          ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
+          ctx.fillRect(photoX, photoY, photoW, photoH);
+
+          // Subtle photo vignette
+          const photoVig = ctx.createRadialGradient(
+            photoX + photoW / 2,
+            photoY + photoH / 2,
+            photoW / 3,
+            photoX + photoW / 2,
+            photoY + photoH / 2,
+            photoW / 1.1
+          );
+          photoVig.addColorStop(0, 'transparent');
+          photoVig.addColorStop(1, 'rgba(30, 20, 10, 0.45)');
+          ctx.fillStyle = photoVig;
+          ctx.fillRect(photoX, photoY, photoW, photoH);
+        } else {
+          // Elegant Fallback Silhouette Art
+          const skyGrad = ctx.createLinearGradient(photoX, photoY, photoX, photoY + photoH);
+          skyGrad.addColorStop(0, '#f97316');
+          skyGrad.addColorStop(0.5, '#ec4899');
+          skyGrad.addColorStop(1, '#312e81');
+          ctx.fillStyle = skyGrad;
+          ctx.fillRect(photoX, photoY, photoW, photoH);
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 54px serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${partner1} & ${partner2}`, photoX + photoW / 2, photoY + 360);
+
+          ctx.font = '120px sans-serif';
+          ctx.fillText('📸 ❤️', photoX + photoW / 2, photoY + 500);
+        }
+
+        // Vintage Light Leak Effect (diagonal soft orange ray)
+        const flare = ctx.createLinearGradient(photoX, photoY, photoX + 300, photoY + 300);
+        flare.addColorStop(0, 'rgba(255, 237, 213, 0.4)');
+        flare.addColorStop(0.5, 'rgba(251, 146, 60, 0.2)');
+        flare.addColorStop(1, 'transparent');
+        ctx.fillStyle = flare;
+        ctx.fillRect(photoX, photoY, photoW, photoH);
+
+        // 90s Orange Digital Film Camera Date Stamp (Bottom Right of Photo)
+        ctx.font = '900 36px monospace, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ff8800';
+        ctx.shadowColor = 'rgba(255, 136, 0, 0.8)';
+        ctx.shadowBlur = 10;
+        ctx.fillText(vintageDateStamp, photoX + photoW - 30, photoY + photoH - 30);
+        ctx.restore();
+
+        // 5. Authentic Polaroid Caption & Handwriting
+        ctx.fillStyle = '#1c1917';
+        ctx.font = 'italic 700 48px cursive, serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`${partner1} & ${partner2}`, 540, 680);
+        ctx.fillText(`${partner1} & ${partner2}`, 540, 1170);
 
-        ctx.font = '120px sans-serif';
-        ctx.fillText('📸 ❤️', 540, 820);
+        ctx.fillStyle = '#44403c';
+        ctx.font = 'italic 500 34px cursive, sans-serif';
+        ctx.fillText(`“${customQuote}”`, 540, 1230);
 
-        // Handwritten Note on Polaroid bottom
-        ctx.fillStyle = '#1e1b4b';
-        ctx.font = 'italic bold 44px cursive, sans-serif';
-        ctx.fillText(`“${customQuote}”`, 540, 1170);
+        // Vintage Postal Stamp Badge
+        ctx.strokeStyle = '#e11d48';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(170, 1290, 240, 64);
+        ctx.fillStyle = '#e11d48';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('★ AŞK POSTASI ★', 290, 1332);
+
+        // Start Date Inscription
+        ctx.fillStyle = '#78716c';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Tarih: ${startDateStr}`, 170, 1390);
+
+        // Stamp-framed AskSite QR Code on the right
+        await drawQrCodeToCanvas(ctx, 750, 1260, 150);
 
         ctx.fillStyle = '#e11d48';
-        ctx.font = 'bold 32px sans-serif';
-        ctx.fillText(`${startDateStr} • Sonsuza Dek`, 540, 1240);
-
-        // QR Code
-        await drawQrCodeToCanvas(ctx, 455, 1290, 170);
-
-        ctx.fillStyle = '#64748b';
-        ctx.font = 'bold 26px sans-serif';
-        ctx.fillText('asksite.com.tr', 540, 1495);
+        ctx.font = '900 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('asksite.com.tr', 825, 1445);
       } else if (selectedTemplate === 'quiz') {
-        // Romantic Violet/Pink gradient
         const grad = ctx.createLinearGradient(0, 0, 1080, 1920);
         grad.addColorStop(0, '#3b0764');
         grad.addColorStop(0.5, '#701a75');
@@ -328,7 +468,6 @@ export default function StoryCardModal({
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 1080, 1920);
 
-        // Badge Container
         ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.strokeStyle = 'rgba(244, 114, 182, 0.4)';
         ctx.lineWidth = 4;
@@ -336,7 +475,6 @@ export default function StoryCardModal({
         ctx.fill();
         ctx.stroke();
 
-        // Header
         ctx.fillStyle = '#f472b6';
         ctx.font = 'bold 36px sans-serif';
         ctx.textAlign = 'center';
@@ -346,7 +484,6 @@ export default function StoryCardModal({
         ctx.font = 'bold 64px serif';
         ctx.fillText(`${partner1} & ${partner2}`, 540, 420);
 
-        // Big Match Circle
         ctx.beginPath();
         ctx.arc(540, 680, 180, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(236, 72, 153, 0.15)';
@@ -363,7 +500,6 @@ export default function StoryCardModal({
         ctx.font = 'bold 30px sans-serif';
         ctx.fillText('MÜKEMMEL UYUM', 540, 775);
 
-        // Score Cards
         ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
         roundRect(ctx, 160, 930, 360, 160, 30);
         roundRect(ctx, 560, 930, 360, 160, 30);
@@ -379,7 +515,6 @@ export default function StoryCardModal({
         ctx.fillText('100 Puan', 340, 1050);
         ctx.fillText('98 Puan', 740, 1050);
 
-        // Verdict Badge
         ctx.fillStyle = 'rgba(34, 197, 94, 0.2)';
         roundRect(ctx, 280, 1140, 520, 70, 35);
         ctx.fill();
@@ -387,71 +522,191 @@ export default function StoryCardModal({
         ctx.font = 'bold 30px sans-serif';
         ctx.fillText('✓ Ruh İkizi Onaylandı 💍', 540, 1186);
 
-        // QR Code
         await drawQrCodeToCanvas(ctx, 450, 1260, 180);
 
         ctx.fillStyle = '#f472b6';
         ctx.font = 'bold 30px sans-serif';
         ctx.fillText('asksite.com.tr 🔗', 540, 1490);
       } else if (selectedTemplate === 'map') {
-        // Map Template (VIP)
-        const grad = ctx.createLinearGradient(0, 0, 1080, 1920);
-        grad.addColorStop(0, '#0c4a6e');
-        grad.addColorStop(0.5, '#042f2e');
-        grad.addColorStop(1, '#0f172a');
-        ctx.fillStyle = grad;
+        // --- STUNNING EXPEDITION LOVE MAP (VIP) ---
+        // 1. Deep Midnight Ocean Atlas Background
+        const mapBg = ctx.createLinearGradient(0, 0, 1080, 1920);
+        mapBg.addColorStop(0, '#061325');
+        mapBg.addColorStop(0.5, '#0a2342');
+        mapBg.addColorStop(1, '#030c17');
+        ctx.fillStyle = mapBg;
         ctx.fillRect(0, 0, 1080, 1920);
 
-        // Card Container
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+        // 2. Latitude / Longitude Vector Navigation Grid
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 12]);
+        for (let x = 100; x < 1080; x += 160) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, 1920);
+          ctx.stroke();
+        }
+        for (let y = 100; y < 1920; y += 180) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(1080, y);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // 3. Card Outer Frame with Neon Cyan Glow
+        ctx.fillStyle = 'rgba(10, 30, 55, 0.7)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
         ctx.lineWidth = 4;
-        roundRect(ctx, 90, 220, 900, 1380, 60);
+        roundRect(ctx, 90, 180, 900, 1460, 56);
         ctx.fill();
         ctx.stroke();
+
+        // 4. Header: Compass & Title
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🧭 DÜNYANIN EN GÜZEL ROTASI', 540, 260);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 64px serif';
+        ctx.fillText(`${partner1} & ${partner2}`, 540, 340);
+
+        // Coordinate Badge
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+        roundRect(ctx, 280, 375, 520, 54, 27);
+        ctx.fill();
+        ctx.fillStyle = '#7dd3fc';
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText('📍 41°00\'N 28°58\'E • Kalbimin İçi ❤️', 540, 410);
+
+        // 5. Interactive Vector Map Box (The Love Expedition Canvas)
+        const mapBoxX = 140;
+        const mapBoxY = 460;
+        const mapBoxW = 800;
+        const mapBoxH = 660;
+
+        ctx.save();
+        roundRect(ctx, mapBoxX, mapBoxY, mapBoxW, mapBoxH, 36);
+        ctx.fillStyle = '#04101e';
+        ctx.fill();
+        ctx.clip();
+
+        // Topographic Contours inside map box
+        ctx.strokeStyle = 'rgba(14, 165, 233, 0.15)';
+        ctx.lineWidth = 3;
+        for (let r = 120; r < 600; r += 90) {
+          ctx.beginPath();
+          ctx.ellipse(mapBoxX + 400, mapBoxY + 330, r, r * 0.7, Math.PI / 6, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Draw Nautical Compass Rose (Top Right inside map)
+        const compX = mapBoxX + mapBoxW - 100;
+        const compY = mapBoxY + 100;
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(compX, compY, 40, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('N', compX, compY - 48);
+
+        // 3 Major Route Pins
+        const pin1 = { x: mapBoxX + 160, y: mapBoxY + 440, label: routePoint1 };
+        const pin2 = { x: mapBoxX + 400, y: mapBoxY + 220, label: routePoint2 };
+        const pin3 = { x: mapBoxX + 650, y: mapBoxY + 380, label: routePoint3 };
+
+        // Connecting Dashed Glowing Neon Flight Path Arcs
+        ctx.save();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 5;
+        ctx.setLineDash([12, 10]);
+        ctx.shadowColor = 'rgba(56, 189, 248, 0.9)';
+        ctx.shadowBlur = 18;
+
+        // Path 1 -> 2
+        ctx.beginPath();
+        ctx.moveTo(pin1.x, pin1.y);
+        ctx.quadraticCurveTo(mapBoxX + 260, mapBoxY + 180, pin2.x, pin2.y);
+        ctx.stroke();
+
+        // Path 2 -> 3
+        ctx.beginPath();
+        ctx.moveTo(pin2.x, pin2.y);
+        ctx.quadraticCurveTo(mapBoxX + 540, mapBoxY + 160, pin3.x, pin3.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw Location Pins & Labels
+        [pin1, pin2, pin3].forEach((p, idx) => {
+          // Pulse Ring
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 24, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(244, 63, 94, 0.25)';
+          ctx.fill();
+
+          // Pin Core
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+          ctx.fillStyle = idx === 1 ? '#f43f5e' : '#38bdf8';
+          ctx.shadowColor = idx === 1 ? '#f43f5e' : '#38bdf8';
+          ctx.shadowBlur = 15;
+          ctx.fill();
+          ctx.shadowColor = 'transparent';
+
+          // Location Tag Pill
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+          roundRect(ctx, p.x - 90, p.y + 26, 180, 42, 14);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 20px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(p.label, p.x, p.y + 54);
+        });
+
+        ctx.restore(); // End map box clip
+
+        // 6. Travel Milestones & Passport Badge
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        roundRect(ctx, 140, 1160, 800, 120, 28);
+        ctx.fill();
 
         ctx.fillStyle = '#38bdf8';
         ctx.font = 'bold 36px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('🗺️ BİZİM AŞK HARİTAMIZ', 540, 320);
+        ctx.fillText(`✈️ ${memoryCount} Özel Anı & Rota Keşfedildi`, 540, 1215);
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 64px serif';
-        ctx.fillText(`${partner1} & ${partner2}`, 540, 420);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = 'italic 28px sans-serif';
+        ctx.fillText(`“${customQuote}”`, 540, 1260);
 
-        // Map Visual Mock
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
-        roundRect(ctx, 160, 500, 760, 540, 36);
-        ctx.fill();
+        // 7. Boarding Pass Style AskSite QR Box
+        await drawQrCodeToCanvas(ctx, 450, 1310, 180);
 
-        // World/Heart pins mock
-        ctx.font = '100px sans-serif';
-        ctx.fillText('📍 ❤️ 📍', 540, 740);
         ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 40px sans-serif';
-        ctx.fillText(`${memoryCount} Özel Anı Noktası Keşfedildi`, 540, 840);
+        ctx.font = '900 32px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('asksite.com.tr 🌍', 540, 1545);
+
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '28px sans-serif';
-        ctx.fillText('Adım Adım Gezdiğimiz Tüm Yollar', 540, 900);
-
-        // Quote
-        ctx.fillStyle = '#f1f5f9';
-        ctx.font = 'italic 34px sans-serif';
-        ctx.fillText(`“${customQuote}”`, 540, 1140);
-
-        // QR Code
-        await drawQrCodeToCanvas(ctx, 440, 1220, 200);
-
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 30px sans-serif';
-        ctx.fillText('asksite.com.tr 🔗', 540, 1475);
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillText('Bizim Aşk Pasaportumuz • Tara & Katıl', 540, 1585);
       }
 
       // Footer branding on all templates
       ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
       ctx.font = 'bold 22px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('AskSite SaaS • Romantik Çift Web Siteleri', 540, 1850);
+      ctx.fillText('AskSite SaaS • Romantik Çift Web Siteleri', 540, 1870);
 
       // 2. Export / Share
       if (action === 'share' && navigator.canShare) {
@@ -492,7 +747,7 @@ export default function StoryCardModal({
 
   const triggerDownload = (canvas: HTMLCanvasElement) => {
     const link = document.createElement('a');
-    link.download = `${config.slug}-instagram-story.png`;
+    link.download = `${config.slug}-${selectedTemplate}-story.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
     setCopiedSuccess(true);
@@ -557,6 +812,19 @@ export default function StoryCardModal({
     isVipOnly?: boolean;
   }[] = [
     {
+      id: 'polaroid',
+      label: 'Nostaljik Polaroid',
+      icon: Camera,
+      desc: 'El yazısı notlu retro polaroid',
+    },
+    {
+      id: 'map',
+      label: 'Aşk Haritası',
+      icon: MapPin,
+      desc: 'Keşfedilen rotalar (VIP Özel)',
+      isVipOnly: true,
+    },
+    {
       id: 'timer',
       label: 'Aşk Sayacı',
       icon: Calendar,
@@ -569,23 +837,10 @@ export default function StoryCardModal({
       desc: 'Şarkınız & Spotify kartı görünümü',
     },
     {
-      id: 'polaroid',
-      label: 'Nostaljik Polaroid',
-      icon: Camera,
-      desc: 'El yazısı notlu retro polaroid',
-    },
-    {
       id: 'quiz',
       label: 'Aşk Uyumu',
       icon: Brain,
       desc: 'Aşk testi skoru & uyum yüzdesi',
-    },
-    {
-      id: 'map',
-      label: 'Aşk Haritası',
-      icon: MapPin,
-      desc: 'Keşfedilen rotalar (VIP Özel)',
-      isVipOnly: true,
     },
   ];
 
@@ -604,7 +859,7 @@ export default function StoryCardModal({
         />
       </div>
 
-      <div className="relative w-full max-w-4xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-5 sm:p-7 text-white text-left max-h-[92vh] flex flex-col">
+      <div className="relative w-full max-w-4xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-5 sm:p-7 text-white text-left max-h-[94vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4 shrink-0">
           <div className="space-y-0.5">
@@ -628,7 +883,7 @@ export default function StoryCardModal({
           </button>
         </div>
 
-        {/* Content Layout (Templates on Left, Live 9:16 Preview on Right) */}
+        {/* Content Layout (Templates & Controls on Left, Live 9:16 Preview on Right) */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 overflow-y-auto pr-1">
           {/* Left Controls & Template Select (7 Cols) */}
           <div className="md:col-span-7 space-y-4">
@@ -690,6 +945,118 @@ export default function StoryCardModal({
                 className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3.5 py-2.5 text-xs text-white outline-none focus:border-rose-500 transition"
               />
             </div>
+
+            {/* POLAROID CUSTOM CONTROLS (If Polaroid Selected) */}
+            {selectedTemplate === 'polaroid' && (
+              <div className="rounded-2xl bg-slate-800/60 border border-slate-700 p-3.5 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                    <ImageIcon className="h-3.5 w-3.5" /> Polaroid Fotoğrafı Seçimi
+                  </label>
+                  <span className="text-[10px] text-slate-400">
+                    Özel veya Anı Fotoğrafı
+                  </span>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex items-center gap-2">
+                  {DEFAULT_VINTAGE_PHOTOS.map((url, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setPolaroidPhoto(url)}
+                      className={`h-11 w-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                        polaroidPhoto === url
+                          ? 'border-rose-500 scale-105 shadow-md'
+                          : 'border-slate-700 opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={url}
+                        alt="Preset"
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ))}
+
+                  {/* Couple's own memory photos if available */}
+                  {(config.memories || [])
+                    .filter((m) => m.photo_url)
+                    .slice(0, 3)
+                    .map((m, idx) => (
+                      <button
+                        key={`mem-${idx}`}
+                        type="button"
+                        onClick={() => setPolaroidPhoto(m.photo_url!)}
+                        title={m.title}
+                        className={`h-11 w-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                          polaroidPhoto === m.photo_url
+                            ? 'border-rose-500 scale-105 shadow-md'
+                            : 'border-slate-700 opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        <img
+                          src={m.photo_url}
+                          alt={m.title}
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    ))}
+                </div>
+
+                <input
+                  type="text"
+                  value={polaroidPhoto}
+                  onChange={(e) => setPolaroidPhoto(e.target.value)}
+                  placeholder="Veya Özel Fotoğraf Linki (URL) Yapıştırın..."
+                  className="w-full rounded-xl bg-slate-950 border border-slate-750 px-3 py-2 text-[11px] text-slate-300 outline-none focus:border-rose-500"
+                />
+              </div>
+            )}
+
+            {/* MAP CUSTOM CONTROLS (If Map Selected) */}
+            {selectedTemplate === 'map' && (
+              <div className="rounded-2xl bg-sky-950/40 border border-sky-800/60 p-3.5 space-y-2.5 animate-in fade-in">
+                <label className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
+                  <Compass className="h-3.5 w-3.5" /> Harita Rota Durakları
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="block text-[10px] text-slate-400 mb-0.5">
+                      1. Durak
+                    </span>
+                    <input
+                      type="text"
+                      value={routePoint1}
+                      onChange={(e) => setRoutePoint1(e.target.value)}
+                      className="w-full rounded-lg bg-slate-950 border border-sky-900 px-2 py-1.5 text-[11px] text-white"
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-400 mb-0.5">
+                      2. Durak
+                    </span>
+                    <input
+                      type="text"
+                      value={routePoint2}
+                      onChange={(e) => setRoutePoint2(e.target.value)}
+                      className="w-full rounded-lg bg-slate-950 border border-sky-900 px-2 py-1.5 text-[11px] text-white"
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-[10px] text-slate-400 mb-0.5">
+                      3. Durak
+                    </span>
+                    <input
+                      type="text"
+                      value={routePoint3}
+                      onChange={(e) => setRoutePoint3(e.target.value)}
+                      className="w-full rounded-lg bg-slate-950 border border-sky-900 px-2 py-1.5 text-[11px] text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* VIP Restriction Notice if Map is selected by non-premium */}
             {selectedTemplate === 'map' && !isPremium && (
@@ -766,20 +1133,185 @@ export default function StoryCardModal({
 
             {/* Simulated 9:16 Mobile Story Screen */}
             <div
-              ref={previewRef}
-              className={`relative w-[240px] h-[426px] rounded-3xl p-4 flex flex-col justify-between items-center text-center shadow-2xl border border-slate-700/80 overflow-hidden select-none transition-all duration-300 ${
+              className={`relative w-[240px] h-[426px] rounded-3xl p-3 flex flex-col justify-between items-center text-center shadow-2xl border border-slate-700/80 overflow-hidden select-none transition-all duration-300 ${
                 selectedTemplate === 'timer'
                   ? 'bg-gradient-to-b from-indigo-950 via-rose-950 to-slate-950 text-white'
                   : selectedTemplate === 'spotify'
                   ? 'bg-[#121212] text-white border-zinc-800'
                   : selectedTemplate === 'polaroid'
-                  ? 'bg-rose-50 text-slate-900 border-rose-200'
+                  ? 'bg-[#3b2318] text-slate-900 border-amber-900/50'
                   : selectedTemplate === 'quiz'
                   ? 'bg-gradient-to-b from-purple-950 via-fuchsia-950 to-zinc-950 text-white'
-                  : 'bg-gradient-to-b from-sky-950 via-teal-950 to-slate-950 text-white'
+                  : 'bg-[#071324] text-white border-sky-900/60'
               }`}
             >
-              {/* Template Specific Preview Content */}
+              {/* Template: NOSTALGIC POLAROID */}
+              {selectedTemplate === 'polaroid' && (
+                <div className="relative w-full h-full flex flex-col items-center justify-between bg-[#fbf9f4] rounded-2xl p-2.5 shadow-2xl border border-stone-200">
+                  {/* Washi Masking Tape on top center */}
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-16 h-4 bg-amber-100/90 border border-dashed border-amber-300/80 -rotate-2 rounded-xs shadow-xs z-10" />
+
+                  {/* Photo with Vintage Filter & Amber 90s Camera Timestamp */}
+                  <div className="relative w-full h-48 rounded-lg overflow-hidden bg-stone-900 shadow-inner group">
+                    <img
+                      src={polaroidPhoto}
+                      alt="Polaroid Memory"
+                      className="w-full h-full object-cover sepia-25 contrast-105 brightness-95"
+                    />
+                    {/* Light leak ray overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-amber-500/10 to-orange-400/25 pointer-events-none" />
+
+                    {/* 90s Orange Digital Film Timestamp */}
+                    <span className="absolute bottom-1.5 right-2 font-mono font-black text-[10px] text-amber-500 drop-shadow-[0_1px_4px_rgba(245,158,11,0.8)] tracking-wider">
+                      {vintageDateStamp}
+                    </span>
+                  </div>
+
+                  {/* Bottom Handwritten Caption Area */}
+                  <div className="w-full space-y-0.5 my-auto px-1 text-center">
+                    <h4 className="font-serif italic font-bold text-xs text-stone-900">
+                      {partner1} & {partner2}
+                    </h4>
+                    <p className="font-serif italic text-[9px] text-stone-600 line-clamp-2 leading-tight">
+                      “{customQuote}”
+                    </p>
+                  </div>
+
+                  {/* Vintage Postal Badge & QR */}
+                  <div className="w-full flex items-center justify-between border-t border-stone-200/80 pt-1.5 px-1">
+                    <div className="text-left space-y-0.5">
+                      <span className="inline-block border border-rose-500 text-rose-600 text-[7px] font-black uppercase px-1 rounded-xs tracking-tighter">
+                        ★ AŞK POSTASI ★
+                      </span>
+                      <span className="block text-[7px] text-stone-400 font-mono">
+                        {startDateStr}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                      <div className="p-0.5 bg-stone-50 rounded border border-stone-200 shadow-2xs">
+                        <QRCodeSVG
+                          value={brandingQrUrl}
+                          size={32}
+                          fgColor="#e11d48"
+                          bgColor="#fafaf9"
+                          level="M"
+                        />
+                      </div>
+                      <span className="text-[7px] font-black text-rose-500 mt-0.5">
+                        asksite.com.tr
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Template: ROMANTIC EXPEDITION MAP (VIP) */}
+              {selectedTemplate === 'map' && (
+                <div className="relative w-full h-full flex flex-col justify-between items-center text-center p-1">
+                  {/* Top Navigation Title & Compass Rose */}
+                  <div className="w-full flex items-center justify-between px-1">
+                    <div className="text-left">
+                      <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest block">
+                        AŞK ROTAMIZ 🧭
+                      </span>
+                      <h4 className="font-serif font-black text-xs text-white">
+                        {partner1} & {partner2}
+                      </h4>
+                    </div>
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full border border-amber-400/50 text-amber-300 text-[10px]">
+                      N
+                    </div>
+                  </div>
+
+                  {/* Vector Map Canvas with Route Points */}
+                  <div className="relative w-full h-44 rounded-2xl bg-[#04101e] border border-sky-500/30 overflow-hidden shadow-inner my-auto flex flex-col justify-between p-2">
+                    {/* Topographic Contour Rings Mock */}
+                    <div className="absolute inset-0 opacity-15 pointer-events-none bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:12px_12px]" />
+
+                    {/* Glowing Flight Path Arc (SVG) */}
+                    <svg
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      viewBox="0 0 220 160"
+                    >
+                      <path
+                        d="M 35 120 Q 90 40 110 50 T 185 100"
+                        fill="none"
+                        stroke="#38bdf8"
+                        strokeWidth="2.5"
+                        strokeDasharray="4 3"
+                        className="drop-shadow-[0_0_6px_rgba(56,189,248,0.9)]"
+                      />
+                    </svg>
+
+                    {/* Point 1 */}
+                    <div className="absolute left-4 bottom-5 flex flex-col items-center">
+                      <span className="h-3 w-3 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8] animate-ping opacity-75" />
+                      <span className="absolute top-0.5 h-2 w-2 rounded-full bg-white" />
+                      <span className="mt-1 px-1 py-0.2 rounded-full bg-slate-950/80 border border-sky-400/50 text-[7px] font-bold text-sky-300">
+                        {routePoint1}
+                      </span>
+                    </div>
+
+                    {/* Point 2 */}
+                    <div className="absolute left-1/2 -translate-x-1/2 top-4 flex flex-col items-center">
+                      <span className="h-3.5 w-3.5 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]" />
+                      <span className="absolute top-1 h-1.5 w-1.5 rounded-full bg-white" />
+                      <span className="mt-1 px-1 py-0.2 rounded-full bg-slate-950/80 border border-rose-400/50 text-[7px] font-bold text-rose-300">
+                        {routePoint2}
+                      </span>
+                    </div>
+
+                    {/* Point 3 */}
+                    <div className="absolute right-4 bottom-8 flex flex-col items-center">
+                      <span className="h-3 w-3 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+                      <span className="absolute top-0.5 h-2 w-2 rounded-full bg-white" />
+                      <span className="mt-1 px-1 py-0.2 rounded-full bg-slate-950/80 border border-sky-400/50 text-[7px] font-bold text-sky-300">
+                        {routePoint3}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expedition Stats & Quote */}
+                  <div className="w-full space-y-0.5 px-1 text-center">
+                    <span className="text-[9px] font-black text-sky-300 block">
+                      ✈️ {memoryCount} Özel Anı & Rota Keşfedildi
+                    </span>
+                    <p className="text-[8px] italic text-slate-300 line-clamp-1">
+                      “{customQuote}”
+                    </p>
+                  </div>
+
+                  {/* Boarding Pass Style QR Code */}
+                  <div className="w-full flex items-center justify-between border-t border-sky-900/80 pt-1.5 px-2">
+                    <div className="text-left space-y-0.5">
+                      <span className="text-[8px] font-bold text-sky-400 uppercase tracking-widest block">
+                        AŞK PASAPORTU 🌍
+                      </span>
+                      <span className="text-[7px] text-slate-400">
+                        41°00&apos;N 28°58&apos;E
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                      <div className="p-0.5 bg-white rounded shadow-md">
+                        <QRCodeSVG
+                          value={brandingQrUrl}
+                          size={32}
+                          fgColor="#0284c7"
+                          bgColor="#ffffff"
+                          level="M"
+                        />
+                      </div>
+                      <span className="text-[7px] font-black text-sky-400 mt-0.5">
+                        asksite.com.tr
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Template: RELATIONSHIP TIMER */}
               {selectedTemplate === 'timer' && (
                 <>
                   <div className="mt-2 space-y-1">
@@ -823,6 +1355,7 @@ export default function StoryCardModal({
                 </>
               )}
 
+              {/* Template: SPOTIFY */}
               {selectedTemplate === 'spotify' && (
                 <>
                   <div className="mt-2 flex items-center justify-center gap-1 text-[#1db954] text-[10px] font-bold">
@@ -863,41 +1396,7 @@ export default function StoryCardModal({
                 </>
               )}
 
-              {selectedTemplate === 'polaroid' && (
-                <div className="h-full w-full flex flex-col justify-between bg-white rounded-2xl p-2.5 shadow-md text-slate-800">
-                  <div className="w-full h-44 rounded-xl bg-slate-900 flex flex-col items-center justify-center text-white p-2">
-                    <span className="text-2xl mb-1">📸</span>
-                    <span className="font-serif font-bold text-xs">
-                      {partner1} & {partner2}
-                    </span>
-                  </div>
-
-                  <div className="my-auto space-y-0.5">
-                    <p className="text-[10px] italic font-semibold text-slate-700 line-clamp-2">
-                      “{customQuote}”
-                    </p>
-                    <span className="text-[8px] text-rose-500 font-bold block">
-                      {startDateStr}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1 pb-1">
-                    <div className="mx-auto w-fit p-1 bg-rose-50 rounded-lg">
-                      <QRCodeSVG
-                        value={brandingQrUrl}
-                        size={44}
-                        fgColor="#e11d48"
-                        bgColor="#fff1f2"
-                        level="M"
-                      />
-                    </div>
-                    <span className="text-[8px] font-black text-slate-500 block">
-                      asksite.com.tr
-                    </span>
-                  </div>
-                </div>
-              )}
-
+              {/* Template: QUIZ */}
               {selectedTemplate === 'quiz' && (
                 <>
                   <div className="mt-2 space-y-0.5">
@@ -930,44 +1429,6 @@ export default function StoryCardModal({
                       />
                     </div>
                     <span className="text-[9px] font-bold text-pink-400 block">
-                      asksite.com.tr
-                    </span>
-                  </div>
-                </>
-              )}
-
-              {selectedTemplate === 'map' && (
-                <>
-                  <div className="mt-2 space-y-0.5">
-                    <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest">
-                      BİZİM AŞK HARİTAMIZ
-                    </span>
-                    <h3 className="font-serif text-sm font-bold text-white">
-                      {partner1} & {partner2}
-                    </h3>
-                  </div>
-
-                  <div className="my-auto w-full rounded-2xl bg-sky-950/60 border border-sky-500/30 p-3 space-y-1.5">
-                    <div className="text-2xl">🗺️ 📍</div>
-                    <div className="text-sm font-black text-sky-300">
-                      {memoryCount} Anı Noktası
-                    </div>
-                    <p className="text-[9px] text-slate-300 italic line-clamp-2">
-                      “{customQuote}”
-                    </p>
-                  </div>
-
-                  <div className="space-y-1 pb-2">
-                    <div className="mx-auto w-fit p-1.5 bg-white rounded-xl shadow-md">
-                      <QRCodeSVG
-                        value={brandingQrUrl}
-                        size={48}
-                        fgColor="#0284c7"
-                        bgColor="#ffffff"
-                        level="M"
-                      />
-                    </div>
-                    <span className="text-[9px] font-bold text-sky-400 block">
                       asksite.com.tr
                     </span>
                   </div>
