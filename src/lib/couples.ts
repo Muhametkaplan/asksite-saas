@@ -22,6 +22,9 @@ export const DEMO_COUPLE: CoupleConfig = {
   slug: 'demo',
   pair_code: 'ASK-DEMO1',
   inviteCode: 'ASK-DEMO1',
+  isPaid: true,
+  isActive: true,
+  is_active: true,
   partner1_name: 'Partner 1',
   partner2_name: 'Partner 2',
   partner1_score: 0,
@@ -301,7 +304,23 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           upcoming_event: data.upcoming_event !== undefined ? data.upcoming_event : null,
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
           feature_toggles: data.feature_toggles || DEMO_COUPLE.feature_toggles,
-          is_active: data.isActive !== undefined ? data.isActive : true,
+          is_active: data.is_active !== undefined ? data.is_active : (data.isActive !== undefined ? data.isActive : true),
+          isActive: data.isActive !== undefined ? data.isActive : (data.is_active !== undefined ? data.is_active : true),
+          isPaid: data.isPaid === true,
+          plan: data.plan || data.package_type || 'standard',
+          package_type: data.package_type || data.plan || 'digital',
+          owner_uid: data.owner_uid || null,
+          owner_email: data.owner_email || data.partner1_email || null,
+          partner1_uid: data.partner1_uid || data.owner_uid || null,
+          partner2_uid: data.partner2_uid || null,
+          partner1_email: data.partner1_email || data.owner_email || null,
+          partner2_email: data.partner2_email || null,
+          partner1_pin: data.allowed_users?.partner1_pin || data.partner1_pin || '1234',
+          partner2_pin: data.allowed_users?.partner2_pin || data.partner2_pin || '5678',
+          co_owners: data.co_owners || [],
+          authorized_emails: data.authorized_emails || [],
+          pair_code: data.pair_code || data.inviteCode || null,
+          inviteCode: data.inviteCode || data.pair_code || null,
         };
       } else if (slug === 'demo') {
         // Auto-seed demo couple on first request
@@ -1060,6 +1079,9 @@ export async function getCoupleByPairCode(pairCode: string): Promise<CoupleConfi
           co_owners: data.co_owners || [],
           authorized_emails: data.authorized_emails || [],
           allowed_users: data.allowed_users || DEMO_COUPLE.allowed_users,
+          isPaid: data.isPaid === true,
+          isActive: data.isActive !== undefined ? data.isActive : true,
+          is_active: data.is_active !== undefined ? data.is_active : (data.isActive !== undefined ? data.isActive : true),
         };
       }
     } catch (e) {
