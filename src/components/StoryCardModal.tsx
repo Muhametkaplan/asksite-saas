@@ -22,7 +22,8 @@ import {
   Upload,
   Trash2,
 } from 'lucide-react';
-import { CoupleConfig } from '@/types/couple';
+import { CoupleConfig, MapMarker } from '@/types/couple';
+import { getMapMarkers } from '@/lib/couples';
 
 interface StoryCardModalProps {
   isOpen: boolean;
@@ -38,6 +39,45 @@ const DEFAULT_VINTAGE_PHOTOS = [
   'https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?w=800&auto=format&fit=crop&q=80', // Holding hands aesthetic
   'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=800&auto=format&fit=crop&q=80', // Couple hug warm tone
 ];
+
+const DEFAULT_TURKEY_MARKERS: MapMarker[] = [
+  { id: 'def-1', couple_id: 'default', lat: 41.0082, lng: 28.9784, title: 'İstanbul • İlk Buluşma' },
+  { id: 'def-2', couple_id: 'default', lat: 39.9043, lng: 41.2679, title: 'Erzurum • Kış Tatilimiz' },
+  { id: 'def-3', couple_id: 'default', lat: 41.0027, lng: 39.7168, title: 'Trabzon • Karadeniz Gezimiz' },
+  { id: 'def-4', couple_id: 'default', lat: 41.6168, lng: 41.6367, title: 'Batum • Sınır Ötesi Turumuz' },
+  { id: 'def-5', couple_id: 'default', lat: 37.0662, lng: 37.3833, title: 'Gaziantep • Romantik Akşam' },
+];
+
+function projectLatLngToTurkeyBox(
+  lat: number,
+  lng: number,
+  boxW: number,
+  boxH: number
+) {
+  // Longitude bounds for OSM zoom 5 tiles 18 & 19 (covers 22.5° to 45.0°)
+  const u = (lng - 22.5) / 22.5;
+
+  // Web Mercator Latitude calculation
+  const latRad = (lat * Math.PI) / 180;
+  const mercY = (1 - Math.log(Math.tan(Math.PI / 4 + latRad / 2)) / Math.PI) / 2;
+  // In zoom 5, tile 11 to 12 normalized range is [11/32, 13/32] = 2/32
+  const v = (mercY - (11 / 32)) / (2 / 32);
+
+  // Total tile height in square projection is boxW
+  const totalTileH = boxW;
+  // Center Turkey vertically around v = 0.58
+  const offsetY = (boxH / 2) - (0.58 * totalTileH);
+
+  const px = u * boxW;
+  const py = v * totalTileH + offsetY;
+
+  return {
+    px,
+    py,
+    xPercent: `${Math.max(4, Math.min(96, u * 100)).toFixed(2)}%`,
+    yPercent: `${Math.max(4, Math.min(96, ((py / boxH) * 100))).toFixed(2)}%`,
+  };
+}
 
 export default function StoryCardModal({
   isOpen,
@@ -96,10 +136,25 @@ export default function StoryCardModal({
     onClose();
   };
 
-  // Map Route Point Names State
-  const [routePoint1, setRoutePoint1] = useState('İlk Buluşma 📍');
-  const [routePoint2, setRoutePoint2] = useState('İlk Tatilimiz ✈️');
-  const [routePoint3, setRoutePoint3] = useState('Sonsuz Aşkımız 💍');
+  // Map markers & settings for "Bizim Haritamız"
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [mapSubtitle, setMapSubtitle] = useState('Birlikte Keşfettiğimiz Unutulmaz Aşk Noktalarımız ❤️');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const targetId = config.slug || config.id || 'demo';
+    getMapMarkers(targetId)
+      .then((data) => {
+        if (data && data.length > 0) {
+          setMarkers(data);
+        } else {
+          setMarkers(DEFAULT_TURKEY_MARKERS);
+        }
+      })
+      .catch(() => {
+        setMarkers(DEFAULT_TURKEY_MARKERS);
+      });
+  }, [isOpen, config.slug, config.id]);
 
   const qrRef = useRef<SVGSVGElement | null>(null);
 
@@ -568,178 +623,200 @@ export default function StoryCardModal({
         ctx.font = 'bold 30px sans-serif';
         ctx.fillText('asksite.com.tr 🔗', 540, 1490);
       } else if (selectedTemplate === 'map') {
-        // --- STUNNING EXPEDITION LOVE MAP (VIP) ---
-        // 1. Deep Midnight Ocean Atlas Background
+        // --- AUTHENTIC "BİZİM HARİTAMIZ" STORY CARD (VIP) ---
+        // 1. Deep Romantic Midnight Plum Background
         const mapBg = ctx.createLinearGradient(0, 0, 1080, 1920);
-        mapBg.addColorStop(0, '#061325');
-        mapBg.addColorStop(0.5, '#0a2342');
-        mapBg.addColorStop(1, '#030c17');
+        mapBg.addColorStop(0, '#1c0722');
+        mapBg.addColorStop(0.4, '#2d0c3c');
+        mapBg.addColorStop(0.8, '#1e1136');
+        mapBg.addColorStop(1, '#0b0816');
         ctx.fillStyle = mapBg;
         ctx.fillRect(0, 0, 1080, 1920);
 
-        // 2. Latitude / Longitude Vector Navigation Grid
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([8, 12]);
-        for (let x = 100; x < 1080; x += 160) {
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, 1920);
-          ctx.stroke();
-        }
-        for (let y = 100; y < 1920; y += 180) {
-          ctx.beginPath();
-          ctx.moveTo(0, y);
-          ctx.lineTo(1080, y);
-          ctx.stroke();
-        }
-        ctx.setLineDash([]);
-
-        // 3. Card Outer Frame with Neon Cyan Glow
-        ctx.fillStyle = 'rgba(10, 30, 55, 0.7)';
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
-        ctx.lineWidth = 4;
-        roundRect(ctx, 90, 180, 900, 1460, 56);
-        ctx.fill();
-        ctx.stroke();
-
-        // 4. Header: Compass & Title
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 30px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🧭 DÜNYANIN EN GÜZEL ROTASI', 540, 260);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 64px serif';
-        ctx.fillText(`${partner1} & ${partner2}`, 540, 340);
-
-        // Coordinate Badge
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
-        roundRect(ctx, 280, 375, 520, 54, 27);
-        ctx.fill();
-        ctx.fillStyle = '#7dd3fc';
-        ctx.font = 'bold 24px monospace';
-        ctx.fillText('📍 41°00\'N 28°58\'E • Kalbimin İçi ❤️', 540, 410);
-
-        // 5. Interactive Vector Map Box (The Love Expedition Canvas)
-        const mapBoxX = 140;
-        const mapBoxY = 460;
-        const mapBoxW = 800;
-        const mapBoxH = 660;
-
+        // Ambient romantic glow
         ctx.save();
-        roundRect(ctx, mapBoxX, mapBoxY, mapBoxW, mapBoxH, 36);
-        ctx.fillStyle = '#04101e';
+        ctx.filter = 'blur(120px)';
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.28)';
+        ctx.beginPath();
+        ctx.arc(300, 380, 260, 0, Math.PI * 2);
         ctx.fill();
-        ctx.clip();
 
-        // Topographic Contours inside map box
-        ctx.strokeStyle = 'rgba(14, 165, 233, 0.15)';
-        ctx.lineWidth = 3;
-        for (let r = 120; r < 600; r += 90) {
-          ctx.beginPath();
-          ctx.ellipse(mapBoxX + 400, mapBoxY + 330, r, r * 0.7, Math.PI / 6, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-
-        // Draw Nautical Compass Rose (Top Right inside map)
-        const compX = mapBoxX + mapBoxW - 100;
-        const compY = mapBoxY + 100;
-        ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
-        ctx.lineWidth = 3;
+        ctx.fillStyle = 'rgba(168, 85, 247, 0.25)';
         ctx.beginPath();
-        ctx.arc(compX, compY, 40, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = 'bold 20px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('N', compX, compY - 48);
-
-        // 3 Major Route Pins
-        const pin1 = { x: mapBoxX + 160, y: mapBoxY + 440, label: routePoint1 };
-        const pin2 = { x: mapBoxX + 400, y: mapBoxY + 220, label: routePoint2 };
-        const pin3 = { x: mapBoxX + 650, y: mapBoxY + 380, label: routePoint3 };
-
-        // Connecting Dashed Glowing Neon Flight Path Arcs
-        ctx.save();
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 5;
-        ctx.setLineDash([12, 10]);
-        ctx.shadowColor = 'rgba(56, 189, 248, 0.9)';
-        ctx.shadowBlur = 18;
-
-        // Path 1 -> 2
-        ctx.beginPath();
-        ctx.moveTo(pin1.x, pin1.y);
-        ctx.quadraticCurveTo(mapBoxX + 260, mapBoxY + 180, pin2.x, pin2.y);
-        ctx.stroke();
-
-        // Path 2 -> 3
-        ctx.beginPath();
-        ctx.moveTo(pin2.x, pin2.y);
-        ctx.quadraticCurveTo(mapBoxX + 540, mapBoxY + 160, pin3.x, pin3.y);
-        ctx.stroke();
+        ctx.arc(800, 1100, 300, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
 
-        // Draw Location Pins & Labels
-        [pin1, pin2, pin3].forEach((p, idx) => {
-          // Pulse Ring
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, 24, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(244, 63, 94, 0.25)';
-          ctx.fill();
+        // 2. Story Header Badge
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.25)';
+        roundRect(ctx, 350, 150, 380, 64, 32);
+        ctx.fill();
+        ctx.fillStyle = '#fda4af';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✨ BİZİM AŞK HARİTAMIZ ✨', 540, 194);
 
-          // Pin Core
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
-          ctx.fillStyle = idx === 1 ? '#f43f5e' : '#38bdf8';
-          ctx.shadowColor = idx === 1 ? '#f43f5e' : '#38bdf8';
-          ctx.shadowBlur = 15;
-          ctx.fill();
-          ctx.shadowColor = 'transparent';
+        // Couple Names
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 64px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${partner1} & ${partner2}`, 540, 280);
 
-          // Location Tag Pill
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-          roundRect(ctx, p.x - 90, p.y + 26, 180, 42, 14);
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+        // Subtitle Quote
+        ctx.fillStyle = '#f43f5e';
+        ctx.font = 'italic 600 30px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`“${customQuote}”`, 540, 340);
 
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 20px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(p.label, p.x, p.y + 54);
+        // 3. The Pure White "Bizim Haritamız" Card (Matching Website Widget)
+        const cardX = 90;
+        const cardY = 380;
+        const cardW = 900;
+        const cardH = 960;
+
+        // Card Drop Shadow
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        ctx.shadowBlur = 45;
+        ctx.shadowOffsetY = 18;
+        ctx.fillStyle = '#ffffff';
+        roundRect(ctx, cardX, cardY, cardW, cardH, 48);
+        ctx.fill();
+        ctx.restore();
+
+        // Card Subtle Border
+        ctx.strokeStyle = 'rgba(244, 63, 94, 0.15)';
+        ctx.lineWidth = 3;
+        roundRect(ctx, cardX, cardY, cardW, cardH, 48);
+        ctx.stroke();
+
+        // Card Header Title: "📍 Bizim Haritamız"
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 44px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('📍 Bizim Haritamız', 540, cardY + 70);
+
+        // Card Header Subtitle
+        ctx.fillStyle = '#64748b';
+        ctx.font = '500 24px sans-serif';
+        ctx.fillText(
+          mapSubtitle || 'Birlikte Keşfettiğimiz Unutulmaz Aşk Noktalarımız ❤️',
+          540,
+          cardY + 115
+        );
+
+        // 4. Map Box inside the card (OpenStreetMap Turkey Tiles)
+        const mapBoxX = cardX + 30; // 120
+        const mapBoxY = cardY + 140; // 520
+        const mapBoxW = cardW - 60; // 840
+        const mapBoxH = 600;
+
+        ctx.save();
+        roundRect(ctx, mapBoxX, mapBoxY, mapBoxW, mapBoxH, 28);
+        ctx.clip(); // Clip map content inside rounded container
+
+        // Fetch the 4 OpenStreetMap tiles covering Turkey at zoom 5
+        const OSM_TILES = [
+          'https://tile.openstreetmap.org/5/18/11.png',
+          'https://tile.openstreetmap.org/5/19/11.png',
+          'https://tile.openstreetmap.org/5/18/12.png',
+          'https://tile.openstreetmap.org/5/19/12.png',
+        ];
+
+        const [tileTL, tileTR, tileBL, tileBR] = await Promise.all([
+          loadImage(OSM_TILES[0]),
+          loadImage(OSM_TILES[1]),
+          loadImage(OSM_TILES[2]),
+          loadImage(OSM_TILES[3]),
+        ]);
+
+        const tileW = mapBoxW / 2;
+        const tileH = mapBoxW / 2;
+        const tileOffsetY = (mapBoxH / 2) - (0.58 * mapBoxW);
+
+        // Background color before tiles draw
+        ctx.fillStyle = '#fff1f2';
+        ctx.fillRect(mapBoxX, mapBoxY, mapBoxW, mapBoxH);
+
+        if (tileTL && tileTR && tileBL && tileBR) {
+          ctx.drawImage(tileTL, mapBoxX, mapBoxY + tileOffsetY, tileW, tileH);
+          ctx.drawImage(tileTR, mapBoxX + tileW, mapBoxY + tileOffsetY, tileW, tileH);
+          ctx.drawImage(tileBL, mapBoxX, mapBoxY + tileOffsetY + tileH, tileW, tileH);
+          ctx.drawImage(tileBR, mapBoxX + tileW, mapBoxY + tileOffsetY + tileH, tileW, tileH);
+        }
+
+        // Draw Real Red Heart Pins on Couple's Coordinates
+        const markersToRender = markers.length > 0 ? markers : DEFAULT_TURKEY_MARKERS;
+
+        markersToRender.forEach((m) => {
+          const { px, py } = projectLatLngToTurkeyBox(m.lat, m.lng, mapBoxW, mapBoxH);
+          const markX = mapBoxX + px;
+          const markY = mapBoxY + py;
+
+          if (
+            markX >= mapBoxX &&
+            markX <= mapBoxX + mapBoxW &&
+            markY >= mapBoxY &&
+            markY <= mapBoxY + mapBoxH
+          ) {
+            ctx.save();
+            ctx.shadowColor = 'rgba(225, 29, 72, 0.7)';
+            ctx.shadowBlur = 12;
+            ctx.font = '44px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('❤️', markX, markY);
+            ctx.restore();
+          }
         });
 
         ctx.restore(); // End map box clip
 
-        // 6. Travel Milestones & Passport Badge
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-        roundRect(ctx, 140, 1160, 800, 120, 28);
+        // 5. Card Footer: Total Marker Count & Romantic Pill
+        ctx.fillStyle = '#475569';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(
+          `Toplam ${markersToRender.length} Aşk Noktası`,
+          mapBoxX + 10,
+          cardY + cardH - 50
+        );
+
+        // Right Pill Badge: "❤️ Sonsuz Rota"
+        const pillW = 210;
+        const pillH = 50;
+        const pillX = mapBoxX + mapBoxW - pillW;
+        const pillY = cardY + cardH - 76;
+
+        ctx.fillStyle = '#ffe4e6';
+        roundRect(ctx, pillX, pillY, pillW, pillH, 25);
         ctx.fill();
 
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 36px sans-serif';
+        ctx.fillStyle = '#e11d48';
+        ctx.font = 'bold 24px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`✈️ ${memoryCount} Özel Anı & Rota Keşfedildi`, 540, 1215);
+        ctx.fillText('❤️ Sonsuz Rota', pillX + pillW / 2, pillY + 34);
 
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = 'italic 28px sans-serif';
-        ctx.fillText(`“${customQuote}”`, 540, 1260);
-
-        // 7. Boarding Pass Style AskSite QR Box
-        await drawQrCodeToCanvas(ctx, 450, 1310, 180);
-
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = '900 32px sans-serif';
+        // 6. Bottom Story Info & QR Code
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+        roundRect(ctx, 240, 1380, 600, 70, 35);
+        ctx.fill();
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = 'bold 26px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('asksite.com.tr 🌍', 540, 1545);
+        ctx.fillText(`📅 Başlangıç: ${startDateStr} • Kalbimin İçi ❤️`, 540, 1424);
 
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = 'bold 22px sans-serif';
-        ctx.fillText('Bizim Aşk Pasaportumuz • Tara & Katıl', 540, 1585);
+        await drawQrCodeToCanvas(ctx, 440, 1485, 200);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Hikayemizi Keşfetmek İçin Tara 📱', 540, 1735);
+
+        ctx.fillStyle = '#f43f5e';
+        ctx.font = '900 34px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('asksite.com.tr', 540, 1785);
       }
 
       // Footer branding on all templates
@@ -861,7 +938,7 @@ export default function StoryCardModal({
       id: 'map',
       label: 'Aşk Haritası',
       icon: MapPin,
-      desc: 'Keşfedilen rotalar (VIP Özel)',
+      desc: 'Bizim Haritamız (VIP Özel)',
       isVipOnly: true,
     },
     {
@@ -1113,44 +1190,43 @@ export default function StoryCardModal({
 
             {/* MAP CUSTOM CONTROLS (If Map Selected) */}
             {selectedTemplate === 'map' && (
-              <div className="rounded-2xl bg-sky-950/40 border border-sky-800/60 p-3.5 space-y-2.5 animate-in fade-in">
-                <label className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
-                  <Compass className="h-3.5 w-3.5" /> Harita Rota Durakları
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <span className="block text-[10px] text-slate-400 mb-0.5">
-                      1. Durak
-                    </span>
-                    <input
-                      type="text"
-                      value={routePoint1}
-                      onChange={(e) => setRoutePoint1(e.target.value)}
-                      className="w-full rounded-lg bg-slate-950 border border-sky-900 px-2 py-1.5 text-[11px] text-white"
-                    />
-                  </div>
-                  <div>
-                    <span className="block text-[10px] text-slate-400 mb-0.5">
-                      2. Durak
-                    </span>
-                    <input
-                      type="text"
-                      value={routePoint2}
-                      onChange={(e) => setRoutePoint2(e.target.value)}
-                      className="w-full rounded-lg bg-slate-950 border border-sky-900 px-2 py-1.5 text-[11px] text-white"
-                    />
-                  </div>
-                  <div>
-                    <span className="block text-[10px] text-slate-400 mb-0.5">
-                      3. Durak
-                    </span>
-                    <input
-                      type="text"
-                      value={routePoint3}
-                      onChange={(e) => setRoutePoint3(e.target.value)}
-                      className="w-full rounded-lg bg-slate-950 border border-sky-900 px-2 py-1.5 text-[11px] text-white"
-                    />
-                  </div>
+              <div className="rounded-2xl bg-slate-800/60 border border-slate-700 p-4 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-rose-500" /> Bizim Haritamız Entegrasyonu
+                  </label>
+                  <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
+                    {(markers.length > 0 ? markers : DEFAULT_TURKEY_MARKERS).length} Aşk Noktası
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Sitenizdeki <strong className="text-white">“Bizim Haritamız”</strong> bileşeninde eklediğiniz tüm gerçek kalp noktaları ve Türkiye haritası görünümü hikaye kartınıza otomatik olarak yansıtılır.
+                </p>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                    Harita Kartı Alt Başlığı
+                  </label>
+                  <input
+                    type="text"
+                    value={mapSubtitle}
+                    onChange={(e) => setMapSubtitle(e.target.value)}
+                    maxLength={65}
+                    placeholder="Birlikte Keşfettiğimiz Unutulmaz Aşk Noktalarımız ❤️"
+                    className="w-full rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white outline-none focus:border-rose-500 transition"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Haritanıza yeni kalp eklemek için:</span>
+                  <a
+                    href="#harita"
+                    onClick={() => onClose()}
+                    className="text-rose-400 hover:text-rose-300 font-bold underline flex items-center gap-1"
+                  >
+                    Haritaya Git 📍
+                  </a>
                 </div>
               </div>
             )}
@@ -1303,90 +1379,111 @@ export default function StoryCardModal({
                 </div>
               )}
 
-              {/* Template: ROMANTIC EXPEDITION MAP (VIP) */}
+              {/* Template: AUTHENTIC BİZİM HARİTAMIZ (VIP) */}
               {selectedTemplate === 'map' && (
-                <div className="relative w-full h-full flex flex-col justify-between items-center text-center p-1">
-                  {/* Top Navigation Title & Compass Rose */}
-                  <div className="w-full flex items-center justify-between px-1">
-                    <div className="text-left">
-                      <span className="text-[8px] font-black text-sky-400 uppercase tracking-widest block">
-                        AŞK ROTAMIZ 🧭
-                      </span>
-                      <h4 className="font-serif font-black text-xs text-white">
-                        {partner1} & {partner2}
-                      </h4>
-                    </div>
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full border border-amber-400/50 text-amber-300 text-[10px]">
-                      N
-                    </div>
-                  </div>
-
-                  {/* Vector Map Canvas with Route Points */}
-                  <div className="relative w-full h-44 rounded-2xl bg-[#04101e] border border-sky-500/30 overflow-hidden shadow-inner my-auto flex flex-col justify-between p-2">
-                    {/* Topographic Contour Rings Mock */}
-                    <div className="absolute inset-0 opacity-15 pointer-events-none bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:12px_12px]" />
-
-                    {/* Glowing Flight Path Arc (SVG) */}
-                    <svg
-                      className="absolute inset-0 w-full h-full pointer-events-none"
-                      viewBox="0 0 220 160"
-                    >
-                      <path
-                        d="M 35 120 Q 90 40 110 50 T 185 100"
-                        fill="none"
-                        stroke="#38bdf8"
-                        strokeWidth="2.5"
-                        strokeDasharray="4 3"
-                        className="drop-shadow-[0_0_6px_rgba(56,189,248,0.9)]"
-                      />
-                    </svg>
-
-                    {/* Point 1 */}
-                    <div className="absolute left-4 bottom-5 flex flex-col items-center">
-                      <span className="h-3 w-3 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8] animate-ping opacity-75" />
-                      <span className="absolute top-0.5 h-2 w-2 rounded-full bg-white" />
-                      <span className="mt-1 px-1 py-0.2 rounded-full bg-slate-950/80 border border-sky-400/50 text-[7px] font-bold text-sky-300">
-                        {routePoint1}
-                      </span>
-                    </div>
-
-                    {/* Point 2 */}
-                    <div className="absolute left-1/2 -translate-x-1/2 top-4 flex flex-col items-center">
-                      <span className="h-3.5 w-3.5 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]" />
-                      <span className="absolute top-1 h-1.5 w-1.5 rounded-full bg-white" />
-                      <span className="mt-1 px-1 py-0.2 rounded-full bg-slate-950/80 border border-rose-400/50 text-[7px] font-bold text-rose-300">
-                        {routePoint2}
-                      </span>
-                    </div>
-
-                    {/* Point 3 */}
-                    <div className="absolute right-4 bottom-8 flex flex-col items-center">
-                      <span className="h-3 w-3 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
-                      <span className="absolute top-0.5 h-2 w-2 rounded-full bg-white" />
-                      <span className="mt-1 px-1 py-0.2 rounded-full bg-slate-950/80 border border-sky-400/50 text-[7px] font-bold text-sky-300">
-                        {routePoint3}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Expedition Stats & Quote */}
-                  <div className="w-full space-y-0.5 px-1 text-center">
-                    <span className="text-[9px] font-black text-sky-300 block">
-                      ✈️ {memoryCount} Özel Anı & Rota Keşfedildi
+                <div className="relative w-full h-full flex flex-col justify-between items-center text-center p-2 animate-in fade-in">
+                  {/* Top Header */}
+                  <div className="w-full space-y-0.5">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-500/20 text-[8px] font-extrabold text-rose-300 border border-rose-500/30">
+                      ✨ AŞK HARİTAMIZ ✨
                     </span>
-                    <p className="text-[8px] italic text-slate-300 line-clamp-1">
+                    <h3 className="font-serif text-sm font-black text-white leading-tight">
+                      {partner1} & {partner2}
+                    </h3>
+                    <p className="text-[7.5px] text-rose-300 line-clamp-1 italic px-2">
                       “{customQuote}”
                     </p>
                   </div>
 
-                  {/* Boarding Pass Style QR Code */}
-                  <div className="w-full flex items-center justify-between border-t border-sky-900/80 pt-1.5 px-2">
-                    <div className="text-left space-y-0.5">
-                      <span className="text-[8px] font-bold text-sky-400 uppercase tracking-widest block">
-                        AŞK PASAPORTU 🌍
+                  {/* The Authentic "Bizim Haritamız" White Card */}
+                  <div className="w-full bg-white rounded-2xl p-2 shadow-2xl border border-rose-100 text-slate-800 my-auto transition-all">
+                    {/* Card Header */}
+                    <div className="flex items-center justify-center gap-1 mb-0.5">
+                      <MapPin className="h-3.5 w-3.5 text-rose-500 fill-rose-500/20" />
+                      <h4 className="text-[11px] font-black text-slate-800 tracking-tight">
+                        Bizim Haritamız
+                      </h4>
+                    </div>
+                    <p className="text-[6.5px] text-slate-500 line-clamp-1 mb-1.5 font-medium">
+                      {mapSubtitle}
+                    </p>
+
+                    {/* The OpenStreetMap Turkey Box */}
+                    <div className="relative w-full h-[140px] rounded-xl overflow-hidden border border-slate-200 bg-rose-50 shadow-inner">
+                      {/* 2x2 OSM Tiles Grid (Zoom 5 Turkey Tiles) */}
+                      <div
+                        className="absolute left-0 w-full grid grid-cols-2 grid-rows-2 pointer-events-none select-none"
+                        style={{
+                          top: '-31.2%',
+                          height: '140%',
+                        }}
+                      >
+                        <img
+                          src="https://tile.openstreetmap.org/5/18/11.png"
+                          alt="OSM NW"
+                          className="w-full h-full object-cover"
+                          crossOrigin="anonymous"
+                          loading="eager"
+                        />
+                        <img
+                          src="https://tile.openstreetmap.org/5/19/11.png"
+                          alt="OSM NE"
+                          className="w-full h-full object-cover"
+                          crossOrigin="anonymous"
+                          loading="eager"
+                        />
+                        <img
+                          src="https://tile.openstreetmap.org/5/18/12.png"
+                          alt="OSM SW"
+                          className="w-full h-full object-cover"
+                          crossOrigin="anonymous"
+                          loading="eager"
+                        />
+                        <img
+                          src="https://tile.openstreetmap.org/5/19/12.png"
+                          alt="OSM SE"
+                          className="w-full h-full object-cover"
+                          crossOrigin="anonymous"
+                          loading="eager"
+                        />
+                      </div>
+
+                      {/* Real Red Heart Markers ❤️ placed on Turkey coordinates */}
+                      {(markers.length > 0 ? markers : DEFAULT_TURKEY_MARKERS).map((m, idx) => {
+                        const pos = projectLatLngToTurkeyBox(m.lat, m.lng, 840, 600);
+                        return (
+                          <div
+                            key={m.id || idx}
+                            className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none transition-transform hover:scale-125"
+                            style={{ left: pos.xPercent, top: pos.yPercent }}
+                          >
+                            <span className="text-[14px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+                              ❤️
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="mt-1.5 flex items-center justify-between text-[7px] font-bold text-slate-500 px-0.5">
+                      <span>
+                        Toplam {(markers.length > 0 ? markers : DEFAULT_TURKEY_MARKERS).length} Aşk Noktası
                       </span>
-                      <span className="text-[7px] text-slate-400">
-                        41°00&apos;N 28°58&apos;E
+                      <span className="bg-rose-100/90 text-rose-700 px-1.5 py-0.5 rounded-full text-[6.5px] font-bold">
+                        ❤️ Sonsuz Rota
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bottom QR Code & Branding */}
+                  <div className="w-full flex items-center justify-between border-t border-white/10 pt-1.5 px-1">
+                    <div className="text-left space-y-0.5">
+                      <span className="text-[7.5px] font-bold text-rose-300 block">
+                        📅 {startDateStr}
+                      </span>
+                      <span className="text-[7px] text-slate-300">
+                        Hikayemizi Keşfet 📱
                       </span>
                     </div>
 
@@ -1395,12 +1492,12 @@ export default function StoryCardModal({
                         <QRCodeSVG
                           value={brandingQrUrl}
                           size={32}
-                          fgColor="#0284c7"
+                          fgColor="#e11d48"
                           bgColor="#ffffff"
                           level="M"
                         />
                       </div>
-                      <span className="text-[7px] font-black text-sky-400 mt-0.5">
+                      <span className="text-[6.5px] font-black text-rose-400 mt-0.5">
                         asksite.com.tr
                       </span>
                     </div>
