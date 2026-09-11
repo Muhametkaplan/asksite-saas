@@ -183,6 +183,56 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  // Helpers: Open public couple page and dashboard avoiding admin subdomain prefix
+  const getPublicCoupleUrl = (slug: string) => {
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin.replace('//admin.', '//');
+      return `${origin}/c/${slug}`;
+    }
+    return `/c/${slug}`;
+  };
+
+  const getPublicDashboardUrl = (slug: string) => {
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin.replace('//admin.', '//');
+      return `${origin}/dashboard?slug=${slug}`;
+    }
+    return `/dashboard?slug=${slug}`;
+  };
+
+  // Action: Toggle Couple isPaid (Ödeme Durumu: Ödendi / Bekliyor)
+  const handleTogglePaid = async (couple: any) => {
+    const nextPaid = !couple.isPaid;
+    try {
+      const res = await adminFetch('/api/admin/couples', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: couple.slug,
+          updates: { isPaid: nextPaid },
+        }),
+      });
+      if (res.ok) {
+        showSuccess(
+          `${couple.slug} ödeme durumu: ${nextPaid ? 'ÖDENDİ / VIP AKTİF 💎' : 'ÖDENMEDİ / BEKLİYOR ⏳'}`
+        );
+        setCouples((prev) =>
+          prev.map((c) =>
+            c.slug === couple.slug
+              ? { ...c, isPaid: nextPaid, is_active: nextPaid ? true : c.is_active }
+              : c
+          )
+        );
+        fetchAllData();
+      } else {
+        const errData = await res.json();
+        showError(errData.error || 'Ödeme durumu güncellenemedi.');
+      }
+    } catch (e) {
+      showError('Ödeme durumu güncellenemedi.');
+    }
+  };
+
   // Action: Toggle Couple is_active
   const handleToggleActive = async (couple: any) => {
     const nextStatus = !couple.is_active;
@@ -719,13 +769,14 @@ export default function SuperAdminDashboard() {
                     <td className="p-3">
                       {o.matchedCoupleSlug ? (
                         <div>
-                          <Link
-                            href={`/c/${o.matchedCoupleSlug}`}
+                          <a
+                            href={getPublicCoupleUrl(o.matchedCoupleSlug)}
                             target="_blank"
+                            rel="noopener noreferrer"
                             className="font-bold text-rose-400 hover:underline flex items-center gap-1"
                           >
                             {o.matchedCoupleSlug} <ExternalLink className="h-3 w-3" />
-                          </Link>
+                          </a>
                           <div className="text-[10px] text-slate-400 font-semibold">{o.matchedCoupleNames}</div>
                         </div>
                       ) : (
@@ -821,6 +872,7 @@ export default function SuperAdminDashboard() {
                   <th className="p-3">Çift / İsimler</th>
                   <th className="p-3">Slug (Site Linki)</th>
                   <th className="p-3">Paket</th>
+                  <th className="p-3">Ödeme Durumu</th>
                   <th className="p-3">PIN Kodları</th>
                   <th className="p-3">Yayın Durumu</th>
                   <th className="p-3">Oluşturulma</th>
@@ -839,13 +891,14 @@ export default function SuperAdminDashboard() {
 
                     <td className="p-3">
                       <div className="flex items-center gap-1.5">
-                        <Link
-                          href={`/c/${c.slug}`}
+                        <a
+                          href={getPublicCoupleUrl(c.slug)}
                           target="_blank"
+                          rel="noopener noreferrer"
                           className="font-bold text-rose-400 hover:underline flex items-center gap-1"
                         >
                           /c/{c.slug} <ExternalLink className="h-3 w-3" />
-                        </Link>
+                        </a>
                       </div>
                     </td>
 
@@ -859,6 +912,30 @@ export default function SuperAdminDashboard() {
                       >
                         {c.package_type || 'Standard'}
                       </span>
+                    </td>
+
+                    <td className="p-3">
+                      <button
+                        onClick={() => handleTogglePaid(c)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide transition cursor-pointer border shadow-sm ${
+                          c.isPaid
+                            ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
+                            : 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25'
+                        }`}
+                        title="Tıklayarak Ödeme Durumunu Değiştir (Ödendi / Ödenmedi)"
+                      >
+                        {c.isPaid ? (
+                          <>
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>Ödendi (VIP)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="h-3.5 w-3.5" />
+                            <span>Ödenmedi (Bekliyor)</span>
+                          </>
+                        )}
+                      </button>
                     </td>
 
                     <td className="p-3 font-mono font-bold text-xs text-slate-400">
@@ -886,14 +963,15 @@ export default function SuperAdminDashboard() {
 
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Link
-                          href={`/dashboard?slug=${c.slug}`}
+                        <a
+                          href={getPublicDashboardUrl(c.slug)}
                           target="_blank"
+                          rel="noopener noreferrer"
                           className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-bold hover:bg-slate-700 transition"
                           title="Müşteri Paneline Giriş Yap"
                         >
                           Panel ➔
-                        </Link>
+                        </a>
 
                         <button
                           onClick={() => setEditingCouple({ ...c })}
@@ -966,13 +1044,14 @@ export default function SuperAdminDashboard() {
                     <td className="p-3 font-mono text-slate-400">{u.phone || '-'}</td>
                     <td className="p-3">
                       {u.couple_slug ? (
-                        <Link
-                          href={`/c/${u.couple_slug}`}
+                        <a
+                          href={getPublicCoupleUrl(u.couple_slug)}
                           target="_blank"
+                          rel="noopener noreferrer"
                           className="text-rose-400 font-bold hover:underline flex items-center gap-1"
                         >
                           {u.couple_slug} <ExternalLink className="h-3 w-3" />
-                        </Link>
+                        </a>
                       ) : (
                         <span className="text-slate-500 italic">Bağlı değil</span>
                       )}
@@ -1028,13 +1107,14 @@ export default function SuperAdminDashboard() {
                   <div className="font-extrabold text-white text-sm">
                     {c.partner1_name} & {c.partner2_name}
                   </div>
-                  <Link
-                    href={`/c/${c.slug}`}
+                  <a
+                    href={getPublicCoupleUrl(c.slug)}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="text-xs font-bold text-rose-400 hover:underline flex items-center gap-1"
                   >
                     {c.slug} <ExternalLink className="h-3 w-3" />
-                  </Link>
+                  </a>
                 </div>
 
                 <div className="space-y-1 text-xs">

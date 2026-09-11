@@ -21,6 +21,18 @@ export function proxy(request: NextRequest) {
     if (pathname.startsWith('/api') || pathname.startsWith('/admin')) {
       return NextResponse.next();
     }
+
+    // Allow public couple pages, demo, dashboard, checkout and legal pages to be viewed directly
+    if (
+      pathname.startsWith('/c/') ||
+      pathname.startsWith('/demo') ||
+      pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/checkout') ||
+      pathname.startsWith('/legal')
+    ) {
+      return NextResponse.next();
+    }
+
     const url = request.nextUrl.clone();
     url.pathname = `/admin${pathname === '/' ? '' : pathname}`;
     return NextResponse.rewrite(url);

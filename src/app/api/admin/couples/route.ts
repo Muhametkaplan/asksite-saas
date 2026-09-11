@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSessionFromRequest } from '@/lib/adminAuth';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, getDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 export async function GET(req: NextRequest) {
   const session = getAdminSessionFromRequest(req);
@@ -100,14 +100,57 @@ export async function PATCH(req: NextRequest) {
     }
 
     const docRef = doc(db, 'couples', slug);
-    await updateDoc(docRef, {
+    const snap = await getDoc(docRef);
+    const coupleData = snap.exists() ? snap.data() : null;
+
+    const payload: Record<string, any> = {
       ...updates,
       updated_at: new Date().toISOString(),
-    });
+    };
+
+    if (updates.isPaid !== undefined) {
+      const isPaidBool = updates.isPaid === true;
+      payload.isPaid = isPaidBool;
+      if (isPaidBool) {
+        payload.isActive = true;
+        payload.is_active = true;
+      }
+    }
+
+    if (updates.is_active !== undefined) {
+      payload.is_active = updates.is_active;
+      payload.isActive = updates.is_active;
+    }
+
+    await updateDoc(docRef, payload);
+
+    // Sync with owner user in users collection if exists
+    const ownerUid = coupleData?.owner_uid || coupleData?.partner1_uid;
+    if (ownerUid) {
+      const userRef = doc(db, 'users', ownerUid);
+      if (updates.isPaid === true) {
+        await updateDoc(userRef, {
+          hasPurchasedSite: true,
+          hasActiveSubscription: true,
+          isPaid: true,
+          coupleSlug: slug,
+          pendingCoupleSlug: null,
+          updatedAt: new Date().toISOString(),
+        }).catch(() => {});
+      } else if (updates.isPaid === false) {
+        await updateDoc(userRef, {
+          hasPurchasedSite: false,
+          hasActiveSubscription: false,
+          isPaid: false,
+          pendingCoupleSlug: slug,
+          updatedAt: new Date().toISOString(),
+        }).catch(() => {});
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: `${slug} çift bilgileri güncellendi.`,
+      message: `${slug} çift bilgileri ve ödeme durumu güncellendi.`,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Güncelleme başarısız.' }, { status: 500 });
