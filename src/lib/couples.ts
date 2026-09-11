@@ -1820,11 +1820,18 @@ export function isFeatureAllowedForPackage(
   packageTypeOrPlan: string | undefined | null,
   feature: FeatureKey
 ): boolean {
-  if (!packageTypeOrPlan) return false; // STRICT: Tanımsız veya boş paketlerde kısıtlı özellikler varsayılan olarak kapalıdır
-  const norm = packageTypeOrPlan.toLowerCase().trim();
+  // GÜVENLİ VARSAYILAN: Paket belirtilmemiş veya boşsa kısıtlı (Standart) kabul edilir
+  const norm = (packageTypeOrPlan || 'yearly_standard').toLowerCase().trim();
 
   // If it's yearly_standard or standard:
-  if (norm === 'yearly_standard' || norm === 'standard' || norm === 'standart' || norm === 'yearly') {
+  if (
+    norm === 'yearly_standard' ||
+    norm === 'standard' ||
+    norm === 'standart' ||
+    norm === 'yearly' ||
+    norm === '1_year' ||
+    !norm
+  ) {
     if (
       feature === 'map' ||
       feature === 'diary' ||

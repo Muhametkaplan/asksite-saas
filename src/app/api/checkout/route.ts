@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
     const ownerUid = owner_uid || null;
     const ownerEmail = (owner_email || p1Email || '').toLowerCase().trim();
 
+    const resolvedPlan = (package_type === 'yearly_premium' || package_type === 'premium') ? 'yearly_premium' : 'yearly_standard';
+
     const newCouple = {
       slug,
       pair_code,
@@ -85,8 +87,9 @@ export async function POST(req: NextRequest) {
         'Gözlerine baktığım an zaman duruyor...',
         'Birlikte yazacağımız nice masallara ❤️',
       ],
-      plan: (package_type === 'yearly_premium' || package_type === 'premium') ? 'yearly_premium' : 'yearly_standard',
-      package_type: (package_type === 'yearly_premium' || package_type === 'premium') ? 'yearly_premium' : 'yearly_standard',
+      plan: resolvedPlan,
+      package_type: resolvedPlan,
+      packageType: resolvedPlan,
       whatsapp_number: whatsapp_number || '905520000000',
       whatsapp_message: 'Acil sarılmana ihtiyacım var 🥺',
       love_reasons: [
@@ -120,7 +123,8 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         slug,
-        package_type,
+        package_type: resolvedPlan,
+        plan: resolvedPlan,
         redirect_url: `/dashboard?slug=${slug}&new=true`
       },
       { status: 201 }

@@ -1,6 +1,17 @@
 import crypto from 'crypto';
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET_KEY || 'AskSiteAdmin2026!*';
+export function getAdminSecret(): string {
+  const envKey = process.env.ADMIN_SECRET_KEY;
+  if (envKey && envKey.trim().length > 0) {
+    return envKey.trim();
+  }
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[CRITICAL SECURITY ERROR] ADMIN_SECRET_KEY ortam değişkeni canlı ortamda tanımlanmalıdır!');
+    // Canlı ortamda açık şifrenin kullanılmasını engellemek için tahmin edilemez rastgele anahtar üret
+    return crypto.randomBytes(32).toString('hex');
+  }
+  return 'AskSiteAdmin2026!*';
+}
 
 export function getAdminEmails(): string[] {
   const envEmails = process.env.ADMIN_EMAILS || 'byzehrajewels@gmail.com,muhammet.2713ka@gmail.com,asksitesaas@gmail.com';
@@ -17,9 +28,12 @@ export function verifyAdminCredentials(email: string, secretKey: string): boolea
 
   const allowedEmails = getAdminEmails();
   const emailAllowed = allowedEmails.includes(cleanEmail);
-  const keyMatches = cleanKey === ADMIN_SECRET;
+  if (!emailAllowed) return false;
 
-  return emailAllowed && keyMatches;
+  const currentSecret = getAdminSecret();
+  if (cleanKey.length !== currentSecret.length) return false;
+
+  return crypto.timingSafeEqual(Buffer.from(cleanKey), Buffer.from(currentSecret));
 }
 
 export function createAdminSessionToken(email: string): string {
@@ -31,8 +45,9 @@ export function createAdminSessionToken(email: string): string {
   const payloadStr = JSON.stringify(payload);
   const payloadB64 = Buffer.from(payloadStr, 'utf-8').toString('base64url');
 
+  const secret = getAdminSecret();
   const signature = crypto
-    .createHmac('sha256', ADMIN_SECRET)
+    .createHmac('sha256', secret)
     .update(payloadB64)
     .digest('base64url');
 
@@ -48,10 +63,15 @@ export function verifyAdminSessionToken(token?: string | null): { valid: boolean
     const [payloadB64, signature] = token.split('.');
     if (!payloadB64 || !signature) return { valid: false };
 
+    const secret = getAdminSecret();
     const expectedSig = crypto
-      .createHmac('sha256', ADMIN_SECRET)
+      .createHmac('sha256', secret)
       .update(payloadB64)
       .digest('base64url');
+
+    if (signature.length !== expectedSig.length) {
+      return { valid: false };
+    }
 
     if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
       return { valid: false };
