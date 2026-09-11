@@ -19,6 +19,8 @@ import {
   Plane,
   Image as ImageIcon,
   Crown,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import { CoupleConfig } from '@/types/couple';
 
@@ -55,6 +57,44 @@ export default function StoryCardModal({
     config.memories?.find((m) => m.photo_url)?.photo_url ||
     DEFAULT_VINTAGE_PHOTOS[0];
   const [polaroidPhoto, setPolaroidPhoto] = useState<string>(initialPhoto);
+  const [isTemporaryUploaded, setIsTemporaryUploaded] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Fotoğraf boyutu 15MB\'tan küçük olmalıdır.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setPolaroidPhoto(reader.result);
+        setIsTemporaryUploaded(true);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveUploadedPhoto = () => {
+    setPolaroidPhoto(initialPhoto);
+    setIsTemporaryUploaded(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleModalClose = () => {
+    // Çıkınca anlık yüklenen fotoğraf silinir / temizlenir
+    if (isTemporaryUploaded) {
+      setPolaroidPhoto(initialPhoto);
+      setIsTemporaryUploaded(false);
+    }
+    onClose();
+  };
 
   // Map Route Point Names State
   const [routePoint1, setRoutePoint1] = useState('İlk Buluşma 📍');
@@ -845,7 +885,12 @@ export default function StoryCardModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleModalClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200"
+    >
       {/* Hidden QR Code source used for Canvas 1080x1920 export */}
       <div className="hidden">
         <QRCodeSVG
@@ -876,8 +921,8 @@ export default function StoryCardModal({
             </p>
           </div>
           <button
-            onClick={onClose}
-            className="rounded-full bg-slate-800 p-2 text-slate-400 hover:text-white hover:bg-slate-700 transition"
+            onClick={handleModalClose}
+            className="rounded-full bg-slate-800 p-2 text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -948,69 +993,121 @@ export default function StoryCardModal({
 
             {/* POLAROID CUSTOM CONTROLS (If Polaroid Selected) */}
             {selectedTemplate === 'polaroid' && (
-              <div className="rounded-2xl bg-slate-800/60 border border-slate-700 p-3.5 space-y-3 animate-in fade-in">
+              <div className="rounded-2xl bg-slate-800/60 border border-slate-700 p-4 space-y-3.5 animate-in fade-in">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
-                    <ImageIcon className="h-3.5 w-3.5" /> Polaroid Fotoğrafı Seçimi
+                    <Camera className="h-4 w-4" /> Polaroid Fotoğrafı
                   </label>
-                  <span className="text-[10px] text-slate-400">
-                    Özel veya Anı Fotoğrafı
+                  <span className="text-[10px] text-amber-400 font-medium">
+                    ⚡ Anlık kullanılır, çıkınca silinir
                   </span>
                 </div>
 
-                {/* Quick Presets */}
-                <div className="flex items-center gap-2">
-                  {DEFAULT_VINTAGE_PHOTOS.map((url, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setPolaroidPhoto(url)}
-                      className={`h-11 w-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
-                        polaroidPhoto === url
-                          ? 'border-rose-500 scale-105 shadow-md'
-                          : 'border-slate-700 opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      <img
-                        src={url}
-                        alt="Preset"
-                        className="h-full w-full object-cover"
-                      />
-                    </button>
-                  ))}
+                {/* Direct Upload Button (Cihazdan/Galeriden Fotoğraf Seç) */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
 
-                  {/* Couple's own memory photos if available */}
-                  {(config.memories || [])
-                    .filter((m) => m.photo_url)
-                    .slice(0, 3)
-                    .map((m, idx) => (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 px-4 py-2.5 text-xs font-bold text-white shadow-md transition active:scale-95 cursor-pointer"
+                  >
+                    <Upload className="h-4 w-4" /> Cihazdan / Galeriden Fotoğraf Yükle
+                  </button>
+
+                  {isTemporaryUploaded && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveUploadedPhoto}
+                      className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-900/80 border border-rose-500/50 hover:bg-rose-500/20 px-3 py-2.5 text-xs font-bold text-rose-300 transition active:scale-95 cursor-pointer"
+                      title="Yüklenen geçici fotoğrafı kaldır"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-rose-400" /> Kaldır
+                    </button>
+                  )}
+                </div>
+
+                {isTemporaryUploaded && (
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-3 py-1.5 rounded-xl">
+                    <Check className="h-3.5 w-3.5" /> Fotoğrafınız anlık olarak yüklendi. Pencereyi kapattığınızda otomatik olarak silinecektir.
+                  </div>
+                )}
+
+                {/* Alternative Quick Presets & Memories */}
+                <div className="pt-1 border-t border-slate-700/60">
+                  <span className="block text-[10px] font-bold text-slate-400 mb-1.5">
+                    Veya Hazır Romantik Fotoğraflardan / Sitedeki Anılarınızdan Seçin:
+                  </span>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {DEFAULT_VINTAGE_PHOTOS.map((url, idx) => (
                       <button
-                        key={`mem-${idx}`}
+                        key={idx}
                         type="button"
-                        onClick={() => setPolaroidPhoto(m.photo_url!)}
-                        title={m.title}
+                        onClick={() => {
+                          setPolaroidPhoto(url);
+                          setIsTemporaryUploaded(false);
+                        }}
                         className={`h-11 w-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
-                          polaroidPhoto === m.photo_url
+                          polaroidPhoto === url && !isTemporaryUploaded
                             ? 'border-rose-500 scale-105 shadow-md'
                             : 'border-slate-700 opacity-70 hover:opacity-100'
                         }`}
                       >
                         <img
-                          src={m.photo_url}
-                          alt={m.title}
+                          src={url}
+                          alt="Preset"
                           className="h-full w-full object-cover"
                         />
                       </button>
                     ))}
+
+                    {(config.memories || [])
+                      .filter((m) => m.photo_url)
+                      .slice(0, 4)
+                      .map((m, idx) => (
+                        <button
+                          key={`mem-${idx}`}
+                          type="button"
+                          onClick={() => {
+                            setPolaroidPhoto(m.photo_url!);
+                            setIsTemporaryUploaded(false);
+                          }}
+                          title={m.title}
+                          className={`h-11 w-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                            polaroidPhoto === m.photo_url && !isTemporaryUploaded
+                              ? 'border-rose-500 scale-105 shadow-md'
+                              : 'border-slate-700 opacity-70 hover:opacity-100'
+                          }`}
+                        >
+                          <img
+                            src={m.photo_url}
+                            alt={m.title}
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
+                      ))}
+                  </div>
                 </div>
 
-                <input
-                  type="text"
-                  value={polaroidPhoto}
-                  onChange={(e) => setPolaroidPhoto(e.target.value)}
-                  placeholder="Veya Özel Fotoğraf Linki (URL) Yapıştırın..."
-                  className="w-full rounded-xl bg-slate-950 border border-slate-750 px-3 py-2 text-[11px] text-slate-300 outline-none focus:border-rose-500"
-                />
+                {/* Optional URL input */}
+                <div>
+                  <input
+                    type="text"
+                    value={isTemporaryUploaded ? '' : polaroidPhoto}
+                    onChange={(e) => {
+                      setPolaroidPhoto(e.target.value);
+                      setIsTemporaryUploaded(false);
+                    }}
+                    placeholder="Veya web fotoğraf bağlantısı (URL) yapıştırın..."
+                    className="w-full rounded-xl bg-slate-950 border border-slate-750 px-3 py-2 text-[11px] text-slate-300 outline-none focus:border-rose-500 placeholder:text-slate-600"
+                  />
+                </div>
               </div>
             )}
 
