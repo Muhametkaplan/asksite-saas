@@ -256,6 +256,55 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  // Action: Change Couple Package (Hediye / Yükseltme / Değiştirme)
+  const handleChangePackage = async (couple: any, newPackage: string) => {
+    const isPremium = newPackage === 'yearly_premium';
+    const packageName = isPremium ? 'Premium VIP Yıllık 💎' : 'Standart Yıllık 🌟';
+
+    try {
+      const oneYearLater = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+      const res = await adminFetch('/api/admin/couples', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: couple.slug,
+          updates: {
+            package_type: newPackage,
+            plan: newPackage,
+            isPaid: true,
+            isActive: true,
+            is_active: true,
+            expires_at: oneYearLater,
+            subscription_status: 'active',
+          },
+        }),
+      });
+
+      if (res.ok) {
+        showSuccess(`🎁 ${couple.slug} paketi başarıyla "${packageName}" olarak güncellendi ve 1 yıl aktif yayın tanımlandı! ✓`);
+        setCouples((prev) =>
+          prev.map((c) =>
+            c.slug === couple.slug
+              ? {
+                  ...c,
+                  package_type: newPackage,
+                  plan: newPackage,
+                  isPaid: true,
+                  is_active: true,
+                  expires_at: oneYearLater,
+                }
+              : c
+          )
+        );
+        fetchAllData();
+      } else {
+        showError('Paket güncellenemedi.');
+      }
+    } catch (e) {
+      showError('Paket değiştirme isteği başarısız.');
+    }
+  };
+
   // Action: Save Edit Couple Modal
   const handleSaveEditCouple = async () => {
     if (!editingCouple) return;
@@ -903,15 +952,31 @@ export default function SuperAdminDashboard() {
                     </td>
 
                     <td className="p-3">
-                      <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                          c.isPaid
-                            ? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
-                            : 'bg-slate-800 border-slate-700 text-slate-400'
+                      <select
+                        value={
+                          (c.package_type || c.plan || '').toLowerCase().includes('premium') ||
+                          (c.package_type || c.plan || '').toLowerCase().includes('vip') ||
+                          (c.package_type || c.plan || '').toLowerCase().includes('lifetime')
+                            ? 'yearly_premium'
+                            : 'yearly_standard'
+                        }
+                        onChange={(e) => handleChangePackage(c, e.target.value)}
+                        className={`rounded-xl px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border cursor-pointer outline-none transition shadow-xs ${
+                          (c.package_type || c.plan || '').toLowerCase().includes('premium') ||
+                          (c.package_type || c.plan || '').toLowerCase().includes('vip') ||
+                          (c.package_type || c.plan || '').toLowerCase().includes('lifetime')
+                            ? 'bg-purple-500/20 border-purple-500/40 text-purple-300 hover:bg-purple-500/30'
+                            : 'bg-rose-500/20 border-rose-500/40 text-rose-300 hover:bg-rose-500/30'
                         }`}
+                        title="Paketi değiştir veya hediye et (Standart / Premium VIP)"
                       >
-                        {c.package_type || 'Standard'}
-                      </span>
+                        <option value="yearly_standard" className="bg-slate-900 text-rose-300">
+                          🌟 Standart (250₺)
+                        </option>
+                        <option value="yearly_premium" className="bg-slate-900 text-purple-300 font-bold">
+                          💎 Premium VIP (400₺)
+                        </option>
+                      </select>
                     </td>
 
                     <td className="p-3">
@@ -963,11 +1028,28 @@ export default function SuperAdminDashboard() {
 
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            const isCurrentPremium =
+                              (c.package_type || c.plan || '').toLowerCase().includes('premium') ||
+                              (c.package_type || c.plan || '').toLowerCase().includes('vip');
+                            const target = isCurrentPremium ? 'yearly_standard' : 'yearly_premium';
+                            const label = isCurrentPremium ? 'Standart Pakete Dönüştür' : '💎 Premium VIP Hediye Et';
+                            if (confirm(`${c.partner1_name} & ${c.partner2_name} (${c.slug}) için paketi "${label}" olarak güncellemek ve +1 yıl aktif yayın tanımlamak istiyor musunuz?`)) {
+                              handleChangePackage(c, target);
+                            }
+                          }}
+                          className="px-2 py-1 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/40 text-purple-300 font-bold hover:from-purple-500/30 hover:to-pink-500/30 transition text-[11px] flex items-center gap-1 cursor-pointer"
+                          title="Hediye Et / Paket Değiştir"
+                        >
+                          🎁 Hediye Et
+                        </button>
+
                         <a
                           href={getPublicDashboardUrl(c.slug)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-bold hover:bg-slate-700 transition"
+                          className="px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 font-bold hover:bg-slate-700 transition text-[11px]"
                           title="Müşteri Paneline Giriş Yap"
                         >
                           Panel ➔
@@ -1191,26 +1273,6 @@ export default function SuperAdminDashboard() {
                   <span>{sendingTestEmail ? 'Gönderiliyor...' : 'Test E-postası Gönder'}</span>
                 </button>
               </form>
-            </div>
-
-            {/* Tool 2: Subdomain DNS Info */}
-            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-4">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                <Layers className="h-4 w-4 text-purple-400" /> Subdomain (admin.asksite.com.tr) Kurulumu
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                `admin.asksite.com.tr` adresinin doğrudan bu panele yönlenmesi için DNS panelinizde yapmanız gereken tek ayar:
-              </p>
-
-              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono space-y-1 text-slate-300">
-                <div><strong>Kayıt Türü:</strong> CNAME</div>
-                <div><strong>Ad (Host):</strong> admin</div>
-                <div><strong>Hedef (Value):</strong> cname.vercel-dns.com (veya asksite.com.tr)</div>
-              </div>
-
-              <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-                <Check className="h-3 w-3" /> Next.js Middleware otomatik subdomain rewrite mimarisi hazır!
-              </p>
             </div>
           </div>
         </div>

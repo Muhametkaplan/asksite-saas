@@ -31,7 +31,10 @@ export async function GET(req: NextRequest) {
         owner_email: data.owner_email || '',
         owner_uid: data.owner_uid || '',
         isPaid: data.isPaid === true,
-        package_type: data.package_type || data.plan || 'standard',
+        package_type: data.package_type || data.plan || 'yearly_standard',
+        plan: data.plan || data.package_type || 'yearly_standard',
+        expires_at: data.expires_at || null,
+        subscription_status: data.subscription_status || (data.isPaid ? 'active' : 'expired'),
         is_active: data.is_active !== false,
         partner1_pin: data.allowed_users?.partner1_pin || data.partner1_pin || '1234',
         partner2_pin: data.allowed_users?.partner2_pin || data.partner2_pin || '5678',
@@ -117,6 +120,16 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    if (updates.package_type || updates.plan) {
+      const p = updates.package_type || updates.plan;
+      payload.package_type = p;
+      payload.plan = p;
+      if (!updates.expires_at) {
+        payload.expires_at = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+      }
+      payload.subscription_status = 'active';
+    }
+
     if (updates.is_active !== undefined) {
       payload.is_active = updates.is_active;
       payload.isActive = updates.is_active;
@@ -128,11 +141,12 @@ export async function PATCH(req: NextRequest) {
     const ownerUid = coupleData?.owner_uid || coupleData?.partner1_uid;
     if (ownerUid) {
       const userRef = doc(db, 'users', ownerUid);
-      if (updates.isPaid === true) {
+      if (updates.isPaid === true || updates.package_type || updates.plan) {
         await updateDoc(userRef, {
           hasPurchasedSite: true,
           hasActiveSubscription: true,
           isPaid: true,
+          package_type: payload.package_type || coupleData?.package_type || 'yearly_standard',
           coupleSlug: slug,
           pendingCoupleSlug: null,
           updatedAt: new Date().toISOString(),
