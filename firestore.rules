@@ -3,32 +3,59 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Yardımcı Güvenlik Fonksiyonları
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwnerOrAuthorized(coupleData) {
+      return isAuthenticated() && (
+        request.auth.uid == coupleData.owner_uid ||
+        request.auth.uid == coupleData.partner1_uid ||
+        request.auth.uid == coupleData.partner2_uid ||
+        (coupleData.co_owners != null && request.auth.uid in coupleData.co_owners) ||
+        (coupleData.authorized_emails != null && request.auth.token.email != null && request.auth.token.email.lower() in coupleData.authorized_emails)
+      );
+    }
+
     // 1. Çift Sayfaları (/couples/{slug})
-    // Çift sayfaları (QR kod, link paylaşımı, web ziyaretçileri) herkese açık okunabilir olmalıdır.
     match /couples/{slug} {
-      // Sayfayı herkes görüntüleyebilir (Ziyaretçiler, partnerler, misafirler)
+      // Çift siteleri herkese açık okunabilir (ziyaretçiler, partnerler, misafirler)
       allow read: if true;
 
-      // Sayfa oluşturma ve güncelleme (Kayıt, checkout, dashboard ve oyun/anılar için)
-      allow create, update: if true;
-      allow delete: if request.auth != null;
+      // Yeni sayfa oluşturma (Checkout / Kayıt): isPaid ASLA true olarak başlatılamaz!
+      allow create: if request.resource.data.isPaid == false;
 
-      // Çift sayfasına ait tüm alt modüller ve koleksiyonlar (anılar, oyunlar, harita, kanvas, çizimler vb.)
+      // Sayfa güncelleme:
+      // - İstemci (client), isPaid alanını false'tan true yapamaz!
+      // - İstemci, paket planını (plan / package_type) ve bitiş tarihini (expires_at) değiştiremez!
+      // - Bu alanlar yalnızca sunucu API doğrulaması (Shopier onayı / Admin) ile değişebilir.
+      allow update: if (
+        // İstemci ödeme ve paket durumunu manipüle edemez:
+        (!('isPaid' in resource.data) || request.resource.data.isPaid == resource.data.isPaid) &&
+        (!('plan' in resource.data) || request.resource.data.plan == resource.data.plan) &&
+        (!('package_type' in resource.data) || request.resource.data.package_type == resource.data.package_type) &&
+        (!('expires_at' in resource.data) || request.resource.data.expires_at == resource.data.expires_at)
+      );
+
+      // Sayfayı silme sadece yetkili sahibi tarafından yapılabilir
+      allow delete: if isOwnerOrAuthorized(resource.data);
+
+      // Çift sayfasına ait alt modüller ve koleksiyonlar
       match /{subcollection=**} {
-        allow read, write: if true;
+        allow read: if true;
+        allow write: if true;
       }
     }
 
     // 2. Kullanıcı Hesapları (/users/{userId})
-    // Her kullanıcı sadece kendi hesap verisini okuyabilir ve güncelleyebilir
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
 
     // 3. Varsayılan Güvenlik Kuralı: Diğer tüm koleksiyonlar için auth zorunlu
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
   }
 }
-

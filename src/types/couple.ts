@@ -167,6 +167,8 @@ export interface CoupleConfig {
   partner2_uid?: string;
   co_owners?: string[];
   authenticated_devices?: AuthenticatedDevice[];
+  shopier_order_id?: string | null;
+  verified_manually_at?: any;
   created_at?: string;
 }
 

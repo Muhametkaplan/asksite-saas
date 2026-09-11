@@ -85,7 +85,8 @@ export async function POST(req: NextRequest) {
         'Gözlerine baktığım an zaman duruyor...',
         'Birlikte yazacağımız nice masallara ❤️',
       ],
-      plan: (package_type === 'lifetime' || package_type === 'nfc') ? 'lifetime' : '1_year',
+      plan: (package_type === 'yearly_premium' || package_type === 'premium') ? 'yearly_premium' : 'yearly_standard',
+      package_type: (package_type === 'yearly_premium' || package_type === 'premium') ? 'yearly_premium' : 'yearly_standard',
       whatsapp_number: whatsapp_number || '905520000000',
       whatsapp_message: 'Acil sarılmana ihtiyacım var 🥺',
       love_reasons: [

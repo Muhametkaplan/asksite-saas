@@ -137,7 +137,7 @@ export default function SuperAdminDashboard() {
           action: 'activate_couple',
           slug: order.matchedCoupleSlug,
           orderId: order.id,
-          plan: order.total >= 400 ? 'nfc' : order.total >= 300 ? 'lifetime' : 'yearly',
+          plan: order.total >= 350 ? 'yearly_premium' : 'yearly_standard',
           email: order.buyerEmail,
         }),
       });
@@ -169,7 +169,7 @@ export default function SuperAdminDashboard() {
           orderId: order.id,
           partner1: order.matchedCoupleNames ? order.matchedCoupleNames.split('&')[0].trim() : 'Partner 1',
           partner2: order.matchedCoupleNames ? order.matchedCoupleNames.split('&')[1]?.trim() : 'Partner 2',
-          plan: order.total >= 400 ? 'nfc' : order.total >= 300 ? 'lifetime' : 'yearly',
+          plan: order.total >= 350 ? 'yearly_premium' : 'yearly_standard',
         }),
       });
       const data = await res.json();

@@ -354,6 +354,24 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
     try {
       const coupleRef = doc(db, 'couples', config.slug);
 
+      // GÜVENLİK KORUMASI: İstemci tarafından isPaid ve paket durumunun sahte şekilde değiştirilmesini engelle
+      let isPaid = config.isPaid === true;
+      let plan = config.plan || config.package_type || 'yearly_standard';
+      let package_type = config.package_type || plan;
+      let expires_at = config.expires_at !== undefined ? config.expires_at : null;
+      let shopier_order_id = config.shopier_order_id || null;
+
+      const existingSnap = await getDoc(coupleRef);
+      if (existingSnap.exists()) {
+        const existingData = existingSnap.data();
+        // Belge veritabanında zaten varsa, gerçek ödeme ve paket durumunu koru!
+        isPaid = existingData.isPaid === true;
+        plan = existingData.plan || existingData.package_type || 'yearly_standard';
+        package_type = existingData.package_type || plan;
+        expires_at = existingData.expires_at || null;
+        shopier_order_id = existingData.shopier_order_id || null;
+      }
+
       const payload = {
         slug: config.slug,
         partner1_name: config.partner1_name,
@@ -423,18 +441,19 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         ].filter(Boolean))),
         co_owners: config.co_owners || [],
         feature_toggles: config.feature_toggles || {},
-        packageType: config.package_type || config.packageType || 'yearly_standard',
-        package_type: config.package_type || config.packageType || 'yearly_standard',
-        plan: config.plan || 'yearly_standard',
-        expires_at: config.expires_at !== undefined ? config.expires_at : null,
-        isActive: config.isActive === true || config.is_active === true ? true : false,
-        is_active: config.is_active === true || config.isActive === true ? true : false,
-        isPaid: config.isPaid === true ? true : false,
+        packageType: package_type,
+        package_type: package_type,
+        plan: plan,
+        expires_at: expires_at,
+        isActive: isPaid ? (config.isActive !== false && config.is_active !== false) : false,
+        is_active: isPaid ? (config.is_active !== false && config.isActive !== false) : false,
+        isPaid: isPaid,
         inviteCode: config.inviteCode || config.pair_code || null,
         owner_uid: config.owner_uid || (config.co_owners && config.co_owners[0]) || null,
         owner_email: config.owner_email || config.partner1_email || null,
         partner1_uid: config.partner1_uid || config.owner_uid || (config.co_owners && config.co_owners[0]) || null,
         partner2_uid: config.partner2_uid || (config.co_owners && config.co_owners[1]) || null,
+        shopier_order_id: shopier_order_id,
         updatedAt: serverTimestamp(),
       };
 
@@ -1801,7 +1820,7 @@ export function isFeatureAllowedForPackage(
   packageTypeOrPlan: string | undefined | null,
   feature: FeatureKey
 ): boolean {
-  if (!packageTypeOrPlan) return true; // Default fallback to allow
+  if (!packageTypeOrPlan) return false; // STRICT: Tanımsız veya boş paketlerde kısıtlı özellikler varsayılan olarak kapalıdır
   const norm = packageTypeOrPlan.toLowerCase().trim();
 
   // If it's yearly_standard or standard:

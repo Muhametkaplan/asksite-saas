@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { activateCouplePayment, getCoupleBySlug } from '@/lib/couples';
 import { sendOrderSuccessEmail } from '@/lib/mail';
+import { verifyShopierOrder } from '@/lib/shopier';
 
 function extractSlugFromOrderId(orderId: string): string {
   if (!orderId) return '';
-  // Format: ask_{slug}_{timestamp} or ASK...
   if (orderId.startsWith('ask_')) {
     const parts = orderId.replace(/^ask_/, '').split('_');
     if (parts.length > 1) {
@@ -13,10 +13,10 @@ function extractSlugFromOrderId(orderId: string): string {
     }
     return parts[0];
   }
-  return orderId;
+  return '';
 }
 
-async function findCoupleByEmailOrOrderId(email: string, orderId?: string): Promise<{ slug: string; plan?: '1_year' | 'lifetime' } | null> {
+async function findCoupleByEmailOrOrderId(email: string, orderId?: string): Promise<{ slug: string; plan?: string } | null> {
   try {
     const { db } = await import('@/lib/firebase');
     const { collection, query, where, getDocs } = await import('firebase/firestore');
@@ -24,7 +24,6 @@ async function findCoupleByEmailOrOrderId(email: string, orderId?: string): Prom
 
     const cleanEmail = (email || '').trim().toLowerCase();
 
-    // 1. If cleanEmail exists, search by authorized_emails or partner1_email
     if (cleanEmail) {
       const q1 = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', cleanEmail));
       const snap1 = await getDocs(q1);
@@ -45,41 +44,38 @@ async function findCoupleByEmailOrOrderId(email: string, orderId?: string): Prom
           return { slug: unpaid.slug, plan: unpaid.plan };
         }
       }
-    }
 
-    // 2. Search users collection for pending couple if orderId or email matches
-    if (cleanEmail) {
       const qUser = query(collection(db, 'users'), where('email', '==', cleanEmail));
       const snapUser = await getDocs(qUser);
       if (!snapUser.empty) {
         const userData = snapUser.docs[0].data();
         const pendingSlug = userData.pendingCoupleSlug || userData.coupleSlug;
         if (pendingSlug) {
-          return { slug: pendingSlug, plan: userData.pendingPackageType === 'lifetime' || userData.pendingPackageType === 'nfc' ? 'lifetime' : '1_year' };
+          return {
+            slug: pendingSlug,
+            plan: userData.pendingPackageType === 'yearly_premium' ? 'yearly_premium' : 'yearly_standard',
+          };
         }
       }
     }
   } catch (err) {
-    console.error('Error finding couple by email in callback:', err);
+    console.error('[ShopierCallback] Error finding couple by email:', err);
   }
   return null;
 }
 
 export async function POST(req: NextRequest) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
+
   try {
     let orderId = '';
-    let status = '';
     let slug = '';
     let buyerEmail = '';
-    let productId = '';
-    let plan: 'yearly_standard' | 'yearly_premium' | '1_year' | 'lifetime' | string = 'yearly_standard';
 
     const contentType = req.headers.get('content-type') || '';
 
     if (contentType.includes('application/json')) {
       const json = await req.json().catch(() => ({}));
-      console.log('[Shopier Callback Received JSON]:', JSON.stringify(json, null, 2));
-
       orderId =
         json.id ||
         json.platform_order_id ||
@@ -88,206 +84,196 @@ export async function POST(req: NextRequest) {
         json.data?.id ||
         json.data?.order_id ||
         '';
-      status = json.paymentStatus || json.status || json.payment_status || json.event || '';
       slug = json.slug || json.metadata?.slug || json.data?.metadata?.slug || '';
       buyerEmail =
         json.shippingInfo?.email ||
         json.billingInfo?.email ||
         json.buyer_email ||
         json.email ||
-        json.buyer?.email ||
-        json.customer?.email ||
-        json.data?.customer?.email ||
-        json.data?.buyer?.email ||
         '';
-      productId = String(
-        json.lineItems?.[0]?.productId ||
-        json.lineItems?.[0]?.product_id ||
-        json.product_id ||
-        json.productId ||
-        json.data?.product_id ||
-        json.data?.items?.[0]?.product_id ||
-        json.line_items?.[0]?.product_id ||
-        json.line_items?.[0]?.id ||
-        ''
-      );
-      if (json.plan === 'yearly_premium' || json.plan === 'premium' || json.plan === 'lifetime' || json.metadata?.plan === 'lifetime') {
-        plan = 'yearly_premium';
-      }
     } else {
       const formData = await req.formData().catch(() => new FormData());
       orderId = (formData.get('platform_order_id') || formData.get('order_id') || formData.get('orderId') || formData.get('id') || '') as string;
-      status = (formData.get('status') || formData.get('payment_status') || formData.get('paymentStatus') || '') as string;
       slug = (formData.get('slug') || '') as string;
       buyerEmail = (formData.get('buyer_email') || formData.get('email') || '') as string;
-      productId = String(formData.get('product_id') || formData.get('productId') || '');
-      const planStr = (formData.get('plan') || '') as string;
-      if (planStr === 'yearly_premium' || planStr === 'premium' || planStr === 'lifetime') {
-        plan = 'yearly_premium';
-      }
     }
 
-    // Also check URL Search Params
     const urlParams = req.nextUrl.searchParams;
     if (!slug) slug = urlParams.get('slug') || '';
     if (!orderId) orderId = urlParams.get('platform_order_id') || urlParams.get('order_id') || '';
-    if (!status) status = urlParams.get('status') || urlParams.get('paymentStatus') || '';
     if (!buyerEmail) buyerEmail = urlParams.get('email') || urlParams.get('buyer_email') || '';
-    if (!productId) productId = urlParams.get('product_id') || '';
-    if (urlParams.get('plan') === 'yearly_premium' || urlParams.get('plan') === 'premium' || urlParams.get('plan') === 'lifetime') {
-      plan = 'yearly_premium';
+
+    // GÜVENLİK ADIMI 1: Sipariş numarası olmadan hiçbir aktivasyon yapılamaz!
+    if (!orderId) {
+      console.warn('[Shopier Callback POST] Rejected: No orderId provided');
+      return NextResponse.json({ success: false, error: 'Siparis numarasi eksik.' }, { status: 400 });
     }
 
-    // Map Shopier live product IDs to plan
-    if (productId === '50201191') {
-      plan = 'yearly_premium';
-    } else if (productId === '50201181') {
-      plan = 'yearly_standard';
+    // GÜVENLİK ADIMI 2: Shopier REST API üzerinden sipariş durumunu DOĞRULA
+    const verification = await verifyShopierOrder(orderId);
+    if (!verification.success || !verification.order) {
+      console.warn(`[Shopier Callback POST] Rejected: Order ${orderId} could not be verified by Shopier API:`, verification.error);
+      return NextResponse.json({ success: false, error: verification.error || 'Shopier uzerinde dogrulanamadi.' }, { status: 400 });
     }
 
-    // Resolve slug if not explicitly passed
-    if (!slug && orderId && orderId.startsWith('ask_')) {
-      slug = extractSlugFromOrderId(orderId);
+    const { plan, buyerEmail: sEmail, orderId: cleanOrderId } = verification.order;
+
+    // GÜVENLİK ADIMI 3: Hedef çift sitesini tespit et
+    if (!slug && cleanOrderId.startsWith('ask_')) {
+      slug = extractSlugFromOrderId(cleanOrderId);
     }
 
-    // If still no slug, lookup by buyer email
-    if (!slug && buyerEmail) {
-      const match = await findCoupleByEmailOrOrderId(buyerEmail, orderId);
-      if (match?.slug) {
-        slug = match.slug;
-        if (match.plan) plan = match.plan;
+    const effectiveEmail = buyerEmail || sEmail;
+    if (!slug && effectiveEmail) {
+      const match = await findCoupleByEmailOrOrderId(effectiveEmail, cleanOrderId);
+      if (match?.slug) slug = match.slug;
+    }
+
+    if (!slug || slug === 'demo') {
+      console.warn(`[Shopier Callback POST] Verified order ${cleanOrderId} but could not find matching couple for email: ${effectiveEmail}`);
+      return NextResponse.json({ success: false, error: 'Siparise ait cift sitesi bulunamadi.' }, { status: 404 });
+    }
+
+    // GÜVENLİK ADIMI 4: Replay attack kontrolü
+    const { db } = await import('@/lib/firebase');
+    const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+
+    if (db) {
+      const existingSnap = await getDocs(query(collection(db, 'couples'), where('shopier_order_id', '==', cleanOrderId)));
+      if (!existingSnap.empty && existingSnap.docs[0].data().slug !== slug) {
+        console.warn(`[Shopier Callback POST] Replay attack: order ${cleanOrderId} already used for ${existingSnap.docs[0].data().slug}`);
+        return NextResponse.json({ success: false, error: 'Bu siparis daha once baska bir site icin kullanilmistir.' }, { status: 400 });
       }
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
-    const shopierEvent = req.headers.get('shopier-event') || '';
+    // GÜVENLİK ADIMI 5: Onaylanmış Çift Sitesini Aktif Et
+    await activateCouplePayment(slug, plan);
 
-    // Payment Success Verification
-    const normalizedStatus = status.trim().toLowerCase();
-    const isSuccess =
-      shopierEvent === 'order.created' ||
-      normalizedStatus === 'paid' ||
-      normalizedStatus === 'success' ||
-      normalizedStatus === 'successful' ||
-      normalizedStatus === '1' ||
-      normalizedStatus === 'completed' ||
-      normalizedStatus === 'approved' ||
-      normalizedStatus === ''; // Default to success if callback was invoked with orderId & slug
-
-    if (isSuccess && slug && slug !== 'demo') {
-      const existing = await getCoupleBySlug(slug);
-      if (existing?.plan === 'lifetime' || existing?.package_type === 'lifetime' || existing?.package_type === 'nfc') {
-        plan = 'lifetime';
-      }
-
-      await activateCouplePayment(slug, plan);
-      console.log(`[Shopier Verified Callback] Activated couple: ${slug} (${plan})`);
-
-      // Send congratulations and site ready email asynchronously
-      const targetEmail = buyerEmail || existing?.partner1_email || existing?.authorized_emails?.[0];
-      if (targetEmail) {
-        sendOrderSuccessEmail({
-          to: targetEmail,
-          partner1Name: existing?.partner1_name || 'Partner 1',
-          partner2Name: existing?.partner2_name || 'Partner 2',
-          slug,
-          plan,
-          inviteCode: existing?.inviteCode || existing?.pair_code || '',
-          orderId: orderId || undefined,
-        }).catch((err) => console.error('Error sending order success email in callback:', err));
-      }
-
-      const isWebhook =
-        contentType.includes('json') ||
-        shopierEvent !== '' ||
-        req.headers.get('user-agent')?.toLowerCase().includes('shopier') ||
-        !req.headers.get('accept')?.includes('text/html');
-
-      if (isWebhook) {
-        return NextResponse.json({ success: true, message: 'Payment verified and couple activated', slug, plan }, { status: 200 });
-      }
-
-      return NextResponse.redirect(new URL(`/c/${slug}?payment=success`, appUrl), { status: 302 });
+    if (db) {
+      await setDoc(
+        doc(db, 'couples', slug),
+        {
+          shopier_order_id: cleanOrderId,
+          verified_via_webhook_at: serverTimestamp(),
+        },
+        { merge: true }
+      );
     }
 
-    console.warn(`[Shopier Callback] status=${status}, slug=${slug}, email=${buyerEmail}`);
-    return NextResponse.redirect(new URL('/checkout?error=payment_failed', appUrl), { status: 302 });
+    const existingCouple = await getCoupleBySlug(slug);
+    const targetEmail = effectiveEmail || existingCouple?.partner1_email || existingCouple?.authorized_emails?.[0];
+    if (targetEmail) {
+      sendOrderSuccessEmail({
+        to: targetEmail,
+        partner1Name: existingCouple?.partner1_name || 'Partner 1',
+        partner2Name: existingCouple?.partner2_name || 'Partner 2',
+        slug,
+        plan,
+        inviteCode: existingCouple?.inviteCode || existingCouple?.pair_code || '',
+        orderId: cleanOrderId,
+      }).catch((err) => console.error('Error sending email in callback:', err));
+    }
+
+    console.log(`[Shopier Callback POST SUCCESS] Activated couple: ${slug} (${plan}) with order ${cleanOrderId}`);
+
+    const isWebhook =
+      contentType.includes('json') ||
+      Boolean(req.headers.get('shopier-event')) ||
+      req.headers.get('user-agent')?.toLowerCase().includes('shopier') ||
+      !req.headers.get('accept')?.includes('text/html');
+
+    if (isWebhook) {
+      return NextResponse.json({ success: true, message: 'Odeme basariyla dogrulandi ve site aktif edildi.', slug, plan }, { status: 200 });
+    }
+
+    return NextResponse.redirect(new URL(`/c/${slug}?payment=success`, appUrl), { status: 302 });
   } catch (error) {
-    console.error('Error in Shopier payment callback:', error);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
+    console.error('Error in Shopier POST callback:', error);
     return NextResponse.redirect(new URL('/checkout?error=payment_failed', appUrl), { status: 302 });
   }
 }
 
 export async function GET(req: NextRequest) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
+
   try {
     const urlParams = req.nextUrl.searchParams;
     let slug = urlParams.get('slug') || '';
     const orderId = urlParams.get('platform_order_id') || urlParams.get('order_id') || '';
-    const status = urlParams.get('status') || '';
     const buyerEmail = urlParams.get('email') || urlParams.get('buyer_email') || '';
-    const productId = urlParams.get('product_id') || '';
-    let plan: '1_year' | 'lifetime' = urlParams.get('plan') === 'lifetime' ? 'lifetime' : '1_year';
 
-    if (productId === '50201191' || productId === '50201195') {
-      plan = 'lifetime';
+    // GÜVENLİK ADIMI 1: URL'de sipariş numarası yoksa kesinlikle aktif etme!
+    if (!orderId) {
+      console.warn('[Shopier GET Callback] Rejected: No orderId in GET parameters');
+      return NextResponse.redirect(new URL('/checkout?error=payment_unverified', appUrl), { status: 302 });
     }
 
-    if (!slug && orderId && orderId.startsWith('ask_')) {
-      slug = extractSlugFromOrderId(orderId);
+    // GÜVENLİK ADIMI 2: Shopier REST API üzerinden siparişi doğrula
+    const verification = await verifyShopierOrder(orderId);
+    if (!verification.success || !verification.order) {
+      console.warn(`[Shopier GET Callback] Order ${orderId} unverified by Shopier:`, verification.error);
+      return NextResponse.redirect(new URL('/checkout?error=payment_unverified', appUrl), { status: 302 });
     }
 
-    if (!slug && buyerEmail) {
-      const match = await findCoupleByEmailOrOrderId(buyerEmail, orderId);
-      if (match?.slug) {
-        slug = match.slug;
-        if (match.plan) plan = match.plan;
+    const { plan, buyerEmail: sEmail, orderId: cleanOrderId } = verification.order;
+
+    if (!slug && cleanOrderId.startsWith('ask_')) {
+      slug = extractSlugFromOrderId(cleanOrderId);
+    }
+
+    const effectiveEmail = buyerEmail || sEmail;
+    if (!slug && effectiveEmail) {
+      const match = await findCoupleByEmailOrOrderId(effectiveEmail, cleanOrderId);
+      if (match?.slug) slug = match.slug;
+    }
+
+    if (!slug || slug === 'demo') {
+      return NextResponse.redirect(new URL('/checkout?error=couple_not_found', appUrl), { status: 302 });
+    }
+
+    // GÜVENLİK ADIMI 3: Replay attack kontrolü
+    const { db } = await import('@/lib/firebase');
+    const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+
+    if (db) {
+      const existingSnap = await getDocs(query(collection(db, 'couples'), where('shopier_order_id', '==', cleanOrderId)));
+      if (!existingSnap.empty && existingSnap.docs[0].data().slug !== slug) {
+        return NextResponse.redirect(new URL('/checkout?error=order_already_used', appUrl), { status: 302 });
       }
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
+    // GÜVENLİK ADIMI 4: Doğrulanmış Çift Sitesini Aktif Et
+    await activateCouplePayment(slug, plan);
 
-    const normalizedStatus = status.trim().toLowerCase();
-    const isSuccess =
-      normalizedStatus === 'paid' ||
-      normalizedStatus === 'success' ||
-      normalizedStatus === 'successful' ||
-      normalizedStatus === '1' ||
-      normalizedStatus === 'completed' ||
-      normalizedStatus === 'approved' ||
-      normalizedStatus === '';
-
-    if (isSuccess && slug && slug !== 'demo') {
-      const existing = await getCoupleBySlug(slug);
-      if (existing?.plan === 'lifetime' || existing?.package_type === 'lifetime' || existing?.package_type === 'nfc') {
-        plan = 'lifetime';
-      }
-
-      await activateCouplePayment(slug, plan);
-      console.log(`[Shopier GET Verified Callback] Activated couple: ${slug} (${plan})`);
-
-      // Send congratulations and site ready email asynchronously
-      const targetEmail = buyerEmail || existing?.partner1_email || existing?.authorized_emails?.[0];
-      if (targetEmail) {
-        sendOrderSuccessEmail({
-          to: targetEmail,
-          partner1Name: existing?.partner1_name || 'Partner 1',
-          partner2Name: existing?.partner2_name || 'Partner 2',
-          slug,
-          plan,
-          inviteCode: existing?.inviteCode || existing?.pair_code || '',
-          orderId: orderId || undefined,
-        }).catch((err) => console.error('Error sending order success email in GET callback:', err));
-      }
-
-      const redirectUrl = new URL(`/c/${slug}?payment=success`, appUrl);
-      return NextResponse.redirect(redirectUrl, { status: 302 });
+    if (db) {
+      await setDoc(
+        doc(db, 'couples', slug),
+        {
+          shopier_order_id: cleanOrderId,
+          verified_via_redirect_at: serverTimestamp(),
+        },
+        { merge: true }
+      );
     }
 
-    return NextResponse.redirect(new URL('/checkout?error=payment_failed', appUrl), { status: 302 });
+    const existingCouple = await getCoupleBySlug(slug);
+    const targetEmail = effectiveEmail || existingCouple?.partner1_email || existingCouple?.authorized_emails?.[0];
+    if (targetEmail) {
+      sendOrderSuccessEmail({
+        to: targetEmail,
+        partner1Name: existingCouple?.partner1_name || 'Partner 1',
+        partner2Name: existingCouple?.partner2_name || 'Partner 2',
+        slug,
+        plan,
+        inviteCode: existingCouple?.inviteCode || existingCouple?.pair_code || '',
+        orderId: cleanOrderId,
+      }).catch((err) => console.error('Error sending email in GET callback:', err));
+    }
+
+    console.log(`[Shopier GET Callback SUCCESS] Verified & Activated: ${slug} (${plan})`);
+    return NextResponse.redirect(new URL(`/c/${slug}?payment=success`, appUrl), { status: 302 });
   } catch (error) {
     console.error('Error in Shopier GET payment callback:', error);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.asksite.com.tr';
     return NextResponse.redirect(new URL('/checkout?error=payment_failed', appUrl), { status: 302 });
   }
 }
