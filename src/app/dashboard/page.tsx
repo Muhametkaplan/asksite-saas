@@ -64,6 +64,7 @@ function DashboardContent() {
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
   const initialConfigRef = useRef<string>('');
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [siteManagementOpen, setSiteManagementOpen] = useState(false);
 
   // Form State
   const [config, setConfig] = useState<CoupleConfig>({
@@ -1064,9 +1065,9 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Aktif Site Yönetim Kartı */}
-      <div className="mx-auto max-w-7xl mb-6 rounded-3xl bg-white p-6 shadow-xl border border-gray-100">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-gray-100 pb-4 mb-5">
+      {/* Aktif Site Yönetim Kartı (Açılır / Kapanır) */}
+      <div className="mx-auto max-w-7xl mb-6 rounded-3xl bg-white p-5 sm:p-6 shadow-md border border-gray-100 transition-all duration-200">
+        <div className={`flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${siteManagementOpen ? 'border-b border-gray-100 pb-5 mb-5' : ''}`}>
           <div className="space-y-1 text-left">
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-500 flex items-center gap-1">
@@ -1110,7 +1111,7 @@ function DashboardContent() {
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={copyLiveLink}
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 transition active:scale-95"
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-100 transition active:scale-95 cursor-pointer"
             >
               <Copy className="h-3.5 w-3.5" /> {copiedLink ? 'Kopyalandı! ✓' : 'Link Kopyala'}
             </button>
@@ -1121,143 +1122,157 @@ function DashboardContent() {
             >
               <ExternalLink className="h-3.5 w-3.5" /> Siteme Git 🔗
             </button>
+
+            <button
+              onClick={() => setSiteManagementOpen(!siteManagementOpen)}
+              className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition active:scale-95 cursor-pointer"
+              title={siteManagementOpen ? 'Yönetim Kartını Daralt' : 'Hızlı Ayarlar & Eşleşme Kodunu Göster'}
+            >
+              <span>{siteManagementOpen ? 'Detayları Kapat' : 'Yönetim Detayları'}</span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${siteManagementOpen ? 'rotate-180' : ''}`} />
+            </button>
           </div>
         </div>
 
-        {/* Quick Edit Form: İsimler, Tarih & PIN Şifreleri */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
-          <div>
-            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 İsmi</label>
-            <input
-              type="text"
-              value={config.partner1_name}
-              onChange={(e) => setConfig((prev) => ({ ...prev, partner1_name: e.target.value }))}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 E-Postası</label>
-            <input
-              type="email"
-              placeholder="partner1@example.com"
-              value={config.allowed_users?.partner1_email || config.partner1_email || ''}
-              onChange={(e) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  partner1_email: e.target.value,
-                  allowed_users: {
-                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
-                    partner1_email: e.target.value,
-                  },
-                }))
-              }
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 İsmi</label>
-            <input
-              type="text"
-              value={config.partner2_name}
-              onChange={(e) => setConfig((prev) => ({ ...prev, partner2_name: e.target.value }))}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 E-Postası</label>
-            <input
-              type="email"
-              placeholder="partner2@example.com"
-              value={config.allowed_users?.partner2_email || config.partner2_email || ''}
-              onChange={(e) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  partner2_email: e.target.value,
-                  allowed_users: {
-                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
-                    partner2_email: e.target.value,
-                  },
-                }))
-              }
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 Özel PIN (4 Haneli)</label>
-            <input
-              type="text"
-              maxLength={4}
-              value={config.allowed_users?.partner1_pin || config.partner1_pin || '1234'}
-              onChange={(e) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  partner1_pin: e.target.value,
-                  allowed_users: {
-                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '' }),
-                    partner1_pin: e.target.value,
-                  },
-                }))
-              }
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-rose-600 outline-none focus:border-rose-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 Özel PIN (4 Haneli)</label>
-            <input
-              type="text"
-              maxLength={4}
-              value={config.allowed_users?.partner2_pin || config.partner2_pin || '5678'}
-              onChange={(e) =>
-                setConfig((prev) => ({
-                  ...prev,
-                  partner2_pin: e.target.value,
-                  allowed_users: {
-                    ...(prev.allowed_users || { partner1_email: '', partner2_email: '' }),
-                    partner2_pin: e.target.value,
-                  },
-                }))
-              }
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-purple-600 outline-none focus:border-purple-500"
-            />
-          </div>
-        </div>
-
-        {/* Çift Eşleşme Kodu Bilgilendirmesi */}
-        <div className="mt-5 border-t border-gray-100 pt-5 text-left">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gradient-to-r from-rose-50/80 via-purple-50/70 to-pink-50/80 p-4 sm:p-5 rounded-2xl border border-rose-100/80">
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500 text-white font-black text-sm shadow-xs shrink-0">
-                🤝
-              </span>
+        {/* Açılır Yönetim Detayları: İsimler, Tarih & PIN Şifreleri + Davet Kodu */}
+        {siteManagementOpen && (
+          <div className="animate-in fade-in slide-in-from-top-2 duration-200 space-y-5">
+            {/* Quick Edit Form: İsimler, Tarih & PIN Şifreleri */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
               <div>
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">
-                  Sitenizin Çift Eşleşme Kodu & Davetiyesi
-                </h4>
-                <p className="text-[11px] text-gray-500">
-                  Partneriniz bu kodu girerek aynı sitenin eş yöneticisi (co-owner) olabilir.
-                </p>
+                <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 İsmi</label>
+                <input
+                  type="text"
+                  value={config.partner1_name}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, partner1_name: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 E-Postası</label>
+                <input
+                  type="email"
+                  placeholder="partner1@example.com"
+                  value={config.allowed_users?.partner1_email || config.partner1_email || ''}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      partner1_email: e.target.value,
+                      allowed_users: {
+                        ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
+                        partner1_email: e.target.value,
+                      },
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 İsmi</label>
+                <input
+                  type="text"
+                  value={config.partner2_name}
+                  onChange={(e) => setConfig((prev) => ({ ...prev, partner2_name: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 E-Postası</label>
+                <input
+                  type="email"
+                  placeholder="partner2@example.com"
+                  value={config.allowed_users?.partner2_email || config.partner2_email || ''}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      partner2_email: e.target.value,
+                      allowed_users: {
+                        ...(prev.allowed_users || { partner1_email: '', partner2_email: '', access_pin: '1234' }),
+                        partner2_email: e.target.value,
+                      },
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 1 Özel PIN (4 Haneli)</label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={config.allowed_users?.partner1_pin || config.partner1_pin || '1234'}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      partner1_pin: e.target.value,
+                      allowed_users: {
+                        ...(prev.allowed_users || { partner1_email: '', partner2_email: '' }),
+                        partner1_pin: e.target.value,
+                      },
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-rose-600 outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-gray-700 mb-1">Partner 2 Özel PIN (4 Haneli)</label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={config.allowed_users?.partner2_pin || config.partner2_pin || '5678'}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      partner2_pin: e.target.value,
+                      allowed_users: {
+                        ...(prev.allowed_users || { partner1_email: '', partner2_email: '' }),
+                        partner2_pin: e.target.value,
+                      },
+                    }))
+                  }
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-purple-600 outline-none focus:border-purple-500"
+                />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="flex-1 sm:flex-initial rounded-xl bg-white border border-rose-200 px-5 py-2 font-mono text-sm font-black text-rose-600 tracking-widest shadow-inner text-center min-w-[140px]">
-                {config.inviteCode || config.pair_code || 'ASK-X79B2'}
+            {/* Çift Eşleşme Kodu Bilgilendirmesi */}
+            <div className="border-t border-gray-100 pt-5 text-left">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gradient-to-r from-rose-50/80 via-purple-50/70 to-pink-50/80 p-4 sm:p-5 rounded-2xl border border-rose-100/80">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500 text-white font-black text-sm shadow-xs shrink-0">
+                    🤝
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">
+                      Sitenizin Çift Eşleşme Kodu & Davetiyesi
+                    </h4>
+                    <p className="text-[11px] text-gray-500">
+                      Partneriniz bu kodu girerek aynı sitenin eş yöneticisi (co-owner) olabilir.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="flex-1 sm:flex-initial rounded-xl bg-white border border-rose-200 px-5 py-2 font-mono text-sm font-black text-rose-600 tracking-widest shadow-inner text-center min-w-[140px]">
+                    {config.inviteCode || config.pair_code || 'ASK-X79B2'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyPairCode}
+                    className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-extrabold text-white shadow-md hover:bg-rose-600 transition shrink-0 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Copy className="h-3.5 w-3.5" /> {copiedPairCode ? 'Kopyalandı! ✓' : 'Kodu Kopyala'}
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={copyPairCode}
-                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-extrabold text-white shadow-md hover:bg-rose-600 transition shrink-0 active:scale-95 flex items-center gap-1.5 cursor-pointer"
-              >
-                <Copy className="h-3.5 w-3.5" /> {copiedPairCode ? 'Kopyalandı! ✓' : 'Kodu Kopyala'}
-              </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Main Grid: Left Editor Wizard, Right Live Preview */}
