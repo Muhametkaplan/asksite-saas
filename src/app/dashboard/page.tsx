@@ -40,6 +40,7 @@ import {
   Send,
   Smartphone,
   MessageSquare,
+  X,
 } from 'lucide-react';
 
 import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
@@ -79,6 +80,7 @@ function DashboardContent() {
   const [testPushMsg, setTestPushMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [testingCron, setTestingCron] = useState(false);
   const [testCronMsg, setTestCronMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isQuickBarMinimized, setIsQuickBarMinimized] = useState(false);
 
   // Form State
   const [config, setConfig] = useState<CoupleConfig>({
@@ -208,6 +210,12 @@ function DashboardContent() {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (hasUnsavedChanges) {
+      setIsQuickBarMinimized(false);
+    }
   }, [hasUnsavedChanges]);
 
   useEffect(() => {
@@ -1056,7 +1064,7 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 p-4 sm:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 p-4 sm:p-8 pb-36 sm:pb-28">
       {/* Top Banner & Profile Dropdown Header */}
       <div className="mx-auto max-w-7xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl bg-white/80 backdrop-blur-md p-6 border border-white/90 shadow-md">
         <div>
@@ -1432,7 +1440,7 @@ function DashboardContent() {
       {/* Main Grid: Left Editor Wizard, Right Live Preview */}
       <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Form Wizard (7 cols) */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-7 space-y-6 pb-28 sm:pb-16">
           {/* Navigation Tabs */}
           <div className="flex flex-wrap rounded-2xl bg-white/70 p-1.5 shadow-sm border border-white/80 gap-1">
             <button
@@ -3559,71 +3567,101 @@ function DashboardContent() {
 
       {/* Floating Bottom Quick Action Bar (Visible when scrolling down or when unsaved changes exist) */}
       <div
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 max-w-[95vw] ${
+        className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 max-w-[95vw] ${
           hasScrolled || hasUnsavedChanges
             ? 'opacity-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 translate-y-8 pointer-events-none'
         }`}
       >
-        <div className="flex items-center gap-2 sm:gap-3 rounded-full bg-slate-950/90 backdrop-blur-xl border border-slate-700/80 p-2 pl-3.5 sm:pl-4 pr-2 shadow-2xl text-white">
-          <div className="flex items-center gap-2 pr-1">
+        {isQuickBarMinimized ? (
+          <button
+            onClick={() => setIsQuickBarMinimized(false)}
+            className="flex items-center gap-2 rounded-full bg-slate-950/90 backdrop-blur-xl border border-slate-700/80 px-4 py-2.5 shadow-2xl text-white hover:scale-105 active:scale-95 transition cursor-pointer"
+          >
             {hasUnsavedChanges ? (
               <>
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
                 </span>
-                <span className="text-xs font-bold text-amber-300 hidden sm:inline">
-                  Kaydedilmemiş Değişiklikler
-                </span>
-              </>
-            ) : savedSuccess ? (
-              <>
-                <CheckCircle className="h-4 w-4 text-emerald-400" />
-                <span className="text-xs font-bold text-emerald-300 hidden sm:inline">
-                  Kaydedildi!
-                </span>
+                <span className="text-xs font-black text-amber-300">Kaydet (Değişiklik Var)</span>
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 text-rose-400" />
-                <span className="text-xs font-semibold text-slate-300 hidden sm:inline">
-                  Hızlı Menü
-                </span>
+                <Save className="h-3.5 w-3.5 text-rose-400" />
+                <span className="text-xs font-bold text-slate-200">Hızlı Menü</span>
               </>
             )}
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 sm:gap-3 rounded-full bg-slate-950/90 backdrop-blur-xl border border-slate-700/80 p-1.5 sm:p-2 pl-3 sm:pl-4 pr-1.5 sm:pr-2 shadow-2xl text-white">
+            <div className="flex items-center gap-2 pr-1">
+              {hasUnsavedChanges ? (
+                <>
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                  </span>
+                  <span className="text-xs font-bold text-amber-300 hidden sm:inline">
+                    Kaydedilmemiş Değişiklikler
+                  </span>
+                </>
+              ) : savedSuccess ? (
+                <>
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-emerald-300 hidden sm:inline">
+                    Kaydedildi!
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 text-rose-400" />
+                  <span className="text-xs font-semibold text-slate-300 hidden sm:inline">
+                    Hızlı Menü
+                  </span>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black text-white shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer ${
+                hasUnsavedChanges
+                  ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:brightness-110 ring-2 ring-rose-400/50 animate-pulse'
+                  : 'bg-gradient-to-r from-rose-500 to-pink-600 hover:brightness-105'
+              }`}
+            >
+              <Save className="h-3.5 w-3.5" />
+              {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+            </button>
+
+            <button
+              onClick={handleGoToSite}
+              className="flex items-center gap-1.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 transition active:scale-95 cursor-pointer"
+              title="Değişiklikleri kaydedip sitenize gider"
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-rose-400" />
+              <span className="hidden sm:inline">Siteme Git</span>
+            </button>
+
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+              title="Sayfa Başına Çık"
+            >
+              <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+            </button>
+
+            <button
+              onClick={() => setIsQuickBarMinimized(true)}
+              className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer ml-0.5"
+              title="Menüyü Küçült"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
-
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black text-white shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer ${
-              hasUnsavedChanges
-                ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:brightness-110 ring-2 ring-rose-400/50 animate-pulse'
-                : 'bg-gradient-to-r from-rose-500 to-pink-600 hover:brightness-105'
-            }`}
-          >
-            <Save className="h-3.5 w-3.5" />
-            {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-          </button>
-
-          <button
-            onClick={handleGoToSite}
-            className="flex items-center gap-1.5 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3.5 py-2 text-xs font-bold text-slate-200 transition active:scale-95 cursor-pointer"
-            title="Değişiklikleri kaydedip sitenize gider"
-          >
-            <ExternalLink className="h-3.5 w-3.5 text-rose-400" />
-            <span className="hidden sm:inline">Siteme Git</span>
-          </button>
-
-          <button
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
-            title="Sayfa Başına Çık"
-          >
-            <ChevronDown className="h-3.5 w-3.5 rotate-180" />
-          </button>
-        </div>
+        )}
       </div>
 
       {/* Instagram Story Card Generator Modal */}
