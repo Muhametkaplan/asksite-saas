@@ -132,7 +132,7 @@ export async function sendWebPushToPartner({
       sentCount,
       errorCount,
       totalSubs: subscriptions.length,
-      errors: errors.length > 0 ? errors : undefined,
+      errors: errors.length > 0 ? errors : [],
     };
   } catch (error: any) {
     console.error('[WebPush] Error in sendWebPushToPartner:', error);

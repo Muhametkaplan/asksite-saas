@@ -33,7 +33,13 @@ export function getAdminFirestore(): Firestore {
     }
   }
 
-  return getFirestore();
+  const db = getFirestore();
+  try {
+    db.settings({ ignoreUndefinedProperties: true });
+  } catch (e) {
+    // ignore if already configured
+  }
+  return db;
 }
 
 async function getGoogleAccessToken(clientEmail: string, privateKey: string): Promise<string> {

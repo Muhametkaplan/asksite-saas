@@ -269,13 +269,18 @@ async function handleReminders(req: NextRequest) {
           dispatchLog.channels.push = pushRes;
         }
 
-        // Save log to avoid resending
-        await logRef.set({
-          ...dispatchLog,
-          status: 'sent',
-          year: currentYear,
-          timestamp: new Date().toISOString(),
-        });
+        // Save log to avoid resending (clean all undefined values)
+        try {
+          const cleanLog = JSON.parse(JSON.stringify(dispatchLog));
+          await logRef.set({
+            ...cleanLog,
+            status: 'sent',
+            year: currentYear,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (logErr) {
+          console.warn('[Cron/Reminders] Log write skipped:', logErr);
+        }
 
         results.push(dispatchLog);
       }
