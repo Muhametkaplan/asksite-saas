@@ -144,7 +144,7 @@ export default function NotificationPermissionPrompt({
   // Render floating prompt banner
   if (showPrompt) {
     return (
-      <div className="fixed bottom-6 right-6 z-50 max-w-sm w-[92vw] sm:w-[380px] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-rose-200 dark:border-rose-900/40 rounded-2xl shadow-2xl p-4.5 animate-in fade-in slide-in-from-bottom-5 duration-300">
+      <div className="fixed bottom-28 sm:bottom-24 left-4 right-4 sm:left-auto sm:right-6 z-[60] max-w-sm sm:w-[380px] mx-auto sm:mx-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border border-rose-200 dark:border-rose-900/40 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-rose-500/25">
             <Bell className="w-5 h-5 animate-pulse" />
@@ -170,7 +170,7 @@ export default function NotificationPermissionPrompt({
                   type="button"
                   onClick={handleSubscribe}
                   disabled={isSubscribing}
-                  className="flex-1 py-2 px-3 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="flex-1 py-2 px-3 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
                 >
                   <Heart className="w-3.5 h-3.5 fill-current" />
                   {isSubscribing ? 'Açılıyor...' : 'Bildirimleri Aç'}
@@ -178,7 +178,7 @@ export default function NotificationPermissionPrompt({
                 <button
                   type="button"
                   onClick={handleDismiss}
-                  className="py-2 px-3 text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition"
+                  className="py-2 px-3 text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition cursor-pointer"
                 >
                   Şimdilik Değil
                 </button>
@@ -188,7 +188,7 @@ export default function NotificationPermissionPrompt({
           <button
             type="button"
             onClick={handleDismiss}
-            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 p-1"
+            className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 p-1 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -204,7 +204,7 @@ export default function NotificationPermissionPrompt({
         type="button"
         onClick={() => setShowPrompt(true)}
         title="Anlık Bildirimleri Aç"
-        className="fixed bottom-6 left-6 z-40 w-11 h-11 rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-rose-200 dark:border-rose-900/40 text-rose-500 hover:scale-105 transition shadow-lg flex items-center justify-center group"
+        className="fixed bottom-24 left-4 sm:left-6 z-40 w-11 h-11 rounded-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-rose-200 dark:border-rose-900/40 text-rose-500 hover:scale-105 transition shadow-lg flex items-center justify-center group cursor-pointer"
       >
         <Bell className="w-5 h-5 group-hover:rotate-12 transition-transform" />
       </button>
