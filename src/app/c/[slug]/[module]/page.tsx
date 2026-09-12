@@ -5,6 +5,7 @@ import { getCoupleBySlug, isSubscriptionExpired, isFeatureAllowedForPackage } fr
 import SubmoduleInteractiveClient from './SubmoduleInteractiveClient';
 import PartnerAuthModal from '@/components/PartnerAuthModal';
 import BottomNav from '@/components/BottomNav';
+import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
 
 interface ModulePageProps {
   params: Promise<{ slug: string; module: string }>;
@@ -192,6 +193,13 @@ export default async function SubmodulePage({ params }: ModulePageProps) {
       <div className="mx-auto max-w-lg">
         <SubmoduleInteractiveClient module={module} couple={couple} />
       </div>
+
+      {/* Push Notification Opt-in Prompt & Icon */}
+      <NotificationPermissionPrompt
+        slug={couple.slug}
+        partnerName={couple.partner1_name}
+        otherPartnerName={couple.partner2_name}
+      />
 
       {/* Floating Bottom App Navigation */}
       <BottomNav slug={couple.slug} />
