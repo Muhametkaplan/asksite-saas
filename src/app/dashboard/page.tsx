@@ -34,6 +34,8 @@ import {
   Link2,
   LayoutDashboard,
   Camera,
+  Upload,
+  Check,
 } from 'lucide-react';
 
 import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
@@ -41,7 +43,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate, connectPartnerWithPairCode, getCoupleByPairCode, DEMO_COUPLE } from '@/lib/couples';
-import { uploadFileToSupabase } from '@/lib/storage';
+import { uploadFileToStorage } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
 import StoryCardModal from '@/components/StoryCardModal';
@@ -120,6 +122,8 @@ function DashboardContent() {
   const [newMemDate, setNewMemDate] = useState('');
   const [newMemPhoto, setNewMemPhoto] = useState('');
   const [newMemNote, setNewMemNote] = useState('');
+  const [isUploadingMemPhoto, setIsUploadingMemPhoto] = useState(false);
+  const memFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [newBucketTitle, setNewBucketTitle] = useState('');
   const [newBucketCategory, setNewBucketCategory] = useState<'city' | 'movie' | 'activity'>('city');
@@ -272,6 +276,29 @@ function DashboardContent() {
     }));
   };
 
+  const handleMemoryPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Fotoğraf boyutu 15MB\'tan küçük olmalıdır.');
+      return;
+    }
+
+    setIsUploadingMemPhoto(true);
+    try {
+      const url = await uploadFileToStorage(file, config.slug || 'demo', 'photos');
+      if (url) {
+        setNewMemPhoto(url);
+      }
+    } catch (err) {
+      console.error('Fotoğraf yükleme hatası:', err);
+      alert('Fotoğraf yüklenirken bir sorun oluştu.');
+    } finally {
+      setIsUploadingMemPhoto(false);
+    }
+  };
+
   const handleAddMemory = () => {
     if (!newMemTitle.trim()) return;
     const item = {
@@ -288,6 +315,9 @@ function DashboardContent() {
     setNewMemTitle('');
     setNewMemPhoto('');
     setNewMemNote('');
+    if (memFileInputRef.current) {
+      memFileInputRef.current.value = '';
+    }
   };
 
   const handleRemoveMemory = (id: string) => {
@@ -1692,44 +1722,141 @@ function DashboardContent() {
                     placeholder="Anı Başlığı (Örn: Deniz Kenarı Sunset)"
                     value={newMemTitle}
                     onChange={(e) => setNewMemTitle(e.target.value)}
-                    className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs outline-none"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-400"
                   />
                   <input
                     type="date"
                     value={newMemDate}
                     onChange={(e) => setNewMemDate(e.target.value)}
-                    className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs outline-none"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-400"
                   />
-                  <input
-                    type="text"
-                    placeholder="Fotoğraf Görsel URL'si"
-                    value={newMemPhoto}
-                    onChange={(e) => setNewMemPhoto(e.target.value)}
-                    className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs outline-none sm:col-span-2"
-                  />
+
+                  {/* Fotoğraf Yükleme / URL Kutusu */}
+                  <div className="sm:col-span-2 rounded-2xl bg-rose-50/50 border border-rose-100 p-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        <Camera className="h-3.5 w-3.5 text-rose-500" /> Anı Fotoğrafı
+                      </span>
+                      {newMemPhoto && (
+                        <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                          <Check className="h-3.5 w-3.5" /> Fotoğraf Hazır
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Gizli Dosya Seçici */}
+                    <input
+                      type="file"
+                      ref={memFileInputRef}
+                      accept="image/*"
+                      onChange={handleMemoryPhotoUpload}
+                      className="hidden"
+                    />
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                      <button
+                        type="button"
+                        disabled={isUploadingMemPhoto}
+                        onClick={() => memFileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-white border-2 border-dashed border-rose-300 hover:border-rose-500 hover:bg-rose-50/70 px-4 py-2.5 text-xs font-bold text-rose-600 shadow-xs transition active:scale-98 cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingMemPhoto ? (
+                          <>
+                            <Disc className="h-4 w-4 animate-spin text-rose-500" /> Fotoğraf Yükleniyor...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 text-rose-500" /> Cihazdan / Galeriden Fotoğraf Seç
+                          </>
+                        )}
+                      </button>
+
+                      {newMemPhoto && (
+                        <div className="flex items-center gap-2.5 bg-white rounded-xl p-1.5 border border-rose-200 shadow-xs">
+                          <img
+                            src={newMemPhoto}
+                            alt="Önizleme"
+                            className="w-10 h-10 rounded-lg object-cover border border-gray-100"
+                          />
+                          <div className="text-left">
+                            <span className="text-[11px] font-bold text-gray-800 block">
+                              Seçilen Fotoğraf
+                            </span>
+                            <span className="text-[10px] text-emerald-600 font-medium">
+                              Yüklendi ✓
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewMemPhoto('');
+                              if (memFileInputRef.current) memFileInputRef.current.value = '';
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-50 transition cursor-pointer"
+                            title="Fotoğrafı Kaldır"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Veya URL ile Ekle */}
+                    <div className="pt-1">
+                      <input
+                        type="text"
+                        placeholder="Veya internetten fotoğraf linki yapıştırın (https://...)"
+                        value={newMemPhoto}
+                        onChange={(e) => setNewMemPhoto(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-800 placeholder:text-gray-400 outline-none focus:border-rose-400 transition"
+                      />
+                    </div>
+                  </div>
+
                   <input
                     type="text"
                     placeholder="Romantik Notunuz"
                     value={newMemNote}
                     onChange={(e) => setNewMemNote(e.target.value)}
-                    className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs outline-none sm:col-span-2"
+                    className="rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-400 sm:col-span-2"
                   />
                 </div>
                 <button
                   onClick={handleAddMemory}
-                  className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white hover:bg-rose-600"
+                  disabled={!newMemTitle.trim()}
+                  className="rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 px-5 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md shadow-rose-500/20 cursor-pointer"
                 >
                   <Plus className="h-4 w-4 inline mr-1" /> Anı Ekle
                 </button>
-                <div className="space-y-2 max-h-36 overflow-y-auto pt-1">
+                <div className="space-y-2 max-h-48 overflow-y-auto pt-1">
                   {(config.memories || []).map((m) => (
-                    <div key={m.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs">
-                      <div>
-                        <span className="font-bold text-gray-900">{m.title}</span> ({m.date})
-                        <p className="text-[11px] text-gray-500 truncate">{m.note}</p>
+                    <div key={m.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-2.5 text-xs border border-gray-100 hover:border-gray-200 transition">
+                      <div className="flex items-center gap-3">
+                        {m.photo_url ? (
+                          <img
+                            src={m.photo_url}
+                            alt={m.title}
+                            className="w-11 h-11 rounded-xl object-cover border border-gray-200 shrink-0 shadow-xs"
+                          />
+                        ) : (
+                          <div className="w-11 h-11 rounded-xl bg-gray-200 flex items-center justify-center text-gray-400 shrink-0">
+                            <Camera className="h-5 w-5" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-gray-900">{m.title}</span>
+                            <span className="text-[10px] text-gray-500 font-medium">({m.date})</span>
+                          </div>
+                          <p className="text-[11px] text-gray-500 truncate max-w-xs">{m.note}</p>
+                        </div>
                       </div>
-                      <button onClick={() => handleRemoveMemory(m.id)} className="text-red-400 hover:text-red-600">
-                        <Trash2 className="h-3.5 w-3.5" />
+                      <button
+                        onClick={() => handleRemoveMemory(m.id)}
+                        className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition cursor-pointer"
+                        title="Anıyı Sil"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   ))}
