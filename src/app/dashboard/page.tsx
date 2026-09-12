@@ -40,6 +40,7 @@ import {
   Send,
   Smartphone,
   MessageSquare,
+  MessageCircle,
   X,
 } from 'lucide-react';
 
@@ -1179,6 +1180,16 @@ function DashboardContent() {
                       <Sparkles className="h-4 w-4 text-rose-500" /> Paket Seç / Satın Al 🚀
                     </Link>
                   )}
+
+                  <a
+                    href="https://wa.me/905524185530?text=Merhaba%20AskSite%20Destek%2C%20yard%C4%B1ma%20ihtiyac%C4%B1m%20var."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setProfileDropdownOpen(false)}
+                    className="w-full text-left flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition border-t border-gray-100 mt-1"
+                  >
+                    <MessageCircle className="h-4 w-4 text-emerald-600" /> WhatsApp Canlı Destek
+                  </a>
 
                   <button
                     onClick={() => {
