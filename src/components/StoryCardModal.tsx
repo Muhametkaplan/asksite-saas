@@ -23,6 +23,8 @@ import {
   Trash2,
   Search,
   Disc,
+  Sliders,
+  Eye,
 } from 'lucide-react';
 import { CoupleConfig, MapMarker } from '@/types/couple';
 import { getMapMarkers } from '@/lib/couples';
@@ -89,11 +91,23 @@ export default function StoryCardModal({
   isPremium = false,
 }: StoryCardModalProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('polaroid');
+  const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('edit');
   const [exporting, setExporting] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
   const [customQuote, setCustomQuote] = useState(
     config.subtitle || 'Seninle geçen her an bir ömre bedel ❤️'
   );
+
+  // Lock body scroll and add class to hide floating elements
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('story-modal-open');
+    return () => {
+      document.body.style.overflow = '';
+      document.body.classList.remove('story-modal-open');
+    };
+  }, [isOpen]);
 
   // Polaroid Custom Photo State
   const initialPhoto =
@@ -136,6 +150,7 @@ export default function StoryCardModal({
       setPolaroidPhoto(initialPhoto);
       setIsTemporaryUploaded(false);
     }
+    setMobileTab('edit');
     onClose();
   };
 
@@ -1095,7 +1110,7 @@ export default function StoryCardModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) handleModalClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-2.5 sm:p-5 overflow-hidden animate-in fade-in duration-200"
     >
       {/* Hidden QR Code source used for Canvas 1080x1920 export */}
       <div className="hidden">
@@ -1110,34 +1125,62 @@ export default function StoryCardModal({
         />
       </div>
 
-      <div className="relative w-full max-w-4xl rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-5 sm:p-7 text-white text-left max-h-[94vh] flex flex-col">
+      <div className="relative w-full max-w-4xl rounded-2xl sm:rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl p-3.5 sm:p-6 text-white text-left max-h-[96dvh] h-full sm:h-auto flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4 shrink-0">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3 shrink-0">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-tr from-rose-500 to-purple-600 text-white shadow-md">
                 <Sparkles className="h-4 w-4" />
               </span>
-              <h2 className="text-lg sm:text-xl font-black text-white">
+              <h2 className="text-base sm:text-xl font-black text-white">
                 Instagram Story Kartı Oluşturucu 📸
               </h2>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-[11px] sm:text-xs text-slate-400">
               9:16 boyutunda ultra HD Instagram & WhatsApp hikaye kartınızı tek tıkla oluşturup paylaşın.
             </p>
           </div>
           <button
             onClick={handleModalClose}
             className="rounded-full bg-slate-800 p-2 text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+            aria-label="Kapat"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Content Layout (Templates & Controls on Left, Live 9:16 Preview on Right) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 overflow-y-auto pr-1">
-          {/* Left Controls & Template Select (7 Cols) */}
-          <div className="md:col-span-7 space-y-4">
+        {/* Mobile Tab Switcher (Visible only on mobile devices) */}
+        <div className="md:hidden flex items-center p-1 bg-slate-950/90 rounded-xl border border-slate-800 mb-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMobileTab('edit')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+              mobileTab === 'edit'
+                ? 'bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sliders className="h-3.5 w-3.5" /> 1. Şablon & Not Düzenle
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('preview')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+              mobileTab === 'preview'
+                ? 'bg-gradient-to-r from-rose-500 to-purple-600 text-white shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Eye className="h-3.5 w-3.5" /> 2. Canlı Önizleme (9:16)
+          </button>
+        </div>
+
+        {/* Scrollable Content (Templates & Controls on Left, Live 9:16 Preview on Right) */}
+        <div className="flex-1 overflow-y-auto pr-1">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+            {/* Left Controls & Template Select (7 Cols on desktop, toggleable on mobile) */}
+            <div className={`space-y-4 md:col-span-7 ${mobileTab === 'preview' ? 'hidden md:block' : 'block'}`}>
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
                 Şablon Seçimi
@@ -1553,36 +1596,31 @@ export default function StoryCardModal({
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3 pt-2">
+            {/* Mobile Only: Switch to Preview Tab Button */}
+            <div className="md:hidden pt-2">
               <button
-                onClick={() => handleExport('share')}
-                disabled={exporting || (selectedTemplate === 'map' && !isPremium)}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 py-3 text-xs font-extrabold text-white shadow-lg shadow-rose-500/25 hover:opacity-95 active:scale-98 transition disabled:opacity-40 cursor-pointer"
+                type="button"
+                onClick={() => setMobileTab('preview')}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-slate-800 to-slate-850 border border-slate-700 hover:border-rose-500/50 text-xs font-bold text-rose-300 transition active:scale-98 shadow-sm cursor-pointer"
               >
-                <Share2 className="h-4 w-4" />
-                {exporting ? 'Oluşturuluyor...' : 'Hikayede Paylaş / Menüyü Aç'}
+                <Eye className="h-4 w-4 text-rose-400" /> Canlı 9:16 Hikaye Kartını Gör ➔
               </button>
+            </div>
+          </div>
 
+          {/* Right Live 9:16 Preview (5 Cols on desktop, toggleable on mobile) */}
+          <div className={`flex-col items-center justify-center md:col-span-5 ${mobileTab === 'edit' ? 'hidden md:flex' : 'flex'}`}>
+            {/* Mobile Only: Return to Edit Tab */}
+            <div className="md:hidden w-full mb-3">
               <button
-                onClick={() => handleExport('download')}
-                disabled={exporting || (selectedTemplate === 'map' && !isPremium)}
-                className="flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-3 text-xs font-bold text-white transition active:scale-95 disabled:opacity-40 cursor-pointer"
-                title="Yüksek Çözünürlüklü PNG İndir"
+                type="button"
+                onClick={() => setMobileTab('edit')}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-800/90 border border-slate-700 text-xs font-bold text-slate-300 hover:text-white transition active:scale-98 cursor-pointer"
               >
-                <Download className="h-4 w-4" /> PNG İndir
+                <Sliders className="h-3.5 w-3.5 text-rose-400" /> ← Şablonu ve Notu Düzenle
               </button>
             </div>
 
-            {copiedSuccess && (
-              <div className="flex items-center justify-center gap-1 text-xs font-bold text-emerald-400 animate-in fade-in">
-                <Check className="h-4 w-4" /> Hikaye görseliniz başarıyla indirildi!
-              </div>
-            )}
-          </div>
-
-          {/* Right Live 9:16 Preview (5 Cols) */}
-          <div className="md:col-span-5 flex flex-col items-center justify-center">
             <div className="text-[11px] font-bold text-slate-400 mb-2 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-rose-400" /> Canlı 9:16 Hikaye Önizlemesi
             </div>
@@ -1959,6 +1997,34 @@ export default function StoryCardModal({
             </div>
           </div>
         </div>
+      </div>
+
+        {/* Persistent Pinned Footer with Action Buttons (Never obscured) */}
+        <div className="shrink-0 pt-3 mt-3 border-t border-slate-800 bg-slate-900/95 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <button
+            onClick={() => handleExport('share')}
+            disabled={exporting || (selectedTemplate === 'map' && !isPremium)}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 py-3 px-4 text-xs sm:text-sm font-extrabold text-white shadow-lg shadow-rose-500/25 hover:opacity-95 active:scale-98 transition disabled:opacity-40 cursor-pointer"
+          >
+            <Share2 className="h-4 w-4" />
+            {exporting ? 'Oluşturuluyor...' : 'Hikayede Paylaş / Menüyü Aç'}
+          </button>
+
+          <button
+            onClick={() => handleExport('download')}
+            disabled={exporting || (selectedTemplate === 'map' && !isPremium)}
+            className="flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-3 text-xs sm:text-sm font-bold text-white transition active:scale-95 disabled:opacity-40 cursor-pointer"
+            title="Yüksek Çözünürlüklü PNG İndir"
+          >
+            <Download className="h-4 w-4" /> PNG İndir
+          </button>
+        </div>
+
+        {copiedSuccess && (
+          <div className="shrink-0 pt-2 flex items-center justify-center gap-1 text-xs font-bold text-emerald-400 animate-in fade-in">
+            <Check className="h-4 w-4" /> Hikaye görseliniz başarıyla indirildi!
+          </div>
+        )}
       </div>
     </div>
   );

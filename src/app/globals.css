@@ -68,3 +68,10 @@ body {
   scrollbar-width: none;
 }
 
+/* When Story Card Modal is open, hide floating bottom nav and trigger button */
+.story-modal-open nav[aria-label="Çift Navigasyon Menüsü"],
+.story-modal-open .fixed.bottom-24 {
+  display: none !important;
+}
+
+

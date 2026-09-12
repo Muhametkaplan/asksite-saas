@@ -13,6 +13,7 @@ import EmergencyHug from '@/components/EmergencyHug';
 import BottomNav from '@/components/BottomNav';
 import Ticker from '@/components/Ticker';
 import NavigationGrid from '@/components/NavigationGrid';
+import StoryShareButton from '@/components/StoryShareButton';
 import { Heart, Sparkles, Shield, Rocket, ExternalLink, ArrowRight } from 'lucide-react';
 import { CoupleConfig } from '@/types/couple';
 
@@ -155,6 +156,9 @@ export default function PureDemoPage() {
         {/* Emergency Hug WhatsApp Button */}
         <EmergencyHug phone={couple.whatsapp_number} message={couple.whatsapp_message} />
       </div>
+
+      {/* Floating Instagram Story Share Button */}
+      <StoryShareButton couple={couple} />
 
       {/* Floating Bottom Nav */}
       <BottomNav slug="demo" />
