@@ -630,6 +630,7 @@ function DashboardContent() {
           slug: config.slug,
           trigger: 'game_record',
           senderRole: 'partner1',
+          targetRole: 'both',
           senderName: config.partner1_name || 'Partner 1',
           extraData: {
             gameName: 'Flappy Bird',

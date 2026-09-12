@@ -336,6 +336,12 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           authorized_emails: data.authorized_emails || [],
           pair_code: data.pair_code || data.inviteCode || null,
           inviteCode: data.inviteCode || data.pair_code || null,
+          push_subscriptions: data.push_subscriptions || [],
+          notification_settings: data.notification_settings || {},
+          partner1_phone: data.partner1_phone || null,
+          partner2_phone: data.partner2_phone || null,
+          partner1_birthday: data.partner1_birthday || null,
+          partner2_birthday: data.partner2_birthday || null,
         };
       } else if (slug === 'demo') {
         // Auto-seed demo couple on first request
@@ -373,9 +379,10 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
       let expires_at = config.expires_at !== undefined ? config.expires_at : null;
       let shopier_order_id = config.shopier_order_id || null;
 
+      let existingData: any = null;
       const existingSnap = await getDoc(coupleRef);
       if (existingSnap.exists()) {
-        const existingData = existingSnap.data();
+        existingData = existingSnap.data();
         // Belge veritabanında zaten varsa, gerçek ödeme ve paket durumunu koru!
         isPaid = existingData.isPaid === true;
         plan = existingData.plan || existingData.package_type || 'yearly_standard';
@@ -466,6 +473,12 @@ export async function saveCoupleConfig(config: CoupleConfig): Promise<CoupleConf
         partner1_uid: config.partner1_uid || config.owner_uid || (config.co_owners && config.co_owners[0]) || null,
         partner2_uid: config.partner2_uid || (config.co_owners && config.co_owners[1]) || null,
         shopier_order_id: shopier_order_id,
+        push_subscriptions: config.push_subscriptions !== undefined ? config.push_subscriptions : (existingData?.push_subscriptions || []),
+        notification_settings: config.notification_settings !== undefined ? config.notification_settings : (existingData?.notification_settings || {}),
+        partner1_phone: config.partner1_phone || null,
+        partner2_phone: config.partner2_phone || null,
+        partner1_birthday: config.partner1_birthday || null,
+        partner2_birthday: config.partner2_birthday || null,
         updatedAt: serverTimestamp(),
       };
 
