@@ -161,10 +161,12 @@ export default function StoryCardModal({
 
   // Spotify Track Selection State
   const [spotifyTracks, setSpotifyTracks] = useState<SpotifyTrackItem[]>([]);
+  const [searchResults, setSearchResults] = useState<SpotifyTrackItem[] | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<SpotifyTrackItem | null>(null);
   const [loadingSpotify, setLoadingSpotify] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
   const [isSearchingSong, setIsSearchingSong] = useState(false);
+  const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -188,31 +190,51 @@ export default function StoryCardModal({
       });
   }, [isOpen, config.spotify_url]);
 
-  const handleSearchSong = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!songSearchQuery.trim()) return;
+  const handleSearchSong = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = songSearchQuery.trim();
+    if (!query) {
+      setSearchResults(null);
+      setSearchFeedback(null);
+      return;
+    }
+
     setIsSearchingSong(true);
+    setSearchFeedback(null);
+
     try {
-      const isSpotifyUrl = songSearchQuery.includes('spotify.com');
+      const isSpotifyUrl = query.includes('spotify.com');
       const paramKey = isSpotifyUrl ? 'url' : 'search';
       const res = await fetch(
-        `/api/spotify/tracks?${paramKey}=${encodeURIComponent(songSearchQuery.trim())}`
+        `/api/spotify/tracks?${paramKey}=${encodeURIComponent(query)}`
       );
       const data = await res.json();
       if (data.tracks && data.tracks.length > 0) {
+        setSearchResults(data.tracks);
+        // Automatically select the top match
+        setSelectedTrack(data.tracks[0]);
+        // Also ensure it is present in the main tracks list
         setSpotifyTracks((prev) => {
           const existingIds = new Set(prev.map((t) => t.id));
           const newItems = data.tracks.filter((t: SpotifyTrackItem) => !existingIds.has(t.id));
           return [...newItems, ...prev];
         });
-        setSelectedTrack(data.tracks[0]);
-        setSongSearchQuery('');
+      } else {
+        setSearchResults([]);
+        setSearchFeedback('Eşleşen şarkı bulunamadı. Şarkıcı ve şarkı adını birlikte yazmayı deneyin (Örn: Duman Bu Akşam)');
       }
     } catch (err) {
       console.error('Search song error:', err);
+      setSearchFeedback('Arama sırasında bir bağlantı hatası oluştu.');
     } finally {
       setIsSearchingSong(false);
     }
+  };
+
+  const handleClearSearch = () => {
+    setSongSearchQuery('');
+    setSearchResults(null);
+    setSearchFeedback(null);
   };
 
   const qrRef = useRef<SVGSVGElement | null>(null);
@@ -1303,7 +1325,7 @@ export default function StoryCardModal({
                     <Music className="h-4 w-4" /> Spotify Çalma Listeniz & Şarkılar
                   </label>
                   <span className="text-[10px] text-zinc-400 font-medium">
-                    {spotifyTracks.length} Şarkı
+                    {searchResults !== null ? `${searchResults.length} Sonuç` : `${spotifyTracks.length} Şarkı`}
                   </span>
                 </div>
 
@@ -1315,37 +1337,88 @@ export default function StoryCardModal({
                       type="text"
                       value={songSearchQuery}
                       onChange={(e) => setSongSearchQuery(e.target.value)}
-                      placeholder="Şarkı ara veya Spotify şarkı linki yapıştır..."
-                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-black/60 border border-zinc-700 text-xs text-white placeholder:text-zinc-500 outline-none focus:border-emerald-500 transition"
+                      placeholder="Şarkı veya sanatçı ara (Örn: Duman Bu Akşam)..."
+                      className="w-full pl-8 pr-7 py-2 rounded-xl bg-black/60 border border-zinc-700 text-xs text-white placeholder:text-zinc-500 outline-none focus:border-emerald-500 transition"
                     />
+                    {songSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs cursor-pointer"
+                        title="Aramayı temizle"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                   <button
                     type="submit"
                     disabled={isSearchingSong || !songSearchQuery.trim()}
-                    className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-xs font-bold text-white transition active:scale-95 shrink-0 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-xs font-bold text-white transition active:scale-95 shrink-0 cursor-pointer flex items-center gap-1"
                   >
-                    {isSearchingSong ? '...' : 'Bul'}
+                    {isSearchingSong ? (
+                      <Disc className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      'Ara'
+                    )}
                   </button>
                 </form>
 
+                <p className="text-[10px] text-zinc-400 leading-tight">
+                  💡 <strong className="text-zinc-300">İpucu:</strong> Şarkıcı ve şarkıyı birlikte yazabilir (örn: <em>Duman Bu Akşam</em>) veya direkt Spotify şarkı linki yapıştırabilirsiniz.
+                </p>
+
                 {/* Track Selection List */}
                 <div>
-                  <span className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
-                    Kartta Görünecek Şarkıyı Seçin:
-                  </span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      {searchResults !== null
+                        ? `🔍 Arama Sonuçları (${searchResults.length} şarkı):`
+                        : `Kartta Görünecek Şarkıyı Seçin (${spotifyTracks.length}):`}
+                    </span>
+                    {searchResults !== null && (
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                      >
+                        ✕ Listeme Dön
+                      </button>
+                    )}
+                  </div>
+
                   <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                    {loadingSpotify && spotifyTracks.length === 0 ? (
+                    {isSearchingSong ? (
                       <div className="text-center py-6 text-xs text-zinc-400 flex items-center justify-center gap-2">
-                        <Disc className="h-4 w-4 animate-spin text-emerald-400" /> Şarkılar yükleniyor...
+                        <Disc className="h-4 w-4 animate-spin text-emerald-400" /> Şarkı aranıyor...
+                      </div>
+                    ) : (searchResults !== null ? searchResults : spotifyTracks).length === 0 ? (
+                      <div className="text-center py-6 px-3 text-xs text-zinc-400 space-y-2">
+                        <p>{searchFeedback || 'Eşleşen şarkı bulunamadı.'}</p>
+                        {searchResults !== null && (
+                          <button
+                            type="button"
+                            onClick={handleClearSearch}
+                            className="inline-block px-3 py-1 rounded-lg bg-zinc-800 text-[11px] font-bold text-emerald-400 hover:bg-zinc-700 cursor-pointer"
+                          >
+                            Listeme Geri Dön
+                          </button>
+                        )}
                       </div>
                     ) : (
-                      spotifyTracks.map((track) => {
+                      (searchResults !== null ? searchResults : spotifyTracks).map((track) => {
                         const isChosen = selectedTrack?.id === track.id;
                         return (
                           <button
                             key={track.id}
                             type="button"
-                            onClick={() => setSelectedTrack(track)}
+                            onClick={() => {
+                              setSelectedTrack(track);
+                              setSpotifyTracks((prev) => {
+                                if (prev.some((t) => t.id === track.id)) return prev;
+                                return [track, ...prev];
+                              });
+                            }}
                             className={`w-full flex items-center gap-2.5 p-2 rounded-xl border text-left transition-all cursor-pointer ${
                               isChosen
                                 ? 'bg-emerald-500/15 border-emerald-500 shadow-md ring-1 ring-emerald-500/50'

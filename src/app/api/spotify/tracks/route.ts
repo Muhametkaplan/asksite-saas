@@ -61,18 +61,37 @@ export async function GET(req: NextRequest) {
 
     const tracks: SpotifyTrackItem[] = [];
 
-    // 1. If search term provided (Live iTunes query for instant HD track search)
+    // 1. If search term provided (Live Turkey & Global query for instant HD track search)
     if (search.trim()) {
       try {
-        const itunesRes = await fetch(
+        const queryTerm = search.trim();
+        // 1. Try Turkey storefront first
+        let itunesRes = await fetch(
           `https://itunes.apple.com/search?term=${encodeURIComponent(
-            search.trim()
-          )}&entity=song&limit=10`,
+            queryTerm
+          )}&country=TR&entity=song&limit=15`,
           { cache: 'no-store' }
         );
-        if (itunesRes.ok) {
-          const itunesData = await itunesRes.json();
-          for (const item of itunesData.results || []) {
+        let itunesData = itunesRes.ok ? await itunesRes.json() : null;
+
+        // 2. Fallback to global storefront if empty
+        if (!itunesData || !itunesData.results || itunesData.results.length === 0) {
+          itunesRes = await fetch(
+            `https://itunes.apple.com/search?term=${encodeURIComponent(
+              queryTerm
+            )}&entity=song&limit=15`,
+            { cache: 'no-store' }
+          );
+          itunesData = itunesRes.ok ? await itunesRes.json() : null;
+        }
+
+        if (itunesData && itunesData.results) {
+          const seen = new Set<string>();
+          for (const item of itunesData.results) {
+            const key = `${item.trackName?.toLowerCase().trim()}__${item.artistName?.toLowerCase().trim()}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+
             tracks.push({
               id: `itunes-${item.trackId}`,
               title: item.trackName,
