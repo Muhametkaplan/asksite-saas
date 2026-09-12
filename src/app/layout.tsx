@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import WhatsAppSupportWidget from "@/components/WhatsAppSupportWidget";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-full flex flex-col m-0 p-0">
+        <AnalyticsProvider />
         {children}
         <WhatsAppSupportWidget />
         <script

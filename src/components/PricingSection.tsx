@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Check, Sparkles, Heart, ShieldCheck, Zap, Lock, CreditCard, Gift, Star } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { trackInitiateCheckout } from '@/lib/analytics';
 
 export default function PricingSection() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -121,6 +122,7 @@ export default function PricingSection() {
             <div className="pt-8 space-y-3">
               <Link
                 href={standardUrl}
+                onClick={() => trackInitiateCheckout('Standart Yıllık Paket', 199)}
                 className="flex items-center justify-center gap-2 w-full rounded-2xl bg-gray-900 hover:bg-black text-white py-4 px-6 text-sm font-black shadow-lg hover:shadow-xl transition-all duration-200 active:scale-98"
               >
                 <span>Standart Yıllık Paketi Başlat 🚀</span>
@@ -214,6 +216,7 @@ export default function PricingSection() {
             <div className="pt-8 space-y-3">
               <Link
                 href={premiumUrl}
+                onClick={() => trackInitiateCheckout('Premium VIP Yıllık Paket', 349)}
                 className="flex items-center justify-center gap-2 w-full rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white py-4 px-6 text-sm font-black shadow-xl shadow-rose-500/25 transition-all duration-200 active:scale-98"
               >
                 <Heart className="h-4 w-4 fill-white" />

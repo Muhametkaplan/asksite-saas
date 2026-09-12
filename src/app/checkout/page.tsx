@@ -32,6 +32,7 @@ import Footer from '@/components/Footer';
 import EmailVerificationGuard from '@/components/EmailVerificationGuard';
 import PhoneInput from '@/components/PhoneInput';
 import confetti from 'canvas-confetti';
+import { trackViewPackage, trackInitiateCheckout, trackAddPaymentInfo, trackPurchase } from '@/lib/analytics';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -66,7 +67,16 @@ export default function CheckoutPage() {
         setPackageType('yearly_premium');
       }
     }
+  }, []);
 
+  useEffect(() => {
+    const isPremium = packageType === 'yearly_premium';
+    const pkgName = isPremium ? 'Premium VIP Yıllık Paket' : 'Standart Yıllık Paket';
+    const price = isPremium ? 349 : 199;
+    trackViewPackage(pkgName, price);
+  }, [packageType]);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseAuthUser(firebaseUser);
       if (!firebaseUser) {
@@ -309,6 +319,13 @@ export default function CheckoutPage() {
           if (data.slug) localStorage.setItem('pendingCoupleSlug', data.slug);
           if (data.orderId) localStorage.setItem('pendingOrderId', data.orderId);
         }
+
+        // Track payment info step for conversion funnel
+        const isPremium = packageType === 'yearly_premium';
+        const pkgName = isPremium ? 'Premium VIP Yıllık Paket' : 'Standart Yıllık Paket';
+        const price = isPremium ? 349 : 199;
+        trackAddPaymentInfo(pkgName, price);
+
         // Shopier güvenli ödeme ekranına yönlendir
         window.location.href = data.paymentUrl;
       } else {
@@ -352,6 +369,17 @@ export default function CheckoutPage() {
         setVerifyStatusMsg({ type: 'success', text: 'Tebrikler! Siteniz başarıyla onaylandı ve açılıyor... ✨' });
         setHasPurchased(true);
         setUserCoupleSlug(data.slug);
+
+        // Track purchase conversion event
+        const verifiedPrice = data.plan === 'yearly_premium' ? 349 : 199;
+        const verifiedPackageName = data.plan === 'yearly_premium' ? 'Premium VIP Yıllık Paket' : 'Standart Yıllık Paket';
+        trackPurchase({
+          orderId: verifyOrderId.trim(),
+          value: verifiedPrice,
+          packageName: verifiedPackageName,
+          currency: 'TRY',
+        });
+
         if (typeof window !== 'undefined') {
           localStorage.setItem('activeCoupleSlug', data.slug);
           localStorage.setItem('asksite_couple_slug', data.slug);
