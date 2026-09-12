@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       payload = {
         title: 'Yeni Rekor Kırıldı! 🏆',
         body: `${effectiveSenderName} senin ${gameName} rekorunu kırdı!${scoreText} 🚀 Hadi gel rekorunu geri al!`,
-        url: `/c/${slug}/arcade`,
+        url: `/c/${slug}/games`,
         icon: '/logo-icon.png',
         tag: 'game-record',
       };
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       payload = {
         title: 'Yeni Fotoğraf Eklendi! 📸',
         body: `${effectiveSenderName} aşk albümünüze yeni bir fotoğraf ekledi. Gel ve ilk sen gör! 💖`,
-        url: `/c/${slug}/memory`,
+        url: `/c/${slug}/diary`,
         icon: '/logo-icon.png',
         tag: 'memory-photo',
       };
