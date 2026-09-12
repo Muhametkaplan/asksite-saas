@@ -286,8 +286,20 @@ export async function getCoupleBySlug(slug: string): Promise<CoupleConfig | null
           whatsapp_number: data.whatsapp?.number || data.whatsapp_number || '905520000000',
           whatsapp_message: data.whatsapp?.message || data.whatsapp_message || 'Acil sarılmana ihtiyacım var 🥺',
           love_reasons: data.love_reasons || DEMO_COUPLE.love_reasons,
-          memories: memories.length > 0 ? memories : data.memories || DEMO_COUPLE.memories,
-          bucket_list: bucketList.length > 0 ? bucketList : data.bucket_list || DEMO_COUPLE.bucket_list,
+          memories: Array.isArray(data.memories) && data.memories.length > 0
+            ? data.memories
+            : memories.length > 0
+            ? memories
+            : Array.isArray(data.memories)
+            ? data.memories
+            : DEMO_COUPLE.memories,
+          bucket_list: Array.isArray(data.bucket_list) && data.bucket_list.length > 0
+            ? data.bucket_list
+            : bucketList.length > 0
+            ? bucketList
+            : Array.isArray(data.bucket_list)
+            ? data.bucket_list
+            : DEMO_COUPLE.bucket_list,
           coupons: data.coupons || DEMO_COUPLE.coupons,
           diary_entries: data.diary_entries || DEMO_COUPLE.diary_entries,
           time_capsules: data.time_capsules || DEMO_COUPLE.time_capsules,

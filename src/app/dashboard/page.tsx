@@ -41,7 +41,7 @@ import {
 import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion } from '@/types/couple';
+import { CoupleConfig, MapMarker, CouponItem, DiaryEntry, CapsuleItem, MovieItem, QuizQuestion, MemoryItem } from '@/types/couple';
 import { getCoupleBySlug, saveCoupleConfig, addMapMarker, getMapMarkers, clearMapMarkers, deleteMapMarker, resetAllCoupons, formatDiaryDate, connectPartnerWithPairCode, getCoupleByPairCode, DEMO_COUPLE } from '@/lib/couples';
 import { uploadFileToStorage } from '@/lib/storage';
 import LivePreviewFrame from '@/components/LivePreviewFrame';
@@ -123,6 +123,7 @@ function DashboardContent() {
   const [newMemPhoto, setNewMemPhoto] = useState('');
   const [newMemNote, setNewMemNote] = useState('');
   const [isUploadingMemPhoto, setIsUploadingMemPhoto] = useState(false);
+  const [memorySaveFeedback, setMemorySaveFeedback] = useState<string | null>(null);
   const memFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [newBucketTitle, setNewBucketTitle] = useState('');
@@ -214,25 +215,30 @@ function DashboardContent() {
     }
   }, [searchParams]);
 
-  const handleSave = async () => {
+  const handleSave = async (overrideConfig?: CoupleConfig | React.MouseEvent) => {
     setSaving(true);
     setSavedSuccess(false);
 
+    const targetConfig =
+      overrideConfig && typeof overrideConfig === 'object' && 'slug' in overrideConfig
+        ? (overrideConfig as CoupleConfig)
+        : config;
+
     const saved = await saveCoupleConfig({
-      ...config,
-      start_date: new Date(config.start_date).toISOString(),
-      upcoming_event: config.upcoming_event && config.upcoming_event.title?.trim() && config.upcoming_event.date?.trim()
+      ...targetConfig,
+      start_date: new Date(targetConfig.start_date).toISOString(),
+      upcoming_event: targetConfig.upcoming_event && targetConfig.upcoming_event.title?.trim() && targetConfig.upcoming_event.date?.trim()
         ? {
-            ...config.upcoming_event,
-            date: !isNaN(new Date(config.upcoming_event.date).getTime())
-              ? new Date(config.upcoming_event.date).toISOString()
-              : config.upcoming_event.date,
+            ...targetConfig.upcoming_event,
+            date: !isNaN(new Date(targetConfig.upcoming_event.date).getTime())
+              ? new Date(targetConfig.upcoming_event.date).toISOString()
+              : targetConfig.upcoming_event.date,
           }
         : undefined,
     });
 
     if (saved) {
-      initialConfigRef.current = JSON.stringify(config);
+      initialConfigRef.current = JSON.stringify(targetConfig);
       setSavedSuccess(true);
       setPreviewRefreshKey((prev) => prev + 1);
       setTimeout(() => setSavedSuccess(false), 3000);
@@ -299,32 +305,52 @@ function DashboardContent() {
     }
   };
 
-  const handleAddMemory = () => {
+  const handleAddMemory = async () => {
     if (!newMemTitle.trim()) return;
-    const item = {
+    const item: MemoryItem = {
       id: `mem-${Date.now()}`,
       title: newMemTitle.trim(),
       date: newMemDate || new Date().toISOString().split('T')[0],
       photo_url: newMemPhoto.trim() || 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=800&auto=format&fit=crop',
       note: newMemNote.trim() || 'Unutulmaz bir anı...',
     };
-    setConfig((prev) => ({
-      ...prev,
-      memories: [...(prev.memories || []), item],
-    }));
+
+    const updatedMemories = [...(config.memories || []), item];
+    const updatedConfig: CoupleConfig = {
+      ...config,
+      memories: updatedMemories,
+    };
+
+    setConfig(updatedConfig);
     setNewMemTitle('');
     setNewMemPhoto('');
     setNewMemNote('');
     if (memFileInputRef.current) {
       memFileInputRef.current.value = '';
     }
+
+    // Doğrudan veritabanına kaydet ve sitenizde canlı yayına al
+    setMemorySaveFeedback('Anınız sitenize kaydediliyor...');
+    const ok = await handleSave(updatedConfig);
+    if (ok) {
+      setMemorySaveFeedback('Anınız başarıyla kaydedildi ve canlı sitenizde yayına alındı! ✓');
+    } else {
+      setMemorySaveFeedback('Anı eklendi. Sitenizde yayına almak için Kaydet butonuna basabilirsiniz.');
+    }
+    setTimeout(() => setMemorySaveFeedback(null), 5000);
   };
 
-  const handleRemoveMemory = (id: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      memories: (prev.memories || []).filter((m) => m.id !== id),
-    }));
+  const handleRemoveMemory = async (id: string) => {
+    const updatedMemories = (config.memories || []).filter((m) => m.id !== id);
+    const updatedConfig: CoupleConfig = {
+      ...config,
+      memories: updatedMemories,
+    };
+    setConfig(updatedConfig);
+    setMemorySaveFeedback('Anı siliniyor...');
+    await handleSave(updatedConfig);
+    setMemorySaveFeedback('Anı silindi ve siteniz güncellendi.');
+    setTimeout(() => setMemorySaveFeedback(null), 4000);
   };
 
   const handleAddBucketItem = () => {
@@ -1821,13 +1847,29 @@ function DashboardContent() {
                     className="rounded-xl border border-gray-200 px-3 py-2 text-xs outline-none focus:border-rose-400 sm:col-span-2"
                   />
                 </div>
-                <button
-                  onClick={handleAddMemory}
-                  disabled={!newMemTitle.trim()}
-                  className="rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 px-5 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md shadow-rose-500/20 cursor-pointer"
-                >
-                  <Plus className="h-4 w-4 inline mr-1" /> Anı Ekle
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleAddMemory}
+                    disabled={!newMemTitle.trim() || saving}
+                    className="rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-40 px-5 py-2.5 text-xs font-bold text-white transition active:scale-95 shadow-md shadow-rose-500/20 cursor-pointer flex items-center gap-1.5"
+                  >
+                    {saving ? (
+                      <>
+                        <Disc className="h-4 w-4 animate-spin" /> Kaydediliyor & Yayına Alınıyor...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" /> Anı Ekle & Yayınla
+                      </>
+                    )}
+                  </button>
+
+                  {memorySaveFeedback && (
+                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl animate-in fade-in flex items-center gap-1.5">
+                      <Check className="h-3.5 w-3.5" /> {memorySaveFeedback}
+                    </span>
+                  )}
+                </div>
                 <div className="space-y-2 max-h-48 overflow-y-auto pt-1">
                   {(config.memories || []).map((m) => (
                     <div key={m.id} className="flex items-center justify-between rounded-2xl bg-gray-50 p-2.5 text-xs border border-gray-100 hover:border-gray-200 transition">
