@@ -136,3 +136,77 @@ export async function generateVerificationLinkNative(email: string, continueUrl?
 
   return oobData.oobLink;
 }
+
+/**
+ * Generates official Firebase password reset link using Google Cloud Identity Platform REST API.
+ * Returns both the complete oobLink and the extracted oobCode for custom /reset-password UI.
+ */
+export async function generatePasswordResetLinkNative(
+  email: string,
+  continueUrl?: string
+): Promise<{ oobLink: string; oobCode?: string }> {
+  const projectId = cleanString(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) || 'asksite-saas';
+  const clientEmail = cleanString(process.env.FIREBASE_CLIENT_EMAIL);
+  const privateKey = formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+
+  if (!clientEmail || !privateKey) {
+    throw new Error('MISSING_SERVICE_ACCOUNT_CREDENTIALS');
+  }
+
+  const accessToken = await getGoogleAccessToken(clientEmail, privateKey);
+
+  const reqBody: any = {
+    requestType: 'PASSWORD_RESET',
+    email,
+    returnOobLink: true,
+  };
+
+  if (continueUrl) {
+    reqBody.continueUrl = continueUrl;
+  }
+
+  const oobRes = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:sendOobCode`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(reqBody),
+  });
+
+  const oobData = await oobRes.json();
+  if (!oobData.oobLink) {
+    if (continueUrl) {
+      delete reqBody.continueUrl;
+      const retryRes = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:sendOobCode`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(reqBody),
+      });
+      const retryData = await retryRes.json();
+      if (retryData.oobLink) {
+        let code = retryData.oobCode;
+        if (!code) {
+          try {
+            code = new URL(retryData.oobLink).searchParams.get('oobCode') || undefined;
+          } catch {}
+        }
+        return { oobLink: retryData.oobLink, oobCode: code };
+      }
+    }
+    const errCode = oobData.error?.message || JSON.stringify(oobData);
+    throw new Error(errCode);
+  }
+
+  let code = oobData.oobCode;
+  if (!code) {
+    try {
+      code = new URL(oobData.oobLink).searchParams.get('oobCode') || undefined;
+    } catch {}
+  }
+
+  return { oobLink: oobData.oobLink, oobCode: code };
+}

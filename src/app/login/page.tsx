@@ -9,12 +9,13 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '@/lib/firebase';
-import { Heart, Sparkles, Lock, Mail, User, Phone, LogIn, UserPlus, ArrowRight, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Heart, Sparkles, Lock, Mail, User, Phone, LogIn, UserPlus, ArrowRight, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, KeyRound } from 'lucide-react';
 import { autoClaimCoupleByEmail } from '@/lib/couples';
 import { dispatchVerificationEmail } from '@/lib/authVerification';
 import PhoneInput from '@/components/PhoneInput';
@@ -47,10 +48,27 @@ function LoginContent() {
   const targetSlugParam = searchParams?.get('slug') || '';
   const urlErrorMsg = searchParams?.get('error') || '';
 
-  const initialMode = searchParams?.get('mode') === 'register' ? 'register' : 'login';
-  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+  const initialMode = searchParams?.get('mode') === 'register'
+    ? 'register'
+    : searchParams?.get('mode') === 'forgot'
+    ? 'forgot'
+    : 'login';
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(urlErrorMsg ? decodeURIComponent(urlErrorMsg) : '');
+
+  // Forgot Password State
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccessMsg, setForgotSuccessMsg] = useState('');
+  const [forgotCooldown, setForgotCooldown] = useState(0);
+
+  useEffect(() => {
+    if (forgotCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setForgotCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [forgotCooldown]);
 
   // Form Fields
   const [fullName, setFullName] = useState('');
@@ -64,6 +82,58 @@ function LoginContent() {
   const [verificationChecking, setVerificationChecking] = useState(false);
   const [verificationStatusMsg, setVerificationStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes('@')) {
+      setErrorMsg('Lütfen geçerli bir e-posta adresi girin.');
+      return;
+    }
+
+    setForgotLoading(true);
+    setErrorMsg('');
+    setForgotSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (data.fallbackToClient) {
+        await sendPasswordResetEmail(auth, email.trim(), {
+          url: `${window.location.origin}/login?mode=login`,
+        });
+        setForgotSuccessMsg(
+          'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Lütfen gelen kutunuzu ve spam klasörünüzü kontrol edin.'
+        );
+        setForgotCooldown(60);
+      } else if (data.success) {
+        setForgotSuccessMsg(data.message || 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.');
+        setForgotCooldown(60);
+      } else {
+        setErrorMsg(data.error || 'Şifre sıfırlama bağlantısı gönderilemedi. Lütfen tekrar deneyin.');
+      }
+    } catch (err: any) {
+      console.warn('[ForgotPassword] Server route failed, trying client fallback:', err);
+      try {
+        await sendPasswordResetEmail(auth, email.trim(), {
+          url: `${window.location.origin}/login?mode=login`,
+        });
+        setForgotSuccessMsg(
+          'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Lütfen gelen kutunuzu ve spam klasörünüzü kontrol edin.'
+        );
+        setForgotCooldown(60);
+      } catch (clientErr: any) {
+        setErrorMsg('Şifre sıfırlama bağlantısı gönderilemedi. Lütfen e-posta adresinizi kontrol edip tekrar deneyin.');
+      }
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSuccessAuth = async (userObj: any) => {
     if (typeof window !== 'undefined') {
@@ -391,152 +461,245 @@ function LoginContent() {
 
         {/* Card */}
         <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-gray-100 backdrop-blur-md">
-          {/* Tabs */}
-          <div className="flex rounded-2xl bg-gray-100 p-1 mb-6">
-            <button
-              onClick={() => { setMode('login'); setErrorMsg(''); }}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-                mode === 'login' ? 'bg-rose-500 text-white shadow-md' : 'text-gray-600 hover:text-rose-500'
-              }`}
-            >
-              <LogIn className="h-4 w-4" /> Giriş Yap
-            </button>
-            <button
-              onClick={() => { setMode('register'); setErrorMsg(''); }}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
-                mode === 'register' ? 'bg-rose-500 text-white shadow-md' : 'text-gray-600 hover:text-rose-500'
-              }`}
-            >
-              <UserPlus className="h-4 w-4" /> Kayıt Ol
-            </button>
-          </div>
+          {mode === 'forgot' ? (
+            <div className="space-y-4">
+              <div className="text-center mb-5">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-500 border border-rose-100 mb-2.5">
+                  <KeyRound className="h-6 w-6" />
+                </div>
+                <h2 className="text-lg font-extrabold text-gray-900">Şifrenizi mi Unuttunuz? 🔑</h2>
+                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                  Kayıtlı e-posta adresinizi girin. Size güvenli bir şifre sıfırlama bağlantısı göndereceğiz.
+                </p>
+              </div>
 
-          {/* Google Single Sign-On Button */}
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-3 px-4 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-98 transition mb-5 disabled:opacity-50"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span>Google ile Devam Et</span>
-          </button>
+              {forgotSuccessMsg && (
+                <div className="rounded-2xl bg-emerald-50 p-4 text-xs font-semibold text-emerald-800 border border-emerald-200 flex items-start gap-2.5 animate-in fade-in duration-200">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{forgotSuccessMsg}</span>
+                </div>
+              )}
 
-          <div className="relative mb-5 flex items-center justify-center">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
-            </div>
-            <span className="relative bg-white px-3 text-[11px] font-semibold text-gray-400 uppercase">
-              Veya E-Posta ile
-            </span>
-          </div>
+              {errorMsg && (
+                <div className="rounded-2xl bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 border border-rose-200">
+                  {errorMsg}
+                </div>
+              )}
 
-          {/* Error Notice */}
-          {errorMsg && (
-            <div className="mb-4 rounded-2xl bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 border border-rose-200">
-              {errorMsg}
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
-            {mode === 'register' && (
-              <>
+              <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Adınız Soyadınız *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">E-Posta Adresiniz *</label>
                   <div className="relative">
-                    <User className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
+                    <Mail className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
                     <input
-                      type="text"
+                      type="email"
                       required
-                      placeholder="Örn: Ayşe Yılmaz"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="ornek@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={forgotLoading || forgotCooldown > 0}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 py-3.5 px-4 text-xs font-bold text-white shadow-xl shadow-rose-500/20 hover:opacity-95 active:scale-98 transition disabled:opacity-50 mt-2 cursor-pointer"
+                >
+                  {forgotCooldown > 0 ? (
+                    <span>Tekrar Gönder ({forgotCooldown}s)</span>
+                  ) : forgotLoading ? (
+                    <span>Bağlantı Gönderiliyor...</span>
+                  ) : (
+                    <>
+                      <span>Şifre Sıfırlama Bağlantısı Gönder</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="pt-3 text-center border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login');
+                    setErrorMsg('');
+                    setForgotSuccessMsg('');
+                  }}
+                  className="text-xs font-semibold text-gray-500 hover:text-rose-600 underline cursor-pointer"
+                >
+                  Giriş Ekranına Dön
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Tabs */}
+              <div className="flex rounded-2xl bg-gray-100 p-1 mb-6">
+                <button
+                  onClick={() => { setMode('login'); setErrorMsg(''); }}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+                    mode === 'login' ? 'bg-rose-500 text-white shadow-md' : 'text-gray-600 hover:text-rose-500'
+                  }`}
+                >
+                  <LogIn className="h-4 w-4" /> Giriş Yap
+                </button>
+                <button
+                  onClick={() => { setMode('register'); setErrorMsg(''); }}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-1.5 ${
+                    mode === 'register' ? 'bg-rose-500 text-white shadow-md' : 'text-gray-600 hover:text-rose-500'
+                  }`}
+                >
+                  <UserPlus className="h-4 w-4" /> Kayıt Ol
+                </button>
+              </div>
+
+              {/* Google Single Sign-On Button */}
+              <button
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white py-3 px-4 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-98 transition mb-5 disabled:opacity-50"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <span>Google ile Devam Et</span>
+              </button>
+
+              <div className="relative mb-5 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <span className="relative bg-white px-3 text-[11px] font-semibold text-gray-400 uppercase">
+                  Veya E-Posta ile
+                </span>
+              </div>
+
+              {/* Error Notice */}
+              {errorMsg && (
+                <div className="mb-4 rounded-2xl bg-rose-50 p-3.5 text-xs font-semibold text-rose-700 border border-rose-200">
+                  {errorMsg}
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleEmailSubmit} className="space-y-4">
+                {mode === 'register' && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Adınız Soyadınız *</label>
+                      <div className="relative">
+                        <User className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
+                        <input
+                          type="text"
+                          required
+                          placeholder="Örn: Ayşe Yılmaz"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">WhatsApp Telefon Numaranız (Opsiyonel)</label>
+                      <PhoneInput
+                        value={phone}
+                        onChange={setPhone}
+                        placeholder="5XX XXX XX XX"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">E-Posta Adresiniz *</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="ornek@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">WhatsApp Telefon Numaranız (Opsiyonel)</label>
-                  <PhoneInput
-                    value={phone}
-                    onChange={setPhone}
-                    placeholder="5XX XXX XX XX"
-                  />
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Şifreniz *</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
+                    />
+                  </div>
+                  {mode === 'register' && (
+                    <p className="text-[10px] text-gray-400 mt-1">En az 6 karakter olmalıdır.</p>
+                  )}
                 </div>
-              </>
-            )}
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">E-Posta Adresiniz *</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
-                <input
-                  type="email"
-                  required
-                  placeholder="ornek@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
-                />
-              </div>
-            </div>
+                {mode === 'login' && (
+                  <div className="flex items-center justify-end -mt-1.5 mb-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('forgot');
+                        setErrorMsg('');
+                        setForgotSuccessMsg('');
+                      }}
+                      className="text-[11px] font-bold text-rose-500 hover:text-rose-600 hover:underline transition cursor-pointer"
+                    >
+                      Şifrenizi mi unuttunuz?
+                    </button>
+                  </div>
+                )}
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Şifreniz *</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 pl-10 pr-4 py-2.5 text-xs font-medium outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition"
-                />
-              </div>
-              {mode === 'register' && (
-                <p className="text-[10px] text-gray-400 mt-1">En az 6 karakter olmalıdır.</p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 py-3.5 px-4 text-xs font-bold text-white shadow-xl shadow-rose-500/20 hover:opacity-95 active:scale-98 transition disabled:opacity-50 mt-2"
-            >
-              {loading ? (
-                <span>İşleniyor...</span>
-              ) : mode === 'login' ? (
-                <>
-                  <span>Giriş Yap ve Devam Et</span>
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              ) : (
-                <>
-                  <span>Kayıt Ol ve Doğrulama Maili Al</span>
-                  <Sparkles className="h-4 w-4" />
-                </>
-              )}
-            </button>
-          </form>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 py-3.5 px-4 text-xs font-bold text-white shadow-xl shadow-rose-500/20 hover:opacity-95 active:scale-98 transition disabled:opacity-50 mt-2"
+                >
+                  {loading ? (
+                    <span>İşleniyor...</span>
+                  ) : mode === 'login' ? (
+                    <>
+                      <span>Giriş Yap ve Devam Et</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Kayıt Ol ve Doğrulama Maili Al</span>
+                      <Sparkles className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            </>
+          )}
         </div>
 
         {/* Security Trust */}

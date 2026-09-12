@@ -346,3 +346,159 @@ export async function sendOrderSuccessEmail({
   }
 }
 
+export interface SendPasswordResetEmailParams {
+  to: string;
+  name?: string;
+  resetLink: string;
+}
+
+export async function sendPasswordResetEmailTemplate({
+  to,
+  name,
+  resetLink,
+}: SendPasswordResetEmailParams) {
+  function cleanString(val?: string): string {
+    if (!val) return '';
+    let clean = val.trim();
+    while ((clean.startsWith('"') && clean.endsWith('"')) || (clean.startsWith("'") && clean.endsWith("'"))) {
+      clean = clean.slice(1, -1).trim();
+    }
+    return clean;
+  }
+
+  const rawUser = process.env.GMAIL_USER || process.env.SMTP_USER || 'asksitesaas@gmail.com';
+  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+
+  const user = cleanString(rawUser);
+  const pass = cleanString(rawPass).replace(/\s+/g, '');
+
+  if (!pass) {
+    console.warn('[Mail] No SMTP / Gmail App Password configured in environment variables.');
+    return { success: false, reason: 'NO_SMTP_CONFIGURED' };
+  }
+
+  const transporter = process.env.SMTP_HOST
+    ? nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 465,
+        secure: Number(process.env.SMTP_PORT) === 465 || !process.env.SMTP_PORT,
+        auth: { user, pass },
+      })
+    : nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass },
+      });
+
+  const displayName = name || to.split('@')[0] || 'Değerli Kullanıcımız';
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AskSite • Şifre Sıfırlama</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0b0f19; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 560px; background: #111827; border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 28px; overflow: hidden; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);">
+          
+          <!-- Top Accent Gradient -->
+          <tr>
+            <td style="background: linear-gradient(90deg, #ff4d6d 0%, #f43f5e 50%, #8b5cf6 100%); height: 6px; font-size: 0; line-height: 0;">&nbsp;</td>
+          </tr>
+
+          <!-- Brand Logo Header -->
+          <tr>
+            <td align="center" style="padding: 36px 30px 15px 30px;">
+              <img src="https://www.asksite.com.tr/logo.png" alt="AskSite" width="80" height="80" style="border-radius: 20px; border: 1px solid #334155; display: block; margin: 0 auto 10px auto; box-shadow: 0 10px 25px rgba(244, 63, 94, 0.2);" />
+              <div style="font-size: 22px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff;">AskSite<span style="color: #ff4d6d;">.</span></div>
+              <p style="margin: 6px 0 0 0; font-size: 11px; color: #f43f5e; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Hikayeniz, Sizinle...</p>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 10px 36px 30px 36px; text-align: center;">
+              <div style="display: inline-block; background: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 50px; padding: 6px 18px; margin-bottom: 18px;">
+                <span style="font-size: 12px; font-weight: 800; color: #ff6b8b; text-transform: uppercase; letter-spacing: 1px;">🔐 Şifre Sıfırlama Talebi</span>
+              </div>
+
+              <h1 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 800; color: #ffffff; line-height: 1.35;">
+                Merhaba, <span style="color: #ff6b8b;">${displayName}</span>!
+              </h1>
+              <p style="margin: 0 0 18px 0; font-size: 15px; line-height: 1.6; color: #cbd5e1;">
+                AskSite hesabınız için bir şifre yenileme talebinde bulundunuz. Aşağıdaki butona tıklayarak yeni şifrenizi güvenle belirleyebilirsiniz:
+              </p>
+
+              <!-- CTA Button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 28px auto;">
+                <tr>
+                  <td align="center" style="border-radius: 50px; background: linear-gradient(135deg, #ff4d6d 0%, #e11d48 100%); box-shadow: 0 12px 26px rgba(225, 29, 72, 0.45);">
+                    <a href="${resetLink}" target="_blank" style="display: inline-block; padding: 16px 40px; font-size: 15px; font-weight: 800; color: #ffffff; text-decoration: none; border-radius: 50px; letter-spacing: 0.3px;">
+                      Yeni Şifremi Belirle 🔒
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Security Warning Box -->
+              <div style="margin-top: 24px; padding: 16px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 14px; text-align: left;">
+                <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: #fca5a5;">
+                  ⚠️ Bu talebi siz yapmadıysanız:
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                  Hiçbir işlem yapmanıza gerek yoktur. Hesabınız tamamen güvendedir ve mevcut şifreniz değişmemiştir. Bu bağlantı güvenlik nedeniyle sınırlı süre için geçerlidir.
+                </p>
+              </div>
+
+              <!-- Fallback Link Notice -->
+              <div style="margin-top: 20px; padding: 14px; background: rgba(255, 255, 255, 0.04); border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 14px; text-align: left;">
+                <p style="margin: 0 0 6px 0; font-size: 11px; color: #94a3b8; line-height: 1.5;">
+                  Buton çalışmıyorsa aşağıdaki bağlantıyı tarayıcınızın adres çubuğuna yapıştırabilirsiniz:
+                </p>
+                <p style="margin: 0; font-size: 11px; word-break: break-all; color: #38bdf8; font-family: monospace;">
+                  <a href="${resetLink}" target="_blank" style="color: #38bdf8; text-decoration: none;">${resetLink}</a>
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 36px; background: rgba(0, 0, 0, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.06); text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8; font-weight: 500;">
+                Destek: <a href="mailto:asksitesaas@gmail.com" style="color: #ff6b8b; text-decoration: none;">asksitesaas@gmail.com</a>
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #475569;">
+                © 2026 AskSite • Şahinbey / Gaziantep, Türkiye • Tüm Hakları Saklıdır.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"AskSite • Aşk Platformu" <${user}>`,
+      to,
+      subject: 'AskSite • Şifre Sıfırlama Talebiniz 🔐',
+      html: htmlContent,
+    });
+    console.log(`[Password Reset Mail Sent] To: ${to}, MessageId: ${info.messageId}`);
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error('[Password Reset Mail Error]:', err);
+    return { success: false, error: err };
+  }
+}
+
