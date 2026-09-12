@@ -36,6 +36,10 @@ import {
   Camera,
   Upload,
   Check,
+  Bell,
+  Send,
+  Smartphone,
+  MessageSquare,
 } from 'lucide-react';
 
 import { onAuthStateChanged, signOut, updatePassword, updateProfile } from 'firebase/auth';
@@ -59,8 +63,8 @@ function DashboardContent() {
   const [userCoupleSlug, setUserCoupleSlug] = useState<string | null>(null);
 
   const initialTab = (searchParams.get('tab') as any) || 'info';
-  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'quiz' | 'map' | 'qr' | 'story'>(
-    ['info', 'media', 'modules', 'coupons', 'diary', 'capsule', 'cinema', 'wheel', 'quiz', 'map', 'qr', 'story'].includes(initialTab) ? initialTab : 'info'
+  const [activeTab, setActiveTab] = useState<'info' | 'media' | 'modules' | 'coupons' | 'diary' | 'capsule' | 'cinema' | 'wheel' | 'quiz' | 'map' | 'qr' | 'story' | 'notifications'>(
+    ['info', 'media', 'modules', 'coupons', 'diary', 'capsule', 'cinema', 'wheel', 'quiz', 'map', 'qr', 'story', 'notifications'].includes(initialTab) ? initialTab : 'info'
   );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,6 +73,12 @@ function DashboardContent() {
   const initialConfigRef = useRef<string>('');
   const [hasScrolled, setHasScrolled] = useState(false);
   const [siteManagementOpen, setSiteManagementOpen] = useState(false);
+
+  // Notification Test States
+  const [testingPush, setTestingPush] = useState(false);
+  const [testPushMsg, setTestPushMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [testingCron, setTestingCron] = useState(false);
+  const [testCronMsg, setTestCronMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form State
   const [config, setConfig] = useState<CoupleConfig>({
@@ -202,7 +212,7 @@ function DashboardContent() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as any;
-    if (tabParam && ['info', 'media', 'modules', 'coupons', 'diary', 'capsule', 'cinema', 'wheel', 'quiz', 'map', 'qr'].includes(tabParam)) {
+    if (tabParam && ['info', 'media', 'modules', 'coupons', 'diary', 'capsule', 'cinema', 'wheel', 'quiz', 'map', 'qr', 'story', 'notifications'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
     if (typeof window !== 'undefined' && window.location.hash === '#event-editor') {
@@ -607,6 +617,82 @@ function DashboardContent() {
     if (!markerId) return;
     await deleteMapMarker(config.id || config.slug, markerId);
     setMarkers((prev) => prev.filter((m) => m.id !== markerId));
+  };
+
+  const handleTestWebPush = async () => {
+    setTestingPush(true);
+    setTestPushMsg(null);
+    try {
+      const res = await fetch('/api/notifications/send-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: config.slug,
+          trigger: 'game_record',
+          senderRole: 'partner1',
+          senderName: config.partner1_name || 'Partner 1',
+          extraData: {
+            gameName: 'Flappy Bird',
+            score: 99,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (data.sentCount > 0) {
+          setTestPushMsg({
+            type: 'success',
+            text: `Harika! ${data.sentCount} cihaza anlık test bildirimi başarıyla gönderildi! 🚀`,
+          });
+        } else {
+          setTestPushMsg({
+            type: 'success',
+            text: `İşlem başarılı, ancak henüz sitenizde bildirim izni vermiş kayıtlı cihaz yok. Sitenize (${config.slug}) gidip "Bildirimleri Aç" butonuna basarak cihazınızı kaydedebilirsiniz.`,
+          });
+        }
+      } else {
+        setTestPushMsg({
+          type: 'error',
+          text: data.message || data.error || 'Test bildirimi gönderilemedi.',
+        });
+      }
+    } catch (err: any) {
+      setTestPushMsg({
+        type: 'error',
+        text: err?.message || 'Ağ hatası oluştu.',
+      });
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
+  const handleTestMilestoneCron = async () => {
+    setTestingCron(true);
+    setTestCronMsg(null);
+    try {
+      const res = await fetch(`/api/cron/reminders?slug=${config.slug}&test=true`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestCronMsg({
+          type: 'success',
+          text: `Hatırlatıcı kontrolü tamamlandı! (${data.sentRemindersCount} bildirim tetiklendi: SMS / WhatsApp simülasyon logları oluşturuldu).`,
+        });
+      } else {
+        setTestCronMsg({
+          type: 'error',
+          text: data.error || 'Hatırlatıcı testi çalıştırılamadı.',
+        });
+      }
+    } catch (err: any) {
+      setTestCronMsg({
+        type: 'error',
+        text: err?.message || 'Ağ hatası oluştu.',
+      });
+    } finally {
+      setTestingCron(false);
+    }
   };
 
   const [baseUrl, setBaseUrl] = useState('');
@@ -1467,6 +1553,16 @@ function DashboardContent() {
               }`}
             >
               <Camera className="h-3.5 w-3.5" /> 12. 📸 Story Kartı
+            </button>
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={`flex-1 min-w-[135px] flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'notifications'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-rose-500'
+              }`}
+            >
+              <Bell className="h-3.5 w-3.5" /> 13. 🔔 Bildirim & Bot
             </button>
           </div>
 
@@ -2890,6 +2986,379 @@ function DashboardContent() {
                   className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 px-7 py-3.5 text-xs font-black text-white shadow-xl shadow-rose-500/25 hover:scale-105 active:scale-95 transition cursor-pointer"
                 >
                   <Sparkles className="h-4 w-4" /> Story Kartı Stüdyosunu Başlat (Önizle & Paylaş)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 13: BİLDİRİMLER & AKILLI HATIRLATICI BOTU */}
+          {activeTab === 'notifications' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Info Card */}
+              <div className="rounded-3xl bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 p-6 sm:p-7 border border-purple-100/80 shadow-sm space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/25">
+                    <Bell className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-gray-900 flex items-center gap-2">
+                      Anlık Bildirimler & Akıllı Hatırlatıcı Botu
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                    </h3>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      Partnerinizin telefonuna anında bildirim gönderin; özel günlerinizde WhatsApp ve SMS hatırlatmaları alın!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Partner Phone & Birthday Details */}
+              <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-5">
+                <h4 className="text-sm font-extrabold text-gray-900 border-b pb-2 flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-purple-600" /> Partner Telefon & Doğum Günü Bilgileri
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {/* Partner 1 Info */}
+                  <div className="space-y-3 rounded-2xl bg-rose-50/40 p-4 border border-rose-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-rose-600">🌸 Partner 1 ({config.partner1_name || '1. Partner'})</span>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Telefon Numarası (WhatsApp / SMS)</label>
+                      <PhoneInput
+                        value={config.partner1_phone || config.whatsapp_number || ''}
+                        onChange={(val) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            partner1_phone: val,
+                            whatsapp_number: val,
+                          }))
+                        }
+                        placeholder="5XX XXX XX XX"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Doğum Günü</label>
+                      <input
+                        type="date"
+                        value={config.partner1_birthday || ''}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            partner1_birthday: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-purple-500 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Partner 2 Info */}
+                  <div className="space-y-3 rounded-2xl bg-purple-50/40 p-4 border border-purple-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-purple-600">🔵 Partner 2 ({config.partner2_name || '2. Partner'})</span>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Telefon Numarası (WhatsApp / SMS)</label>
+                      <PhoneInput
+                        value={config.partner2_phone || ''}
+                        onChange={(val) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            partner2_phone: val,
+                          }))
+                        }
+                        placeholder="5XX XXX XX XX"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Doğum Günü</label>
+                      <input
+                        type="date"
+                        value={config.partner2_birthday || ''}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            partner2_birthday: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold outline-none focus:border-purple-500 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reminder Lead Days */}
+                <div className="rounded-2xl bg-gray-50 p-4 border border-gray-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800">
+                      Özel Gün Hatırlatma Zamanı
+                    </label>
+                    <p className="text-[11px] text-gray-500">
+                      Yıl dönümü, 14 Şubat ve doğum günlerinde sürpriz hazırlamak için kaç gün önce mesaj gelsin?
+                    </p>
+                  </div>
+                  <select
+                    value={config.notification_settings?.remind_days_before || 3}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        notification_settings: {
+                          ...prev.notification_settings,
+                          remind_days_before: parseInt(e.target.value, 10),
+                        },
+                      }))
+                    }
+                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-purple-700 outline-none focus:border-purple-500 min-w-[130px]"
+                  >
+                    <option value={1}>1 Gün Önce</option>
+                    <option value={2}>2 Gün Önce</option>
+                    <option value={3}>3 Gün Önce (Önerilen)</option>
+                    <option value={5}>5 Gün Önce</option>
+                    <option value={7}>1 Hafta Önce</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Notification Channels & Toggles */}
+              <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-4">
+                <h4 className="text-sm font-extrabold text-gray-900 border-b pb-2 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-purple-600" /> Bildirim Kanalları & Tercihler
+                </h4>
+
+                <div className="space-y-3">
+                  {/* Web Push Toggle */}
+                  <label className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 hover:bg-gray-50/80 transition cursor-pointer">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5">
+                        📱 Web Push Bildirimleri (Mobil & Masaüstü)
+                      </div>
+                      <div className="text-[11px] text-gray-500">
+                        Oyun rekoru kırıldığında veya yeni anı paylaşıldığında anında kilit ekranına bildirim gider.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.notification_settings?.web_push_enabled !== false}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          notification_settings: {
+                            ...prev.notification_settings,
+                            web_push_enabled: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-5 w-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                  </label>
+
+                  {/* WhatsApp Reminder Bot Toggle */}
+                  <label className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 hover:bg-gray-50/80 transition cursor-pointer">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5">
+                        💬 WhatsApp Hatırlatıcı Botu
+                      </div>
+                      <div className="text-[11px] text-gray-500">
+                        Yıl dönümü, 14 Şubat ve doğum günlerinden 3 gün önce partnerlere özel sürpriz hatırlatması atar.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.notification_settings?.whatsapp_reminders_enabled !== false}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          notification_settings: {
+                            ...prev.notification_settings,
+                            whatsapp_reminders_enabled: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-5 w-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                  </label>
+
+                  {/* SMS Reminder Bot Toggle */}
+                  <label className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 hover:bg-gray-50/80 transition cursor-pointer">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5">
+                        ✉️ Otomatik SMS Hatırlatıcı
+                      </div>
+                      <div className="text-[11px] text-gray-500">
+                        Özel günlerde internete bağlı olmasa dahi partnerlerin telefonuna SMS bildirimi iletir.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.notification_settings?.sms_reminders_enabled !== false}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          notification_settings: {
+                            ...prev.notification_settings,
+                            sms_reminders_enabled: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-5 w-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                  </label>
+
+                  {/* Game Record Alert Toggle */}
+                  <label className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 hover:bg-gray-50/80 transition cursor-pointer">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5">
+                        🏆 Flappy Bird & Oyun Rekoru Bildirimi
+                      </div>
+                      <div className="text-[11px] text-gray-500">
+                        Örnek: &quot;Muhammet senin Flappy Bird rekorunu kırdı! 🚀&quot;
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.notification_settings?.game_record_push !== false}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          notification_settings: {
+                            ...prev.notification_settings,
+                            game_record_push: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-5 w-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                  </label>
+
+                  {/* Diary Entry Alert Toggle */}
+                  <label className="flex items-center justify-between p-3.5 rounded-2xl border border-gray-100 hover:bg-gray-50/80 transition cursor-pointer">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-extrabold text-gray-900 flex items-center gap-1.5">
+                        📖 Anı Defteri & Fotoğraf Bildirimi
+                      </div>
+                      <div className="text-[11px] text-gray-500">
+                        Partneriniz anı defterine yeni sayfa veya albüme fotoğraf eklediğinde haber verir.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.notification_settings?.diary_entry_push !== false}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          notification_settings: {
+                            ...prev.notification_settings,
+                            diary_entry_push: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="h-5 w-5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Subscribed Devices Status */}
+              <div className="rounded-3xl bg-white p-6 shadow-md border border-gray-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-emerald-600" /> Kayıtlı Bildirim Cihazları
+                  </h4>
+                  <span className="rounded-full bg-emerald-100 text-emerald-800 px-3 py-0.5 text-xs font-black">
+                    {config.push_subscriptions?.length || 0} Cihaz Aktif
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {config.push_subscriptions && config.push_subscriptions.length > 0
+                    ? `Bu siteniz için şu anda ${config.push_subscriptions.length} adet cihaz push bildirimi almaya hazır.`
+                    : 'Henüz kayıtlı bir cihaz yok. Sitenize telefon veya bilgisayarınızdan girip "Bildirimleri Aç" butonuna tıkladığınızda cihazınız buraya eklenecektir.'}
+                </p>
+              </div>
+
+              {/* Interactive Test Panel */}
+              <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-zinc-900 text-white p-6 sm:p-7 shadow-xl space-y-4">
+                <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                  <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                    Canlı Test & Simülasyon Merkezi
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Test Web Push */}
+                  <div className="rounded-2xl bg-zinc-800/80 p-4 border border-zinc-700/80 space-y-2">
+                    <h5 className="text-xs font-black text-rose-400 flex items-center gap-1.5">
+                      <Send className="w-3.5 h-3.5" /> 1. Web Push Bildirimi Testi
+                    </h5>
+                    <p className="text-[11px] text-zinc-400">
+                      Sisteme kayıtlı cihazlara anında örnek bir &quot;Flappy Bird rekoru kırıldı! 🚀&quot; bildirimi gönderir.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleTestWebPush}
+                      disabled={testingPush}
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white text-xs font-bold shadow-md transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      {testingPush ? 'Gönderiliyor...' : 'Test Web Push Gönder'}
+                    </button>
+                    {testPushMsg && (
+                      <div
+                        className={`mt-2 p-2.5 rounded-xl text-xs font-medium border ${
+                          testPushMsg.type === 'success'
+                            ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300'
+                            : 'bg-rose-950/60 border-rose-800 text-rose-300'
+                        }`}
+                      >
+                        {testPushMsg.text}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Test Cron Reminder */}
+                  <div className="rounded-2xl bg-zinc-800/80 p-4 border border-zinc-700/80 space-y-2">
+                    <h5 className="text-xs font-black text-purple-400 flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5" /> 2. 3 Gün Kala Hatırlatıcı Testi
+                    </h5>
+                    <p className="text-[11px] text-zinc-400">
+                      Yıl dönümü & 14 Şubat otomatik botunu test modunda tetikler ve SMS / WhatsApp mesajını simüle eder.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleTestMilestoneCron}
+                      disabled={testingCron}
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold shadow-md transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {testingCron ? 'Kontrol Ediliyor...' : 'Hatırlatıcı Botunu Test Et'}
+                    </button>
+                    {testCronMsg && (
+                      <div
+                        className={`mt-2 p-2.5 rounded-xl text-xs font-medium border ${
+                          testCronMsg.type === 'success'
+                            ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300'
+                            : 'bg-rose-950/60 border-rose-800 text-rose-300'
+                        }`}
+                      >
+                        {testCronMsg.text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Button Bar */}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-xs font-black text-white shadow-xl shadow-purple-600/25 hover:opacity-95 transition active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Kaydediliyor...' : 'Bildirim Ayarlarını Kaydet'}
                 </button>
               </div>
             </div>

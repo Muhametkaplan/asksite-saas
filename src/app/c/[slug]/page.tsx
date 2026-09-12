@@ -21,6 +21,7 @@ import PartnerAuthModal from '@/components/PartnerAuthModal';
 import LiveCanvasWidget from '@/components/LiveCanvasWidget';
 import QuickDashboardBar from '@/components/QuickDashboardBar';
 import StoryShareButton from '@/components/StoryShareButton';
+import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -275,6 +276,13 @@ export default async function CouplePage({ params }: PageProps) {
 
       {/* Floating Instagram Story Share Button */}
       <StoryShareButton couple={couple} />
+
+      {/* Push Notification Opt-in Prompt & Icon */}
+      <NotificationPermissionPrompt
+        slug={couple.slug}
+        partnerName={couple.partner1_name}
+        otherPartnerName={couple.partner2_name}
+      />
 
       {/* Floating Bottom Nav */}
       <BottomNav slug={couple.slug} />

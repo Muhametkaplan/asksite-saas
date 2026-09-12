@@ -1822,6 +1822,26 @@ function FlappyBirdGame({
           setHighScores(updatedScores);
           saveArcadeHighScore(slug, 'flappy', updatedScores.p1Score, updatedScores.p2Score);
           saveGameScore(slug, 'Flappy Bird', score, playerName);
+
+          // Trigger Web Push to other partner
+          try {
+            fetch('/api/notifications/send-push', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                slug,
+                trigger: 'game_record',
+                senderRole: role || (isP1 ? 'partner1' : 'partner2'),
+                senderName: playerName,
+                extraData: {
+                  gameName: 'Flappy Bird',
+                  score: score,
+                },
+              }),
+            }).catch((err) => console.error('[Push] Game record push failed:', err));
+          } catch (e) {
+            // non-blocking
+          }
         }
       }
     };
@@ -3534,6 +3554,25 @@ function DiaryWidget({ couple }: { couple: CoupleConfig }) {
       ]);
       setNoteContent('');
       triggerConfetti({ particleCount: 50, spread: 60 });
+
+      // Trigger Web Push to other partner
+      try {
+        fetch('/api/notifications/send-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug: couple.slug,
+            trigger: 'diary_entry',
+            senderRole: authState.role,
+            senderName: authState.author,
+            extraData: {
+              content: newEntryData.content,
+            },
+          }),
+        }).catch((err) => console.error('[Push] Diary entry push failed:', err));
+      } catch (e) {
+        // non-blocking
+      }
     }
     setAdding(false);
   };

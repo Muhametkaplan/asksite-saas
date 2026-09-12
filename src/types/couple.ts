@@ -107,6 +107,27 @@ export interface FeatureToggles {
   quiz?: boolean;
 }
 
+export interface PushSubscriptionItem {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  role: 'partner1' | 'partner2' | 'both';
+  userAgent?: string;
+  created_at: string;
+}
+
+export interface NotificationSettings {
+  web_push_enabled?: boolean;
+  sms_reminders_enabled?: boolean;
+  whatsapp_reminders_enabled?: boolean;
+  remind_days_before?: number;
+  game_record_push?: boolean;
+  diary_entry_push?: boolean;
+  memory_photo_push?: boolean;
+}
+
 export interface CoupleConfig {
   id?: string;
   slug: string;
@@ -114,6 +135,10 @@ export interface CoupleConfig {
   partner2_name: string;
   partner1_email?: string;
   partner2_email?: string;
+  partner1_phone?: string;
+  partner2_phone?: string;
+  partner1_birthday?: string;
+  partner2_birthday?: string;
   partner1_pin?: string;
   partner2_pin?: string;
   authorized_emails?: string[];
@@ -127,6 +152,8 @@ export interface CoupleConfig {
   spotify_lyrics?: string[];
   whatsapp_number: string;
   whatsapp_message: string;
+  notification_settings?: NotificationSettings;
+  push_subscriptions?: PushSubscriptionItem[];
   love_reasons: string[];
   memories?: MemoryItem[];
   bucket_list?: BucketListItem[];
