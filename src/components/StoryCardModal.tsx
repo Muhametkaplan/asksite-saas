@@ -21,9 +21,12 @@ import {
   Crown,
   Upload,
   Trash2,
+  Search,
+  Disc,
 } from 'lucide-react';
 import { CoupleConfig, MapMarker } from '@/types/couple';
 import { getMapMarkers } from '@/lib/couples';
+import { SpotifyTrackItem } from '@/app/api/spotify/tracks/route';
 
 interface StoryCardModalProps {
   isOpen: boolean;
@@ -155,6 +158,62 @@ export default function StoryCardModal({
         setMarkers(DEFAULT_TURKEY_MARKERS);
       });
   }, [isOpen, config.slug, config.id]);
+
+  // Spotify Track Selection State
+  const [spotifyTracks, setSpotifyTracks] = useState<SpotifyTrackItem[]>([]);
+  const [selectedTrack, setSelectedTrack] = useState<SpotifyTrackItem | null>(null);
+  const [loadingSpotify, setLoadingSpotify] = useState(false);
+  const [songSearchQuery, setSongSearchQuery] = useState('');
+  const [isSearchingSong, setIsSearchingSong] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoadingSpotify(true);
+    const effectiveUrl = config.spotify_url || '';
+    fetch(`/api/spotify/tracks?url=${encodeURIComponent(effectiveUrl)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.tracks && data.tracks.length > 0) {
+          setSpotifyTracks(data.tracks);
+          if (!selectedTrack) {
+            setSelectedTrack(data.tracks[0]);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load Spotify tracks:', err);
+      })
+      .finally(() => {
+        setLoadingSpotify(false);
+      });
+  }, [isOpen, config.spotify_url]);
+
+  const handleSearchSong = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!songSearchQuery.trim()) return;
+    setIsSearchingSong(true);
+    try {
+      const isSpotifyUrl = songSearchQuery.includes('spotify.com');
+      const paramKey = isSpotifyUrl ? 'url' : 'search';
+      const res = await fetch(
+        `/api/spotify/tracks?${paramKey}=${encodeURIComponent(songSearchQuery.trim())}`
+      );
+      const data = await res.json();
+      if (data.tracks && data.tracks.length > 0) {
+        setSpotifyTracks((prev) => {
+          const existingIds = new Set(prev.map((t) => t.id));
+          const newItems = data.tracks.filter((t: SpotifyTrackItem) => !existingIds.has(t.id));
+          return [...newItems, ...prev];
+        });
+        setSelectedTrack(data.tracks[0]);
+        setSongSearchQuery('');
+      }
+    } catch (err) {
+      console.error('Search song error:', err);
+    } finally {
+      setIsSearchingSong(false);
+    }
+  };
 
   const qrRef = useRef<SVGSVGElement | null>(null);
 
@@ -323,13 +382,13 @@ export default function StoryCardModal({
         ctx.font = 'bold 34px sans-serif';
         ctx.fillText('asksite.com.tr', 540, 1480);
       } else if (selectedTemplate === 'spotify') {
-        // Spotify Dark Theme
+        // --- SPOTIFY DARK THEME ---
         ctx.fillStyle = '#121212';
         ctx.fillRect(0, 0, 1080, 1920);
 
         ctx.save();
         ctx.filter = 'blur(140px)';
-        ctx.fillStyle = 'rgba(29, 185, 84, 0.25)';
+        ctx.fillStyle = 'rgba(29, 185, 84, 0.28)';
         ctx.beginPath();
         ctx.arc(300, 500, 300, 0, Math.PI * 2);
         ctx.fill();
@@ -352,50 +411,98 @@ export default function StoryCardModal({
         ctx.textAlign = 'center';
         ctx.fillText('● Spotify Aşk Çaları', 540, 260);
 
-        ctx.fillStyle = '#282828';
-        roundRect(ctx, 240, 320, 600, 600, 40);
-        ctx.fill();
+        // Music Album Artwork Box (600x600)
+        const coverX = 240;
+        const coverY = 320;
+        const coverW = 600;
+        const coverH = 600;
 
-        ctx.fillStyle = '#f43f5e';
-        ctx.font = '160px sans-serif';
-        ctx.fillText('❤️', 540, 680);
+        let songCoverImg: HTMLImageElement | null = null;
+        if (selectedTrack?.artworkUrl) {
+          songCoverImg = await loadImage(selectedTrack.artworkUrl);
+        }
 
+        ctx.save();
+        roundRect(ctx, coverX, coverY, coverW, coverH, 40);
+        ctx.clip();
+
+        if (songCoverImg) {
+          ctx.drawImage(songCoverImg, coverX, coverY, coverW, coverH);
+          // Subtle vignette & gloss
+          const vig = ctx.createLinearGradient(coverX, coverY, coverX, coverY + coverH);
+          vig.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+          vig.addColorStop(0.7, 'transparent');
+          vig.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+          ctx.fillStyle = vig;
+          ctx.fillRect(coverX, coverY, coverW, coverH);
+        } else {
+          // Fallback gradient
+          const defGrad = ctx.createLinearGradient(coverX, coverY, coverX + coverW, coverY + coverH);
+          defGrad.addColorStop(0, '#059669');
+          defGrad.addColorStop(1, '#09090b');
+          ctx.fillStyle = defGrad;
+          ctx.fillRect(coverX, coverY, coverW, coverH);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '160px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('🎵', 540, 680);
+        }
+        ctx.restore();
+
+        // Subtle cover border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 3;
+        roundRect(ctx, coverX, coverY, coverW, coverH, 40);
+        ctx.stroke();
+
+        // Song Title
+        const songTitle = selectedTrack?.title || 'Bizim Aşk Şarkımız';
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 54px sans-serif';
-        ctx.fillText(`${partner1} & ${partner2}`, 540, 1000);
+        ctx.font = 'bold 52px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(songTitle, 540, 1000);
 
-        ctx.fillStyle = '#b3b3b3';
-        ctx.font = '34px sans-serif';
-        ctx.fillText('Bizim Aşk Şarkımız • Özel Parça', 540, 1060);
+        // Artist Name
+        const artistName = selectedTrack?.artist || `${partner1} & ${partner2}`;
+        ctx.fillStyle = '#1db954';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.fillText(artistName, 540, 1060);
 
+        // Romantic Quote
+        ctx.fillStyle = '#a1a1aa';
+        ctx.font = 'italic 28px sans-serif';
+        ctx.fillText(`“${customQuote}”`, 540, 1115);
+
+        // Progress Bar
         ctx.fillStyle = '#404040';
-        roundRect(ctx, 190, 1130, 700, 16, 8);
+        roundRect(ctx, 190, 1170, 700, 16, 8);
         ctx.fill();
 
         ctx.fillStyle = '#1db954';
-        roundRect(ctx, 190, 1130, 480, 16, 8);
+        roundRect(ctx, 190, 1170, 480, 16, 8);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(670, 1138, 14, 0, Math.PI * 2);
+        ctx.arc(670, 1178, 14, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#a7a7a7';
         ctx.font = '28px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('02:14', 190, 1180);
+        ctx.fillText('01:45', 190, 1220);
         ctx.textAlign = 'right';
-        ctx.fillText('03:45', 890, 1180);
+        ctx.fillText('03:30', 890, 1220);
         ctx.textAlign = 'center';
 
+        // Playback Controls
         ctx.fillStyle = '#ffffff';
-        ctx.font = '50px sans-serif';
-        ctx.fillText('⏮   ▶   ⏭', 540, 1260);
+        ctx.font = '54px sans-serif';
+        ctx.fillText('⏮   ▶   ⏭', 540, 1300);
 
-        await drawQrCodeToCanvas(ctx, 450, 1330, 180);
+        await drawQrCodeToCanvas(ctx, 450, 1370, 180);
 
         ctx.fillStyle = '#1db954';
         ctx.font = 'bold 30px sans-serif';
-        ctx.fillText('asksite.com.tr 🔗', 540, 1560);
+        ctx.fillText('asksite.com.tr 🔗', 540, 1590);
       } else if (selectedTemplate === 'polaroid') {
         // --- REALISTIC VINTAGE NOSTALGIC POLAROID ---
         // 1. Warm Antique Tabletop / Canvas Texture Background
@@ -1188,6 +1295,109 @@ export default function StoryCardModal({
               </div>
             )}
 
+            {/* SPOTIFY CUSTOM CONTROLS (If Spotify Selected) */}
+            {selectedTemplate === 'spotify' && (
+              <div className="rounded-2xl bg-zinc-900/90 border border-zinc-700/80 p-4 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                    <Music className="h-4 w-4" /> Spotify Çalma Listeniz & Şarkılar
+                  </label>
+                  <span className="text-[10px] text-zinc-400 font-medium">
+                    {spotifyTracks.length} Şarkı
+                  </span>
+                </div>
+
+                {/* Search or Paste Song Link Form */}
+                <form onSubmit={handleSearchSong} className="flex gap-1.5">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                    <input
+                      type="text"
+                      value={songSearchQuery}
+                      onChange={(e) => setSongSearchQuery(e.target.value)}
+                      placeholder="Şarkı ara veya Spotify şarkı linki yapıştır..."
+                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-black/60 border border-zinc-700 text-xs text-white placeholder:text-zinc-500 outline-none focus:border-emerald-500 transition"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSearchingSong || !songSearchQuery.trim()}
+                    className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-xs font-bold text-white transition active:scale-95 shrink-0 cursor-pointer"
+                  >
+                    {isSearchingSong ? '...' : 'Bul'}
+                  </button>
+                </form>
+
+                {/* Track Selection List */}
+                <div>
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+                    Kartta Görünecek Şarkıyı Seçin:
+                  </span>
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {loadingSpotify && spotifyTracks.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-zinc-400 flex items-center justify-center gap-2">
+                        <Disc className="h-4 w-4 animate-spin text-emerald-400" /> Şarkılar yükleniyor...
+                      </div>
+                    ) : (
+                      spotifyTracks.map((track) => {
+                        const isChosen = selectedTrack?.id === track.id;
+                        return (
+                          <button
+                            key={track.id}
+                            type="button"
+                            onClick={() => setSelectedTrack(track)}
+                            className={`w-full flex items-center gap-2.5 p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                              isChosen
+                                ? 'bg-emerald-500/15 border-emerald-500 shadow-md ring-1 ring-emerald-500/50'
+                                : 'bg-zinc-800/60 border-zinc-750 hover:bg-zinc-800 text-zinc-300'
+                            }`}
+                          >
+                            {/* Album Cover Thumbnail */}
+                            <div className="relative h-11 w-11 rounded-lg overflow-hidden shrink-0 bg-zinc-950 border border-zinc-700">
+                              {track.artworkUrl ? (
+                                <img
+                                  src={track.artworkUrl}
+                                  alt={track.title}
+                                  className="h-full w-full object-cover"
+                                  crossOrigin="anonymous"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-sm">
+                                  🎵
+                                </div>
+                              )}
+                              {isChosen && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                  <Check className="h-4 w-4 text-emerald-400 font-bold" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Track Title and Artist */}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold text-white truncate">
+                                {track.title}
+                              </div>
+                              <div className="text-[11px] text-zinc-400 truncate mt-0.5">
+                                {track.artist}
+                              </div>
+                            </div>
+
+                            {/* Selection badge */}
+                            {isChosen && (
+                              <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+                                Seçili
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* MAP CUSTOM CONTROLS (If Map Selected) */}
             {selectedTemplate === 'map' && (
               <div className="rounded-2xl bg-slate-800/60 border border-slate-700 p-4 space-y-3 animate-in fade-in">
@@ -1551,43 +1761,88 @@ export default function StoryCardModal({
 
               {/* Template: SPOTIFY */}
               {selectedTemplate === 'spotify' && (
-                <>
-                  <div className="mt-2 flex items-center justify-center gap-1 text-[#1db954] text-[10px] font-bold">
-                    <Music className="h-3 w-3" /> Spotify Aşk Çaları
+                <div className="relative w-full h-full flex flex-col justify-between items-center text-center p-2 animate-in fade-in">
+                  {/* Top Spotify Header */}
+                  <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[#1db954] text-[10px] font-black tracking-wide">
+                    <Music className="h-3.5 w-3.5" /> Spotify Aşk Çaları
                   </div>
 
+                  {/* Center Music Card */}
                   <div className="my-auto w-full space-y-2">
-                    <div className="w-28 h-28 mx-auto rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-3xl shadow-lg">
-                      ❤️
-                    </div>
-                    <div className="space-y-0.5">
-                      <div className="text-xs font-bold text-white">
-                        {partner1} & {partner2}
+                    {/* Real Album Artwork */}
+                    <div className="relative w-28 h-28 mx-auto rounded-2xl bg-zinc-900 border border-zinc-700/80 shadow-2xl overflow-hidden group">
+                      {selectedTrack?.artworkUrl ? (
+                        <img
+                          src={selectedTrack.artworkUrl}
+                          alt={selectedTrack.title}
+                          className="w-full h-full object-cover shadow-inner transition-transform duration-500 group-hover:scale-105"
+                          crossOrigin="anonymous"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-3xl bg-zinc-800 text-emerald-400">
+                          🎵
+                        </div>
+                      )}
+                      {/* Subtle Spotify Gloss & Vignette Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-white/10 pointer-events-none" />
+                      {/* Corner Equalizer */}
+                      <div className="absolute bottom-1.5 right-1.5 flex items-end gap-0.5 bg-black/70 backdrop-blur-xs px-1.5 py-0.5 rounded-md border border-white/10">
+                        <span className="w-0.5 h-2.5 bg-[#1db954] rounded-xs animate-pulse" />
+                        <span className="w-0.5 h-3.5 bg-[#1db954] rounded-xs animate-pulse delay-75" />
+                        <span className="w-0.5 h-2 bg-[#1db954] rounded-xs animate-pulse delay-150" />
                       </div>
-                      <div className="text-[9px] text-zinc-400">
-                        Bizim Aşk Şarkımız
+                    </div>
+
+                    {/* Song Title, Artist & Romantic Note */}
+                    <div className="space-y-0.5 px-2">
+                      <div className="text-xs font-black text-white line-clamp-1">
+                        {selectedTrack?.title || 'Bizim Şarkımız'}
+                      </div>
+                      <div className="text-[10px] font-bold text-[#1db954] line-clamp-1">
+                        {selectedTrack?.artist || `${partner1} & ${partner2}`}
+                      </div>
+                      <div className="text-[7.5px] text-zinc-400 italic line-clamp-1">
+                        “{customQuote}”
                       </div>
                     </div>
-                    <div className="w-40 mx-auto h-1 bg-zinc-700 rounded-full overflow-hidden">
-                      <div className="w-3/4 h-full bg-[#1db954]" />
+
+                    {/* Progress Bar & Timestamps */}
+                    <div className="w-40 mx-auto space-y-0.5">
+                      <div className="w-full h-1 bg-zinc-700/80 rounded-full overflow-hidden">
+                        <div className="w-3/5 h-full bg-[#1db954] rounded-full" />
+                      </div>
+                      <div className="flex justify-between text-[6.5px] text-zinc-400 font-mono px-0.5">
+                        <span>01:45</span>
+                        <span>03:30</span>
+                      </div>
+                    </div>
+
+                    {/* Playback Controls */}
+                    <div className="flex items-center justify-center gap-3.5 text-white text-[11px]">
+                      <span className="opacity-60">⏮</span>
+                      <span className="h-6 w-6 rounded-full bg-white text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                        ▶
+                      </span>
+                      <span className="opacity-60">⏭</span>
                     </div>
                   </div>
 
-                  <div className="space-y-1 pb-2">
-                    <div className="mx-auto w-fit p-1.5 bg-white rounded-xl shadow-md">
+                  {/* Bottom QR Code & AskSite Branding */}
+                  <div className="space-y-1 pb-1">
+                    <div className="mx-auto w-fit p-1 bg-white rounded-xl shadow-md">
                       <QRCodeSVG
                         value={brandingQrUrl}
-                        size={48}
-                        fgColor="#e11d48"
+                        size={40}
+                        fgColor="#121212"
                         bgColor="#ffffff"
                         level="M"
                       />
                     </div>
-                    <span className="text-[9px] font-bold text-[#1db954] block">
+                    <span className="text-[8px] font-bold text-[#1db954] block">
                       asksite.com.tr
                     </span>
                   </div>
-                </>
+                </div>
               )}
 
               {/* Template: QUIZ */}
