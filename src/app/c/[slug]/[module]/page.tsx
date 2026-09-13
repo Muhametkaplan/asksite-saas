@@ -124,7 +124,7 @@ export default async function SubmodulePage({ params }: ModulePageProps) {
           </p>
           <div className="pt-3 flex flex-col sm:flex-row items-center justify-center gap-2.5">
             <a
-              href="/checkout?plan=yearly_premium"
+              href={`/checkout?plan=yearly_premium&action=upgrade&slug=${slug}`}
               className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow-lg hover:brightness-110 transition-all"
             >
               Premium VIP&apos;ye Yükselt (₺150 Farkla) ✨

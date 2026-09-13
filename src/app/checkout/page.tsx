@@ -24,6 +24,13 @@ import {
   Copy,
   ExternalLink,
   Loader2,
+  Crown,
+  Gamepad2,
+  BookOpen,
+  Hourglass,
+  MapPin,
+  Bot,
+  Zap,
 } from 'lucide-react';
 import { connectPartnerWithPairCode, getCoupleBySlug } from '@/lib/couples';
 import { CoupleConfig } from '@/types/couple';
@@ -56,11 +63,35 @@ export default function CheckoutPage() {
   const [userCoupleSlug, setUserCoupleSlug] = useState<string>('demo');
   const [forceShowPurchaseForm, setForceShowPurchaseForm] = useState(false);
 
+  // VIP Upgrade State for Existing Standard Users
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [upgradeOrderId, setUpgradeOrderId] = useState('');
+  const [verifyingUpgrade, setVerifyingUpgrade] = useState(false);
+  const [upgradeStatusMsg, setUpgradeStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [urlAction, setUrlAction] = useState<string | null>(null);
+  const [urlSlug, setUrlSlug] = useState<string | null>(null);
+
   useEffect(() => {
-    // Check URL parameters for pre-selected plan
+    // Check URL parameters for pre-selected plan, action, and slug
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const planParam = urlParams.get('plan');
+      const actionParam = urlParams.get('action');
+      const slugParam = urlParams.get('slug');
+
+      setUrlAction(actionParam);
+      setUrlSlug(slugParam);
+
+      if (slugParam && (!userCoupleSlug || userCoupleSlug === 'demo')) {
+        setUserCoupleSlug(slugParam);
+        getCoupleBySlug(slugParam).then((c) => {
+          if (c && c.isPaid) {
+            setUserCoupleConfig(c);
+            setHasPurchased(true);
+          }
+        });
+      }
+
       if (planParam === 'yearly_standard' || planParam === 'standard' || planParam === 'standart' || planParam === 'yearly' || planParam === 'digital') {
         setPackageType('yearly_standard');
       } else if (planParam === 'yearly_premium' || planParam === 'premium' || planParam === 'vip' || planParam === 'lifetime') {
@@ -175,6 +206,11 @@ export default function CheckoutPage() {
   }, []);
 
   const [userCoupleConfig, setUserCoupleConfig] = useState<CoupleConfig | null>(null);
+
+  const isCurrentPlanPremium =
+    userCoupleConfig?.plan === 'yearly_premium' ||
+    userCoupleConfig?.package_type === 'yearly_premium' ||
+    userCoupleConfig?.plan === 'lifetime';
 
   // Invite Code Form State for Unpurchased Users
   const [inviteCodeInput, setInviteCodeInput] = useState('');
@@ -397,6 +433,110 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleUpgradePayment = async () => {
+    const targetSlug = userCoupleSlug || urlSlug || userCoupleConfig?.slug;
+    if (!targetSlug || targetSlug === 'demo') {
+      alert('Yükseltilecek çift sitesi bulunamadı.');
+      return;
+    }
+
+    setIsUpgrading(true);
+    setUpgradeStatusMsg(null);
+
+    try {
+      const res = await fetch('/api/payment/shopier', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_upgrade: true,
+          action: 'upgrade',
+          slug: targetSlug,
+          owner_uid: auth.currentUser?.uid,
+          owner_email: auth.currentUser?.email,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.paymentUrl) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('pendingUpgradeSlug', targetSlug);
+          if (data.orderId) localStorage.setItem('pendingUpgradeOrderId', data.orderId);
+        }
+
+        trackAddPaymentInfo('AskSite Premium VIP Paket Yükseltme (+₺150 Fark)', 150);
+
+        // Shopier güvenli ödeme ekranına yönlendir
+        window.location.href = data.paymentUrl;
+      } else {
+        alert(data.error || 'Yükseltme bağlantısı oluşturulamadı. Lütfen tekrar deneyiniz.');
+        setIsUpgrading(false);
+      }
+    } catch (err) {
+      console.error('Upgrade payment error:', err);
+      alert('Bağlantı hatası oluştu. Lütfen tekrar deneyiniz.');
+      setIsUpgrading(false);
+    }
+  };
+
+  const handleVerifyUpgradeOrder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const orderIdToVerify = upgradeOrderId.trim() || (typeof window !== 'undefined' ? localStorage.getItem('pendingUpgradeOrderId') : '');
+    const targetSlug = userCoupleSlug || urlSlug || userCoupleConfig?.slug;
+
+    if (!orderIdToVerify) {
+      setUpgradeStatusMsg({ type: 'error', text: 'Lütfen Shopier sipariş numaranızı giriniz.' });
+      return;
+    }
+
+    setVerifyingUpgrade(true);
+    setUpgradeStatusMsg(null);
+
+    try {
+      const res = await fetch('/api/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: orderIdToVerify,
+          slug: targetSlug,
+          isUpgrade: true,
+          email: auth.currentUser?.email,
+          uid: auth.currentUser?.uid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+        setUpgradeStatusMsg({ type: 'success', text: 'Tebrikler! Siteniz başarıyla Premium VIP pakete yükseltildi! ✨' });
+
+        if (targetSlug) {
+          const updatedCouple = await getCoupleBySlug(targetSlug);
+          if (updatedCouple) setUserCoupleConfig(updatedCouple);
+        }
+
+        trackPurchase({
+          orderId: orderIdToVerify,
+          value: 150,
+          packageName: 'Premium VIP Paket Yükseltme (₺150 Fark)',
+          currency: 'TRY',
+        });
+
+        setTimeout(() => {
+          window.location.href = `/dashboard?slug=${targetSlug}&upgraded=true`;
+        }, 1800);
+      } else {
+        setUpgradeStatusMsg({ type: 'error', text: data.error || 'Sipariş doğrulanamadı. Lütfen sipariş numaranızı kontrol ediniz.' });
+      }
+    } catch (err) {
+      console.error('Verify upgrade error:', err);
+      setUpgradeStatusMsg({ type: 'error', text: 'Doğrulama sırasında hata oluştu. Lütfen tekrar deneyiniz.' });
+    } finally {
+      setVerifyingUpgrade(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-pink-50 via-rose-50 to-purple-100 text-rose-600 font-bold p-4">
@@ -534,9 +674,15 @@ export default function CheckoutPage() {
           <div className="mx-auto max-w-2xl text-center space-y-6 pt-4">
             <div className="rounded-3xl bg-white p-6 sm:p-8 shadow-2xl border border-gray-100 space-y-6 animate-in fade-in zoom-in-95 duration-200 text-left">
               <div className="text-center space-y-2">
-                <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> VIP Paketiniz Aktif & Siteniz Yayında 🟢
-                </span>
+                {isCurrentPlanPremium ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-3.5 py-1 rounded-full border border-purple-200">
+                    <Sparkles className="h-3.5 w-3.5 text-purple-600" /> Premium VIP Paketiniz Aktif & Siteniz Yayında ⭐
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-200">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Standart Paketiniz Aktif (365 Gün) 🟢
+                  </span>
+                )}
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">
                   Çift Siteniz ve Davet Kartınız 💖
                 </h1>
@@ -544,6 +690,150 @@ export default function CheckoutPage() {
                   Siteniz hazır ve yayında. Aşağıdaki davet kodunu veya QR kodu sevgilinize göndererek onu sitenize eş yönetici yapabilirsiniz.
                 </p>
               </div>
+
+              {/* Standart Paketli Kullanıcılar İçin ₺150 Farkla VIP Yükseltme Kartı */}
+              {!isCurrentPlanPremium && (
+                <div className="rounded-3xl bg-gradient-to-br from-purple-950 via-indigo-950 to-slate-900 p-6 sm:p-7 text-white shadow-2xl border-2 border-purple-400/40 relative overflow-hidden text-left space-y-5">
+                  {/* Decorative Glow */}
+                  <div className="absolute -top-24 -right-24 h-60 w-60 rounded-full bg-pink-500/20 blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-24 -left-24 h-60 w-60 rounded-full bg-purple-600/25 blur-3xl pointer-events-none" />
+
+                  {/* Header Badges */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-800/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-md">
+                        <Crown className="h-3 w-3" /> VIP Yükseltme Fırsatı
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 border border-purple-400/30 px-2.5 py-0.5 text-[10px] font-bold text-purple-300">
+                        <Zap className="h-3 w-3 text-yellow-400" /> ₺150 Fark
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-purple-200/70">
+                      Mevcut Siteniz: <strong className="text-white font-mono">{userCoupleSlug}</strong>
+                    </span>
+                  </div>
+
+                  {/* Title & Description */}
+                  <div className="space-y-1.5">
+                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                      Sitenizi ₺150 Farkla VIP Yapın! 👑
+                    </h3>
+                    <p className="text-xs text-purple-200/90 leading-relaxed">
+                      <strong>{userCoupleConfig?.partner1_name || 'Partner 1'} & {userCoupleConfig?.partner2_name || 'Partner 2'}</strong> sitenizdeki anılarınız, fotoğraflarınız, şifreleriniz veya sayaçlarınız korunur. Tek seferlik ₺150 fark ödeyerek tüm VIP özelliklerin kilidini anında açabilirsiniz.
+                    </p>
+                  </div>
+
+                  {/* Price Calculation Box */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3.5 rounded-2xl bg-white/5 border border-purple-500/20 backdrop-blur-sm">
+                    <div className="space-y-0.5">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-300/80">Mevcut Paketiniz</div>
+                      <div className="text-xs font-bold text-gray-300 line-through">Standart Yıllık (₺250)</div>
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-purple-300/80">VIP Normal Fiyatı</div>
+                      <div className="text-xs font-bold text-purple-200">₺400 / 1 Yıl</div>
+                    </div>
+                    <div className="space-y-0.5 border-t sm:border-t-0 sm:border-l border-purple-500/30 pt-2 sm:pt-0 sm:pl-3">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-yellow-300">Ödenecek Fark</div>
+                      <div className="text-xl font-black text-yellow-400">₺150 <span className="text-[10px] font-normal text-purple-200">(Tek Seferlik)</span></div>
+                    </div>
+                  </div>
+
+                  {/* Features List */}
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-yellow-400" /> VIP İle Anında Açılacak Ayrıcalıklar:
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-purple-100">
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                        <Gamepad2 className="h-4 w-4 text-pink-400 shrink-0" />
+                        <span><strong>4 Arcade Oyun:</strong> Dino, Flappy, 2048, Stacker</span>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                        <BookOpen className="h-4 w-4 text-amber-400 shrink-0" />
+                        <span><strong>Özel Anı Defteri:</strong> Kilitli günlük & notlar</span>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                        <Hourglass className="h-4 w-4 text-cyan-400 shrink-0" />
+                        <span><strong>Zaman Kapsülü:</strong> Geleceğe mühürlü notlar</span>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                        <MapPin className="h-4 w-4 text-rose-400 shrink-0" />
+                        <span><strong>İnteraktif Aşk Haritası:</strong> Gezilen şehirler</span>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                        <Bot className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <span><strong>Otomatik Hatırlatıcı:</strong> WhatsApp / Push</span>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                        <Crown className="h-4 w-4 text-yellow-400 shrink-0" />
+                        <span><strong>VIP Profil Rozeti:</strong> Altın taç & sınırsız galeri</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={handleUpgradePayment}
+                      disabled={isUpgrading}
+                      className="w-full rounded-2xl bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-600 p-3.5 text-sm font-black text-white shadow-xl hover:brightness-110 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isUpgrading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" /> Yükseltme Ekranı Açılıyor...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 text-yellow-200" /> ₺150 İle Hemen VIP&apos;ye Yükselt 🚀
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[11px] text-purple-300/80 text-center mt-2">
+                      🔒 Shopier güvencesiyle 256-bit SSL korumalı ödeme. Ödeme sonrası siteniz anında VIP olur.
+                    </p>
+                  </div>
+
+                  {/* Manual Order Verification */}
+                  <div className="border-t border-purple-800/60 pt-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <CreditCard className="h-3.5 w-3.5 text-yellow-400" />
+                      <span className="text-[11px] font-bold text-purple-200">
+                        ₺150 Fark Ödemesini Yaptınız Mı? Siparişinizi Doğrulayın:
+                      </span>
+                    </div>
+                    <form onSubmit={handleVerifyUpgradeOrder} className="flex flex-col sm:flex-row items-stretch gap-2">
+                      <input
+                        type="text"
+                        placeholder="Shopier Sipariş No (Örn: 9 haneli numara)"
+                        value={upgradeOrderId}
+                        onChange={(e) => setUpgradeOrderId(e.target.value)}
+                        className="flex-1 rounded-xl bg-white/10 border border-purple-400/30 px-3.5 py-2 text-xs text-white placeholder-purple-300/50 outline-none focus:border-yellow-400 focus:bg-white/20 transition"
+                      />
+                      <button
+                        type="submit"
+                        disabled={verifyingUpgrade}
+                        className="rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-xs font-black text-purple-950 shadow-md hover:brightness-105 transition active:scale-95 disabled:opacity-50 shrink-0 flex items-center justify-center gap-1.5"
+                      >
+                        {verifyingUpgrade ? 'Doğrulanıyor...' : 'VIP&apos;yi Anında Aktif Et ✨'}
+                      </button>
+                    </form>
+
+                    {upgradeStatusMsg && (
+                      <div
+                        className={`mt-2.5 rounded-xl p-2.5 text-xs font-bold border text-left ${
+                          upgradeStatusMsg.type === 'success'
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                        }`}
+                      >
+                        {upgradeStatusMsg.text}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Sadece Davet Kodunu Göster (Kod Girme Formu Yok) */}
               <div className="bg-gradient-to-r from-rose-50 via-purple-50 to-pink-50 p-5 rounded-2xl border border-rose-100 space-y-3">

@@ -154,6 +154,15 @@ export async function POST(req: NextRequest) {
         doc(db, 'couples', slug),
         {
           shopier_order_id: cleanOrderId,
+          ...(plan === 'yearly_premium'
+            ? {
+                upgrade_order_id: cleanOrderId,
+                upgraded_at: serverTimestamp(),
+                pending_upgrade: false,
+                plan: 'yearly_premium',
+                package_type: 'yearly_premium',
+              }
+            : {}),
           verified_via_webhook_at: serverTimestamp(),
         },
         { merge: true }

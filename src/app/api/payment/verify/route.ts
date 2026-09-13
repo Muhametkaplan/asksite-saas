@@ -155,17 +155,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 2b. Replay Attack Koruması (Yükseltme Siparişleri):
+    const existingUpgradeQuery = query(collection(db, 'couples'), where('upgrade_order_id', '==', cleanOrderId));
+    const existingUpgradeSnap = await getDocs(existingUpgradeQuery);
+    if (!existingUpgradeSnap.empty) {
+      const alreadyUpgraded = existingUpgradeSnap.docs[0].data();
+      if (alreadyUpgraded.plan === 'yearly_premium') {
+        return NextResponse.json({
+          success: true,
+          slug: alreadyUpgraded.slug,
+          plan: 'yearly_premium',
+          message: 'Bu yükseltme siparişi zaten onaylanmış ve siteniz Premium VIP pakettedir.',
+        });
+      }
+    }
+
     // 7. Paket Türünü Shopier Ürün ID veya Tutara Göre Belirle
     const sProdId = String(sOrder.lineItems?.[0]?.productId || '');
+    const upgradeProductId = (process.env.SHOPIER_PRODUCT_ID_UPGRADE || '50813693').trim();
+    const itemName = String(sOrder.lineItems?.[0]?.name || '').toLowerCase();
+    const orderTotal = parseFloat(sOrder.total || '0');
+
+    const isUpgradeOrder =
+      Boolean(body.isUpgrade || body.is_upgrade) ||
+      sProdId === upgradeProductId ||
+      sProdId === '50813693' ||
+      itemName.includes('yukselt') ||
+      itemName.includes('yükselt') ||
+      itemName.includes('upgrade') ||
+      (orderTotal >= 140 && orderTotal <= 165);
+
     let plan: 'yearly_standard' | 'yearly_premium' = 'yearly_standard';
 
-    if (sProdId === '50201191') {
+    if (isUpgradeOrder || sProdId === '50201191' || orderTotal >= 350 || itemName.includes('vip') || itemName.includes('premium')) {
       plan = 'yearly_premium';
     } else if (sProdId === '50201181') {
       plan = 'yearly_standard';
     } else {
-      const orderTotal = parseFloat(sOrder.total || '0');
-      plan = orderTotal >= 350 ? 'yearly_premium' : 'yearly_standard';
+      plan = 'yearly_standard';
     }
 
     // 8. Çift Sitesini Onayla ve Aktif Et
@@ -175,11 +202,40 @@ export async function POST(req: NextRequest) {
     await setDoc(
       doc(db, 'couples', targetSlug),
       {
-        shopier_order_id: cleanOrderId,
+        ...(isUpgradeOrder
+          ? {
+              upgrade_order_id: cleanOrderId,
+              upgraded_at: serverTimestamp(),
+              pending_upgrade: false,
+              plan: 'yearly_premium',
+              package_type: 'yearly_premium',
+            }
+          : { shopier_order_id: cleanOrderId }),
         verified_manually_at: serverTimestamp(),
       },
       { merge: true }
     );
+
+    // Kullanıcı belgesini güncelle
+    if (uid) {
+      try {
+        await setDoc(
+          doc(db, 'users', uid),
+          {
+            plan,
+            package_type: plan,
+            hasActiveSubscription: true,
+            hasPurchasedSite: true,
+            coupleSlug: targetSlug,
+            ...(isUpgradeOrder ? { isUpgraded: true, upgradedAt: serverTimestamp() } : {}),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (uErr) {
+        console.error('Error updating user document in verify route:', uErr);
+      }
+    }
 
     // Tebrik e-postası gönder
     const targetEmail = sEmail || clientEmail || couple.partner1_email || couple.authorized_emails?.[0];
@@ -195,13 +251,16 @@ export async function POST(req: NextRequest) {
       }).catch((err) => console.error('Error sending order success email in verify route:', err));
     }
 
-    console.log(`[VerifyPayment SUCCESS] Activated ${targetSlug} with plan ${plan}, orderId: ${cleanOrderId}`);
+    console.log(`[VerifyPayment SUCCESS] Activated/Upgraded ${targetSlug} with plan ${plan}, orderId: ${cleanOrderId}`);
 
     return NextResponse.json({
       success: true,
       slug: targetSlug,
       plan,
-      message: 'Siteniz başarıyla onaylandı ve 1 yıllık yayına alındı! 🎉',
+      isUpgrade: isUpgradeOrder,
+      message: isUpgradeOrder
+        ? 'Tebrikler! Siteniz başarıyla Premium VIP pakete yükseltildi! 🎉'
+        : 'Siteniz başarıyla onaylandı ve 1 yıllık yayına alındı! 🎉',
     });
   } catch (error: any) {
     console.error('Error in /api/payment/verify:', error);

@@ -82,6 +82,91 @@ export async function POST(req: NextRequest) {
       owner_email,
     } = body;
 
+    const isUpgrade = Boolean(body.is_upgrade || body.action === 'upgrade');
+    const existingSlug = (body.existing_slug || body.slug || '').trim();
+
+    // 0. UPGRADE FLOW: Mevcut Standart siteyi 150 TL farkla Premium VIP'ye yükseltme
+    if (isUpgrade) {
+      if (!existingSlug) {
+        return NextResponse.json(
+          { success: false, error: 'Yükseltilecek çift sitesi (slug) belirtilmedi.' },
+          { status: 400 }
+        );
+      }
+
+      const { getCoupleBySlug } = await import('@/lib/couples');
+      const existingCouple = await getCoupleBySlug(existingSlug);
+      if (!existingCouple) {
+        return NextResponse.json(
+          { success: false, error: 'Yükseltilecek çift sitesi bulunamadı.' },
+          { status: 404 }
+        );
+      }
+
+      if (existingCouple.plan === 'yearly_premium') {
+        return NextResponse.json(
+          { success: false, error: 'Bu çift sitesi zaten Premium VIP pakettedir.' },
+          { status: 400 }
+        );
+      }
+
+      const cleanOrderId = `ASKUP${Date.now().toString().slice(-8)}${Math.floor(1000 + Math.random() * 9000)}`;
+      const paymentUrl =
+        process.env.SHOPIER_PRODUCT_URL_UPGRADE ||
+        'https://www.shopier.com/asksite/50813693';
+      const shopierProductId = (process.env.SHOPIER_PRODUCT_ID_UPGRADE || '50813693').trim();
+
+      // Firestore'da çift ve kullanıcı belgelerine bekleyen yükseltme kaydı düş
+      try {
+        const { db } = await import('@/lib/firebase');
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+        if (db) {
+          await setDoc(
+            doc(db, 'couples', existingSlug),
+            {
+              pending_upgrade: true,
+              pending_upgrade_order_id: cleanOrderId,
+              pending_upgrade_plan: 'yearly_premium',
+              pending_upgrade_price: 150,
+              pending_upgrade_requested_at: serverTimestamp(),
+            },
+            { merge: true }
+          );
+
+          const ownerUid = body.owner_uid || existingCouple.owner_uid || existingCouple.partner1_uid;
+          if (ownerUid) {
+            await setDoc(
+              doc(db, 'users', ownerUid),
+              {
+                pendingUpgradeSlug: existingSlug,
+                pendingUpgradeOrderId: cleanOrderId,
+                pendingPackageType: 'yearly_premium',
+                shopierProductId,
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
+        }
+      } catch (dbErr) {
+        console.error('Error saving pending upgrade to Firestore:', dbErr);
+      }
+
+      console.log(`[Shopier Upgrade Initiated] slug=${existingSlug}, price=150, orderId=${cleanOrderId}, url=${paymentUrl}`);
+
+      return NextResponse.json(
+        {
+          success: true,
+          paymentUrl,
+          slug: existingSlug,
+          orderId: cleanOrderId,
+          isUpgrade: true,
+          price: 150,
+        },
+        { status: 200 }
+      );
+    }
+
     if (!partner1_name || !partner2_name) {
       return NextResponse.json({ success: false, error: 'Lütfen çift isimlerini eksiksiz girin.' }, { status: 400 });
     }

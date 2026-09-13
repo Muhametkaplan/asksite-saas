@@ -63,13 +63,19 @@ export async function verifyShopierOrder(
     const productId = String(data.lineItems?.[0]?.productId || '');
     const total = parseFloat(data.total || '0');
 
+    const upgradeProductId = (process.env.SHOPIER_PRODUCT_ID_UPGRADE || '50813693').trim();
+    const itemName = String(data.lineItems?.[0]?.name || '').toLowerCase();
+
     let plan: 'yearly_standard' | 'yearly_premium' = 'yearly_standard';
-    if (productId === '50201191') {
+    if (productId === '50201191' || productId === upgradeProductId || productId === '50813693') {
+      plan = 'yearly_premium';
+    } else if (itemName.includes('vip') || itemName.includes('premium') || itemName.includes('yukselt') || itemName.includes('yükselt') || itemName.includes('upgrade')) {
       plan = 'yearly_premium';
     } else if (productId === '50201181') {
       plan = 'yearly_standard';
     } else {
-      plan = total >= 350 ? 'yearly_premium' : 'yearly_standard';
+      // 150 TL upgrade or 350+ TL VIP package
+      plan = (total >= 350 || (total >= 140 && total <= 165)) ? 'yearly_premium' : 'yearly_standard';
     }
 
     return {

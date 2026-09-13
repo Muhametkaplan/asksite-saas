@@ -256,7 +256,7 @@ export default async function CouplePage({ params }: PageProps) {
                 Birlikte gezdiğiniz yerleri kalplerle haritaya işaretleme özelliği <strong>Premium VIP Yıllık Pakete</strong> özeldir.
               </p>
               <a
-                href="/checkout?plan=yearly_premium"
+                href={`/checkout?plan=yearly_premium&action=upgrade&slug=${couple.slug}`}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-bold shadow-md hover:opacity-90 transition"
               >
                 ⭐ Premium VIP&apos;ye Yükselt (₺150 Farkla)

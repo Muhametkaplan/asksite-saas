@@ -1567,7 +1567,7 @@ export default function StoryCardModal({
                   Aşk Haritası şablonu, birlikte seyahat ettiğiniz yerleri ve rotaları hikayede paylaşmak için Premium VIP pakete özeldir.
                 </p>
                 <a
-                  href="/checkout?plan=yearly_premium"
+                  href={`/checkout?plan=yearly_premium&action=upgrade&slug=${config.slug}`}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-1.5 rounded-xl hover:opacity-90 transition"
                 >
                   ⭐ VIP&apos;ye Yükselt (₺150 Farkla)

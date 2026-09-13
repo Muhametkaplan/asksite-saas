@@ -453,7 +453,7 @@ function GamesWidget({ couple }: { couple: CoupleConfig }) {
             </div>
             <div className="space-y-2 pt-2">
               <a
-                href="/checkout?plan=yearly_premium"
+                href={`/checkout?plan=yearly_premium&action=upgrade&slug=${slug}`}
                 className="w-full block rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 py-3 text-xs font-black text-white shadow-md hover:opacity-95 transition active:scale-95"
               >
                 ⭐ Premium VIP&apos;ye Yükselt (₺150 Farkla)
