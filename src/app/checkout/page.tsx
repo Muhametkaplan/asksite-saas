@@ -816,7 +816,7 @@ export default function CheckoutPage() {
                         disabled={verifyingUpgrade}
                         className="rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 px-4 py-2 text-xs font-black text-purple-950 shadow-md hover:brightness-105 transition active:scale-95 disabled:opacity-50 shrink-0 flex items-center justify-center gap-1.5"
                       >
-                        {verifyingUpgrade ? 'Doğrulanıyor...' : 'VIP&apos;yi Anında Aktif Et ✨'}
+                        {verifyingUpgrade ? 'Doğrulanıyor...' : "VIP'yi Anında Aktif Et ✨"}
                       </button>
                     </form>
 

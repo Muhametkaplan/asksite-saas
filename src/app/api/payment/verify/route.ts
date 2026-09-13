@@ -25,28 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Veritabanı bağlantısı kurulamadı.' }, { status: 500 });
     }
 
-    // 2. Replay Attack Koruması: Bu sipariş numarası daha önce başka bir site için kullanılmış mı?
-    const existingOrderQuery = query(collection(db, 'couples'), where('shopier_order_id', '==', cleanOrderId));
-    const existingOrderSnap = await getDocs(existingOrderQuery);
-    if (!existingOrderSnap.empty) {
-      const alreadyAssigned = existingOrderSnap.docs[0].data();
-      if (targetSlug && alreadyAssigned.slug !== targetSlug) {
-        return NextResponse.json(
-          { success: false, error: 'Bu sipariş numarası daha önce başka bir çift sitesi için kullanılmıştır.' },
-          { status: 400 }
-        );
-      }
-      if (alreadyAssigned.isPaid) {
-        return NextResponse.json({
-          success: true,
-          slug: alreadyAssigned.slug,
-          plan: alreadyAssigned.plan || 'yearly_standard',
-          message: 'Bu sipariş zaten başarıyla onaylanmış ve siteniz aktiftir.',
-        });
-      }
-    }
-
-    // 3. Shopier API Üzerinden Gerçek Sipariş Sorgulaması (ZORUNLU)
+    // 2. Shopier API Üzerinden Gerçek Sipariş Sorgulaması (ZORUNLU)
     const shopierToken = (process.env.SHOPIER_API_TOKEN || '').trim().replace(/^"|"$/g, '');
     if (!shopierToken) {
       console.error('[VerifyPayment] SHOPIER_API_TOKEN tanımlı değil!');
@@ -78,7 +57,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Ödeme Durumu Kontrolü (STRICT)
+    // 3. Ödeme Durumu Kontrolü (STRICT)
     const isPaid = sOrder && (
       sOrder.paymentStatus === 'paid' ||
       sOrder.status === 'fulfilled' ||
@@ -92,7 +71,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. Sipariş Üzerindeki Bilgilerden Çift Sitesini Tespit Etme & Doğrulama
+    // 4. Sipariş Üzerindeki Bilgilerden Çift Sitesini Tespit Etme & Doğrulama
     const sEmail = (
       sOrder.shippingInfo?.email ||
       sOrder.billingInfo?.email ||
@@ -103,24 +82,54 @@ export async function POST(req: NextRequest) {
 
     const clientEmail = (email || '').trim().toLowerCase();
 
+    // Sipariş Türünü Belirle (Standart vs VIP Yükseltme)
+    const sProdId = String(sOrder.lineItems?.[0]?.productId || '');
+    const upgradeProductId = (process.env.SHOPIER_PRODUCT_ID_UPGRADE || '50813693').trim();
+    const itemName = String(sOrder.lineItems?.[0]?.name || sOrder.lineItems?.[0]?.title || '').toLowerCase();
+    const orderTotal = parseFloat(sOrder.total || sOrder.totals?.total || '0');
+
+    const isUpgradeOrder =
+      Boolean(body.isUpgrade || body.is_upgrade) ||
+      sProdId === upgradeProductId ||
+      sProdId === '50813693' ||
+      itemName.includes('yukselt') ||
+      itemName.includes('yükselt') ||
+      itemName.includes('upgrade') ||
+      (orderTotal >= 140 && orderTotal <= 165);
+
     // Hedef slug belirlenmemişse, e-posta veya UID üzerinden bul
     if (!targetSlug && uid) {
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const udata = userSnap.data();
-        targetSlug = udata.pendingCoupleSlug || udata.coupleSlug || '';
+        targetSlug = isUpgradeOrder
+          ? (udata.pendingUpgradeSlug || udata.coupleSlug || '')
+          : (udata.pendingCoupleSlug || udata.coupleSlug || '');
       }
     }
 
     if (!targetSlug && (sEmail || clientEmail)) {
       const lookupEmail = sEmail || clientEmail;
-      const q = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', lookupEmail));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const list = snap.docs.map((d) => d.data());
-        const target = list.find((c) => !c.isPaid) || list[0];
-        targetSlug = target.slug;
+      if (isUpgradeOrder) {
+        const pendSnap = await getDoc(doc(db, 'pending_upgrades', lookupEmail));
+        if (pendSnap.exists() && pendSnap.data().slug) {
+          targetSlug = pendSnap.data().slug;
+        }
+      }
+      if (!targetSlug) {
+        const q = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', lookupEmail));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const list = snap.docs.map((d) => d.data());
+          if (isUpgradeOrder) {
+            const pendingCandidate = list.find((c) => c.pending_upgrade === true) || list.find((c) => c.plan === 'yearly_standard');
+            targetSlug = pendingCandidate ? pendingCandidate.slug : list[0].slug;
+          } else {
+            const unpaid = list.find((c) => !c.isPaid) || list[0];
+            targetSlug = unpaid.slug;
+          }
+        }
       }
     }
 
@@ -129,6 +138,54 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'Bu sipariş numarasıyla eşleşen bir çift sitesi bulunamadı. Lütfen siparişi oluştururken girdiğiniz e-postayı kontrol ediniz.' },
         { status: 404 }
       );
+    }
+
+    // 5. Replay Attack Koruması:
+    if (isUpgradeOrder) {
+      const existingUpgradeQuery = query(collection(db, 'couples'), where('upgrade_order_id', '==', cleanOrderId));
+      const existingUpgradeSnap = await getDocs(existingUpgradeQuery);
+      if (!existingUpgradeSnap.empty) {
+        const alreadyUpgraded = existingUpgradeSnap.docs[0].data();
+        if (alreadyUpgraded.slug === targetSlug && alreadyUpgraded.plan === 'yearly_premium') {
+          return NextResponse.json({
+            success: true,
+            slug: targetSlug,
+            plan: 'yearly_premium',
+            isUpgrade: true,
+            message: 'Bu sipariş ile siteniz zaten başarıyla VIP seviyesine yükseltilmiştir.',
+          });
+        }
+        const adminEmails = (process.env.ADMIN_EMAILS || '').toLowerCase().split(',');
+        const isBuyerAdmin = adminEmails.includes(sEmail) || (clientEmail && adminEmails.includes(clientEmail));
+        const isSameOwner = (alreadyUpgraded.authorized_emails || []).includes(sEmail) || (alreadyUpgraded.authorized_emails || []).includes(clientEmail);
+
+        if (!isBuyerAdmin && !isSameOwner && alreadyUpgraded.slug !== targetSlug) {
+          return NextResponse.json(
+            { success: false, error: 'Bu yükseltme siparişi daha önce başka bir çift sitesi için kullanılmıştır.' },
+            { status: 400 }
+          );
+        }
+      }
+    } else {
+      const existingOrderQuery = query(collection(db, 'couples'), where('shopier_order_id', '==', cleanOrderId));
+      const existingOrderSnap = await getDocs(existingOrderQuery);
+      if (!existingOrderSnap.empty) {
+        const alreadyAssigned = existingOrderSnap.docs[0].data();
+        if (alreadyAssigned.slug !== targetSlug) {
+          return NextResponse.json(
+            { success: false, error: 'Bu sipariş numarası daha önce başka bir çift sitesi için kullanılmıştır.' },
+            { status: 400 }
+          );
+        }
+        if (alreadyAssigned.isPaid) {
+          return NextResponse.json({
+            success: true,
+            slug: alreadyAssigned.slug,
+            plan: alreadyAssigned.plan || 'yearly_standard',
+            message: 'Bu sipariş zaten başarıyla onaylanmış ve siteniz aktiftir.',
+          });
+        }
+      }
     }
 
     // 6. Güvenlik: Sipariş sahibinin e-postası ile çift sitesinin yetkili e-postalarını karşılaştır
@@ -142,10 +199,13 @@ export async function POST(req: NextRequest) {
     if (couple.partner2_email) authorizedEmails.push(couple.partner2_email.toLowerCase().trim());
     if (couple.owner_email) authorizedEmails.push(couple.owner_email.toLowerCase().trim());
 
+    const adminEmailsList = (process.env.ADMIN_EMAILS || '').toLowerCase().split(',').map((e: string) => e.trim());
     const isEmailMatched =
       !sEmail || // Shopier'da email yoksa
       authorizedEmails.includes(sEmail) ||
-      (clientEmail && authorizedEmails.includes(clientEmail) && clientEmail === sEmail);
+      (clientEmail && authorizedEmails.includes(clientEmail)) ||
+      adminEmailsList.includes(sEmail) ||
+      (clientEmail && adminEmailsList.includes(clientEmail));
 
     if (!isEmailMatched && authorizedEmails.length > 0) {
       console.warn(`[VerifyPayment] Email mismatch: Shopier email (${sEmail}) not in couple authorized emails:`, authorizedEmails);
@@ -155,38 +215,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2b. Replay Attack Koruması (Yükseltme Siparişleri):
-    const existingUpgradeQuery = query(collection(db, 'couples'), where('upgrade_order_id', '==', cleanOrderId));
-    const existingUpgradeSnap = await getDocs(existingUpgradeQuery);
-    if (!existingUpgradeSnap.empty) {
-      const alreadyUpgraded = existingUpgradeSnap.docs[0].data();
-      if (alreadyUpgraded.plan === 'yearly_premium') {
-        return NextResponse.json({
-          success: true,
-          slug: alreadyUpgraded.slug,
-          plan: 'yearly_premium',
-          message: 'Bu yükseltme siparişi zaten onaylanmış ve siteniz Premium VIP pakettedir.',
-        });
-      }
-    }
-
-    // 7. Paket Türünü Shopier Ürün ID veya Tutara Göre Belirle
-    const sProdId = String(sOrder.lineItems?.[0]?.productId || '');
-    const upgradeProductId = (process.env.SHOPIER_PRODUCT_ID_UPGRADE || '50813693').trim();
-    const itemName = String(sOrder.lineItems?.[0]?.name || '').toLowerCase();
-    const orderTotal = parseFloat(sOrder.total || '0');
-
-    const isUpgradeOrder =
-      Boolean(body.isUpgrade || body.is_upgrade) ||
-      sProdId === upgradeProductId ||
-      sProdId === '50813693' ||
-      itemName.includes('yukselt') ||
-      itemName.includes('yükselt') ||
-      itemName.includes('upgrade') ||
-      (orderTotal >= 140 && orderTotal <= 165);
-
     let plan: 'yearly_standard' | 'yearly_premium' = 'yearly_standard';
-
     if (isUpgradeOrder || sProdId === '50201191' || orderTotal >= 350 || itemName.includes('vip') || itemName.includes('premium')) {
       plan = 'yearly_premium';
     } else if (sProdId === '50201181') {

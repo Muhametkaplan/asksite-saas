@@ -16,46 +16,89 @@ function extractSlugFromOrderId(orderId: string): string {
   return '';
 }
 
-async function findCoupleByEmailOrOrderId(email: string, orderId?: string): Promise<{ slug: string; plan?: string } | null> {
+async function findCoupleByEmailOrOrderId(
+  email: string,
+  orderId?: string,
+  isUpgrade?: boolean
+): Promise<{ slug: string; plan?: string } | null> {
   try {
     const { db } = await import('@/lib/firebase');
-    const { collection, query, where, getDocs } = await import('firebase/firestore');
+    const { collection, query, where, getDocs, doc, getDoc } = await import('firebase/firestore');
     if (!db) return null;
 
     const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail) return null;
 
-    if (cleanEmail) {
-      const q1 = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', cleanEmail));
-      const snap1 = await getDocs(q1);
-      if (!snap1.empty) {
-        const list = snap1.docs.map((d) => d.data());
-        const unpaid = list.find((c) => !c.isPaid) || list[0];
-        if (unpaid?.slug) {
-          return { slug: unpaid.slug, plan: unpaid.plan };
+    // 1. Yükseltme Siparişiyse: Önce bekleyen yükseltme kayıtlarını ara!
+    if (isUpgrade) {
+      try {
+        const pendingRef = doc(db, 'pending_upgrades', cleanEmail);
+        const pendingSnap = await getDoc(pendingRef);
+        if (pendingSnap.exists() && pendingSnap.data().slug) {
+          return { slug: pendingSnap.data().slug, plan: 'yearly_premium' };
         }
+      } catch (e) {}
+
+      try {
+        const qUser = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        const snapUser = await getDocs(qUser);
+        if (!snapUser.empty) {
+          const uData = snapUser.docs[0].data();
+          if (uData.pendingUpgradeSlug) {
+            return { slug: uData.pendingUpgradeSlug, plan: 'yearly_premium' };
+          }
+        }
+      } catch (e) {}
+
+      // Çiftler arasında pending_upgrade olan veya henüz Standart olanı seç (Asla zaten VIP olanı rastgele seçme!)
+      try {
+        const qCouples = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', cleanEmail));
+        const snapCouples = await getDocs(qCouples);
+        if (!snapCouples.empty) {
+          const couplesList = snapCouples.docs.map((d) => d.data());
+          const pendingCandidate = couplesList.find((c) => c.pending_upgrade === true);
+          if (pendingCandidate?.slug) {
+            return { slug: pendingCandidate.slug, plan: 'yearly_premium' };
+          }
+          const standardCandidate = couplesList.find((c) => c.plan === 'yearly_standard' || c.package_type === 'yearly_standard');
+          if (standardCandidate?.slug) {
+            return { slug: standardCandidate.slug, plan: 'yearly_premium' };
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2. Standart Sipariş Eşleştirme Akışı:
+    const q1 = query(collection(db, 'couples'), where('authorized_emails', 'array-contains', cleanEmail));
+    const snap1 = await getDocs(q1);
+    if (!snap1.empty) {
+      const list = snap1.docs.map((d) => d.data());
+      const unpaid = list.find((c) => !c.isPaid) || list[0];
+      if (unpaid?.slug) {
+        return { slug: unpaid.slug, plan: unpaid.plan };
       }
+    }
 
-      const q2 = query(collection(db, 'couples'), where('partner1_email', '==', cleanEmail));
-      const snap2 = await getDocs(q2);
-      if (!snap2.empty) {
-        const list = snap2.docs.map((d) => d.data());
-        const unpaid = list.find((c) => !c.isPaid) || list[0];
-        if (unpaid?.slug) {
-          return { slug: unpaid.slug, plan: unpaid.plan };
-        }
+    const q2 = query(collection(db, 'couples'), where('partner1_email', '==', cleanEmail));
+    const snap2 = await getDocs(q2);
+    if (!snap2.empty) {
+      const list = snap2.docs.map((d) => d.data());
+      const unpaid = list.find((c) => !c.isPaid) || list[0];
+      if (unpaid?.slug) {
+        return { slug: unpaid.slug, plan: unpaid.plan };
       }
+    }
 
-      const qUser = query(collection(db, 'users'), where('email', '==', cleanEmail));
-      const snapUser = await getDocs(qUser);
-      if (!snapUser.empty) {
-        const userData = snapUser.docs[0].data();
-        const pendingSlug = userData.pendingCoupleSlug || userData.coupleSlug;
-        if (pendingSlug) {
-          return {
-            slug: pendingSlug,
-            plan: userData.pendingPackageType === 'yearly_premium' ? 'yearly_premium' : 'yearly_standard',
-          };
-        }
+    const qUser = query(collection(db, 'users'), where('email', '==', cleanEmail));
+    const snapUser = await getDocs(qUser);
+    if (!snapUser.empty) {
+      const userData = snapUser.docs[0].data();
+      const pendingSlug = userData.pendingCoupleSlug || userData.coupleSlug;
+      if (pendingSlug) {
+        return {
+          slug: pendingSlug,
+          plan: userData.pendingPackageType === 'yearly_premium' ? 'yearly_premium' : 'yearly_standard',
+        };
       }
     }
   } catch (err) {
@@ -116,7 +159,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: verification.error || 'Shopier uzerinde dogrulanamadi.' }, { status: 400 });
     }
 
-    const { plan, buyerEmail: sEmail, orderId: cleanOrderId } = verification.order;
+    const { plan, buyerEmail: sEmail, orderId: cleanOrderId, productId } = verification.order;
+
+    const upgradeProductId = (process.env.SHOPIER_PRODUCT_ID_UPGRADE || '50813693').trim();
+    const itemName = String(verification.order.raw?.lineItems?.[0]?.name || verification.order.raw?.lineItems?.[0]?.title || '').toLowerCase();
+    const isUpgradeOrder =
+      productId === '50813693' ||
+      productId === upgradeProductId ||
+      itemName.includes('yukselt') ||
+      itemName.includes('yükselt') ||
+      itemName.includes('upgrade') ||
+      (verification.order.total >= 140 && verification.order.total <= 165);
 
     // GÜVENLİK ADIMI 3: Hedef çift sitesini tespit et
     if (!slug && cleanOrderId.startsWith('ask_')) {
@@ -125,7 +178,7 @@ export async function POST(req: NextRequest) {
 
     const effectiveEmail = buyerEmail || sEmail;
     if (!slug && effectiveEmail) {
-      const match = await findCoupleByEmailOrOrderId(effectiveEmail, cleanOrderId);
+      const match = await findCoupleByEmailOrOrderId(effectiveEmail, cleanOrderId, isUpgradeOrder);
       if (match?.slug) slug = match.slug;
     }
 
@@ -139,7 +192,8 @@ export async function POST(req: NextRequest) {
     const { collection, query, where, getDocs, doc, setDoc, serverTimestamp } = await import('firebase/firestore');
 
     if (db) {
-      const existingSnap = await getDocs(query(collection(db, 'couples'), where('shopier_order_id', '==', cleanOrderId)));
+      const orderField = isUpgradeOrder ? 'upgrade_order_id' : 'shopier_order_id';
+      const existingSnap = await getDocs(query(collection(db, 'couples'), where(orderField, '==', cleanOrderId)));
       if (!existingSnap.empty && existingSnap.docs[0].data().slug !== slug) {
         console.warn(`[Shopier Callback POST] Replay attack: order ${cleanOrderId} already used for ${existingSnap.docs[0].data().slug}`);
         return NextResponse.json({ success: false, error: 'Bu siparis daha once baska bir site icin kullanilmistir.' }, { status: 400 });
@@ -153,8 +207,7 @@ export async function POST(req: NextRequest) {
       await setDoc(
         doc(db, 'couples', slug),
         {
-          shopier_order_id: cleanOrderId,
-          ...(plan === 'yearly_premium'
+          ...(isUpgradeOrder
             ? {
                 upgrade_order_id: cleanOrderId,
                 upgraded_at: serverTimestamp(),
@@ -162,7 +215,7 @@ export async function POST(req: NextRequest) {
                 plan: 'yearly_premium',
                 package_type: 'yearly_premium',
               }
-            : {}),
+            : { shopier_order_id: cleanOrderId }),
           verified_via_webhook_at: serverTimestamp(),
         },
         { merge: true }
