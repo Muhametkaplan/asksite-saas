@@ -4,7 +4,7 @@ import { CoupleConfig, PushSubscriptionItem } from '@/types/couple';
 
 const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim();
 const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY || '').trim();
-const VAPID_SUBJECT = (process.env.VAPID_SUBJECT || 'mailto:support@asksite.com.tr').trim();
+const VAPID_SUBJECT = (process.env.VAPID_SUBJECT || 'mailto:asksitesaas@gmail.com').trim();
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   try {
