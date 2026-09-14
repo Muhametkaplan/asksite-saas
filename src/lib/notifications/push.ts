@@ -2,14 +2,16 @@ import webpush from 'web-push';
 import { getAdminFirestore } from '@/lib/firebaseAdmin';
 import { CoupleConfig, PushSubscriptionItem } from '@/types/couple';
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BLQaVLaw9t1uqiGHRmq3ilMdZPo9J8B45CQciMjUenDL-Sf1rLV5TTcF2553mtsGTWWfmQ0GJ2UOxot0G_u2vI4';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'VHxoU9vkvnfsv0SUDVGdBnv6bgPiGx93ZCYNc6KOjiY';
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:support@asksite.com.tr';
+const VAPID_PUBLIC_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim();
+const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY || '').trim();
+const VAPID_SUBJECT = (process.env.VAPID_SUBJECT || 'mailto:support@asksite.com.tr').trim();
 
-try {
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-} catch (err) {
-  console.error('[WebPush] setVapidDetails error:', err);
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  } catch (err) {
+    console.error('[WebPush] setVapidDetails error:', err);
+  }
 }
 
 export interface PushNotificationPayload {

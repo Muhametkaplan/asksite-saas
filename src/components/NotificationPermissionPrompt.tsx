@@ -37,9 +37,7 @@ export default function NotificationPermissionPrompt({
   const [testSentSuccess, setTestSentSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const VAPID_KEY =
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
-    'BLQaVLaw9t1uqiGHRmq3ilMdZPo9J8B45CQciMjUenDL-Sf1rLV5TTcF2553mtsGTWWfmQ0GJ2UOxot0G_u2vI4';
+  const VAPID_KEY = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim();
 
   const getResolvedRole = useCallback((): 'partner1' | 'partner2' => {
     if (partnerRole) return partnerRole;
