@@ -31,10 +31,17 @@ import {
   X,
   Radio,
   HelpCircle,
+  Activity,
+  Smartphone,
+  Monitor,
+  Globe,
+  Compass,
+  ArrowRight,
+  Eye,
 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'couples' | 'users' | 'tools'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'couples' | 'users' | 'visitors' | 'tools'>('overview');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -44,6 +51,26 @@ export default function SuperAdminDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [couples, setCouples] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+
+  // Visitor Presence State
+  const [visitorData, setVisitorData] = useState<{
+    onlineCount: number;
+    todayCount: number;
+    totalCount: number;
+    onlineByPath: Record<string, number>;
+    visitors: any[];
+  }>({
+    onlineCount: 0,
+    todayCount: 0,
+    totalCount: 0,
+    onlineByPath: {},
+    visitors: [],
+  });
+  const [loadingVisitors, setLoadingVisitors] = useState(false);
+  const [autoRefreshVisitors, setAutoRefreshVisitors] = useState(true);
+  const [visitorSearch, setVisitorSearch] = useState('');
+  const [visitorStatusFilter, setVisitorStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
+
 
   // Search & Filter States
   const [searchOrders, setSearchOrders] = useState('');
@@ -80,15 +107,38 @@ export default function SuperAdminDashboard() {
     return fetch(url, { credentials: 'include', ...init, headers });
   };
 
+  // Fetch Visitors specifically
+  const fetchVisitors = async () => {
+    try {
+      setLoadingVisitors(true);
+      const res = await adminFetch('/api/admin/visitors');
+      if (res.ok) {
+        const data = await res.json();
+        setVisitorData({
+          onlineCount: data.onlineCount || 0,
+          todayCount: data.todayCount || 0,
+          totalCount: data.totalCount || 0,
+          onlineByPath: data.onlineByPath || {},
+          visitors: data.visitors || [],
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching visitors:', err);
+    } finally {
+      setLoadingVisitors(false);
+    }
+  };
+
   // Load All Dashboard Data
   const fetchAllData = async () => {
     setRefreshing(true);
     try {
-      const [mRes, oRes, cRes, uRes] = await Promise.all([
+      const [mRes, oRes, cRes, uRes, vRes] = await Promise.all([
         adminFetch('/api/admin/metrics'),
         adminFetch('/api/admin/orders'),
         adminFetch('/api/admin/couples'),
         adminFetch('/api/admin/users'),
+        adminFetch('/api/admin/visitors'),
       ]);
 
       if (mRes.ok) {
@@ -108,6 +158,16 @@ export default function SuperAdminDashboard() {
         const uData = await uRes.json();
         setUsers(uData.users || []);
       }
+      if (vRes.ok) {
+        const vData = await vRes.json();
+        setVisitorData({
+          onlineCount: vData.onlineCount || 0,
+          todayCount: vData.todayCount || 0,
+          totalCount: vData.totalCount || 0,
+          onlineByPath: vData.onlineByPath || {},
+          visitors: vData.visitors || [],
+        });
+      }
     } catch (e) {
       console.error('Error fetching admin data:', e);
       showError('Veriler yüklenirken bir hata oluştu.');
@@ -120,6 +180,20 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Real-time polling for visitors when dashboard is open
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (autoRefreshVisitors) {
+      interval = setInterval(() => {
+        fetchVisitors();
+      }, 10000); // 10 saniyede bir canlı yenile
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefreshVisitors]);
+
 
   // Action: Manual Activate Couple from Order
   const handleManualActivate = async (order: any) => {
@@ -463,6 +537,70 @@ export default function SuperAdminDashboard() {
     );
   });
 
+  const filteredVisitors = (visitorData.visitors || []).filter((v) => {
+    if (visitorStatusFilter === 'online' && !v.isOnline) return false;
+    if (visitorStatusFilter === 'offline' && v.isOnline) return false;
+
+    if (!visitorSearch) return true;
+    const q = visitorSearch.toLowerCase();
+    return (
+      (v.currentPath && v.currentPath.toLowerCase().includes(q)) ||
+      (v.device && v.device.toLowerCase().includes(q)) ||
+      (v.browser && v.browser.toLowerCase().includes(q)) ||
+      (v.os && v.os.toLowerCase().includes(q)) ||
+      (v.referrer && v.referrer.toLowerCase().includes(q)) ||
+      (v.ip && v.ip.toLowerCase().includes(q))
+    );
+  });
+
+  const formatDuration = (seconds?: number) => {
+    if (!seconds || seconds <= 0) return 'Yeni girdi';
+    if (seconds < 60) return `${seconds} sn`;
+    const mins = Math.floor(seconds / 60);
+    const remSecs = seconds % 60;
+    if (mins < 60) return `${mins} dk ${remSecs > 0 ? `${remSecs} sn` : ''}`;
+    const hours = Math.floor(mins / 60);
+    return `${hours} sa ${mins % 60} dk`;
+  };
+
+  const getReferrerBadge = (referrer: string) => {
+    const r = (referrer || '').toLowerCase();
+    if (r.includes('whatsapp')) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+          📲 WhatsApp
+        </span>
+      );
+    }
+    if (r.includes('instagram')) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-pink-400 bg-pink-500/10 px-2 py-0.5 rounded-md border border-pink-500/20">
+          📸 Instagram
+        </span>
+      );
+    }
+    if (r.includes('google')) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+          🔍 Google
+        </span>
+      );
+    }
+    if (r.includes('clarity') || r.includes('asksite')) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20">
+          🌐 Site İçi
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded-md border border-slate-700">
+        🔗 {referrer || 'Doğrudan'}
+      </span>
+    );
+  };
+
+
 
   if (loading) {
     return (
@@ -527,6 +665,12 @@ export default function SuperAdminDashboard() {
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800 no-scrollbar">
         {[
           { id: 'overview', label: '📊 Genel Bakış', count: null },
+          {
+            id: 'visitors',
+            label: '🟢 Canlı Trafik & Ziyaretçiler',
+            count: visitorData.onlineCount > 0 ? `${visitorData.onlineCount} Online` : (visitorData.todayCount > 0 ? `${visitorData.todayCount} Bugün` : null),
+            isPulse: visitorData.onlineCount > 0,
+          },
           { id: 'orders', label: '🛍️ Shopier Siparişleri', count: orders.length },
           { id: 'couples', label: '💑 Çift Siteleri', count: couples.length },
           { id: 'users', label: '👥 Kayıtlı Üyeler', count: users.length },
@@ -545,7 +689,7 @@ export default function SuperAdminDashboard() {
             {tab.count !== null && (
               <span
                 className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                  activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'
+                  (tab as any).isPulse ? 'bg-emerald-500 text-white animate-pulse' : (activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300')
                 }`}
               >
                 {tab.count}
@@ -559,7 +703,35 @@ export default function SuperAdminDashboard() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* KPI Stat Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Live Visitors KPI Card */}
+            <div 
+              onClick={() => setActiveTab('visitors')}
+              className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl relative overflow-hidden cursor-pointer hover:border-emerald-500/50 transition group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  Canlı Ziyaretçi
+                </span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-110 transition">
+                  <Activity className="h-4 w-4" />
+                </span>
+              </div>
+              <div className="text-2xl sm:text-3xl font-black text-white flex items-baseline gap-2">
+                <span>{visitorData?.onlineCount || 0}</span>
+                <span className="text-xs font-bold text-emerald-400">Aktif Online</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 mt-2">
+                <span>Bugün: <strong className="text-white">{visitorData?.todayCount || 0}</strong> giriş</span>
+                <span className="text-emerald-400 text-[10px] font-bold group-hover:translate-x-0.5 transition flex items-center gap-0.5">
+                  İzle <ArrowRight className="h-3 w-3 inline" />
+                </span>
+              </div>
+            </div>
             {/* Revenue Card */}
             <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl relative overflow-hidden">
               <div className="flex items-center justify-between mb-3">
@@ -1164,6 +1336,269 @@ export default function SuperAdminDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: CANLI TRAFİK & ZİYARETÇİLER (VISITORS) */}
+      {activeTab === 'visitors' && (
+        <div className="space-y-6">
+          {/* Top Realtime Stats Banner */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Online Visitors */}
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                  Canlı Aktif Kullanıcı
+                </span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Activity className="h-4 w-4" />
+                </span>
+              </div>
+              <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-2">
+                <span>{visitorData.onlineCount}</span>
+                <span className="text-xs font-bold text-emerald-400">Şu An Sitede</span>
+              </div>
+              <p className="text-[11px] font-semibold text-emerald-400/90 mt-2">
+                🟢 Son 60 saniyede sayfayı gezenler
+              </p>
+            </div>
+
+            {/* Today's Unique Visitors */}
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-400">Bugünkü Tekil Ziyaret</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <Users className="h-4 w-4" />
+                </span>
+              </div>
+              <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-2">
+                <span>{visitorData.todayCount}</span>
+                <span className="text-xs font-bold text-blue-400">Tekil Oturum</span>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-400 mt-2">
+                📅 Bugün 00:00'dan itibaren girişler
+              </p>
+            </div>
+
+            {/* Live Controls & Refresh */}
+            <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-400">Canlı İzleme Ayarı</span>
+                <button
+                  onClick={fetchVisitors}
+                  disabled={loadingVisitors}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 transition cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${loadingVisitors ? 'animate-spin' : ''}`} />
+                  <span>{loadingVisitors ? 'Yenileniyor...' : 'Şimdi Yenile'}</span>
+                </button>
+              </div>
+
+              <div className="space-y-2 mt-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={autoRefreshVisitors}
+                    onChange={(e) => setAutoRefreshVisitors(e.target.checked)}
+                    className="rounded accent-rose-500 h-4 w-4 cursor-pointer"
+                  />
+                  <span>Otomatik Canlı Takip (Her 10 sn)</span>
+                </label>
+                <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" />
+                  <span>Son senkronizasyon: <strong>{new Date().toLocaleTimeString('tr-TR')}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Active Pages Breakdown */}
+          <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-3">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+              <Compass className="h-4 w-4 text-emerald-400" /> Şu Anda Gezilen Sayfalar ({Object.keys(visitorData.onlineByPath || {}).length})
+            </h3>
+            {visitorData.onlineCount === 0 ? (
+              <p className="text-xs text-slate-500 italic py-2">
+                Şu anda sitede aktif gezen ziyaretçi bulunmuyor. Yeni birisi siteye girdiğinde burada anında görünecektir.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2.5 pt-1">
+                {Object.entries(visitorData.onlineByPath || {}).map(([path, count]) => (
+                  <div
+                    key={path}
+                    className="flex items-center gap-2 bg-slate-950 border border-emerald-500/30 px-3.5 py-2 rounded-2xl text-xs font-extrabold text-white shadow-sm"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span className="font-mono text-slate-200">{path}</span>
+                    <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                      {count} kişi
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+              <input
+                type="text"
+                placeholder="Sayfa, cihaz, kaynak veya IP ara..."
+                value={visitorSearch}
+                onChange={(e) => setVisitorSearch(e.target.value)}
+                className="w-full rounded-2xl bg-slate-900 border border-slate-800 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 outline-none focus:border-rose-500 transition"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 no-scrollbar">
+              {[
+                { id: 'all', label: `Tümü (${visitorData.visitors.length})` },
+                { id: 'online', label: `🟢 Canlılar (${visitorData.onlineCount})` },
+                { id: 'offline', label: `⚪ Ayrılanlar (${Math.max(0, visitorData.visitors.length - visitorData.onlineCount)})` },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setVisitorStatusFilter(f.id as any)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                    visitorStatusFilter === f.id
+                      ? 'bg-slate-700 text-white shadow-md'
+                      : 'bg-slate-900/80 text-slate-400 border border-slate-800 hover:text-white'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Visitors Table */}
+          <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 text-[11px] font-extrabold uppercase tracking-wider">
+                    <th className="p-3.5">Durum</th>
+                    <th className="p-3.5">Cihaz & Tarayıcı</th>
+                    <th className="p-3.5">Kaynak / Referrer</th>
+                    <th className="p-3.5">Bulunduğu & Gezdiği Sayfalar</th>
+                    <th className="p-3.5">Sitede Kalış Süresi</th>
+                    <th className="p-3.5">Giriş / Son Görülme</th>
+                    <th className="p-3.5 text-right">IP (Maskeli)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {filteredVisitors.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-12 text-slate-500 text-xs">
+                        Kayıtlı ziyaretçi hareketi bulunamadı.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredVisitors.map((v) => (
+                      <tr key={v.sessionId || v.id} className="hover:bg-slate-800/40 transition">
+                        {/* Status */}
+                        <td className="p-3.5 whitespace-nowrap">
+                          {v.isOnline ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 animate-pulse">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Online
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                              Ayrıldı
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Device & Browser */}
+                        <td className="p-3.5 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            {v.device === 'mobile' ? (
+                              <div className="p-1.5 rounded-lg bg-slate-800 text-purple-400 border border-slate-700">
+                                <Smartphone className="h-3.5 w-3.5" />
+                              </div>
+                            ) : (
+                              <div className="p-1.5 rounded-lg bg-slate-800 text-blue-400 border border-slate-700">
+                                <Monitor className="h-3.5 w-3.5" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-bold text-white text-xs">
+                                {v.os || 'Bilinmiyor'}
+                              </div>
+                              <div className="text-[10px] text-slate-400">
+                                {v.browser} • {v.device === 'mobile' ? 'Mobil' : 'Masaüstü'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Referrer */}
+                        <td className="p-3.5 whitespace-nowrap">
+                          {getReferrerBadge(v.referrer)}
+                        </td>
+
+                        {/* Pages History */}
+                        <td className="p-3.5 min-w-[240px]">
+                          <div className="space-y-1.5">
+                            {/* Current Active Page */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500">Şu An:</span>
+                              <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                                {v.currentPath || '/'}
+                              </span>
+                            </div>
+
+                            {/* History Trail if > 1 page */}
+                            {Array.isArray(v.pageHistory) && v.pageHistory.length > 1 && (
+                              <div className="flex items-center gap-1 flex-wrap text-[10px] text-slate-400 font-mono">
+                                <span className="text-[9px] uppercase font-bold text-slate-500">Geçmiş:</span>
+                                {v.pageHistory.map((h: any, idx: number) => (
+                                  <React.Fragment key={idx}>
+                                    <span className="bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 text-slate-300">
+                                      {h.path}
+                                    </span>
+                                    {idx < v.pageHistory.length - 1 && (
+                                      <ArrowRight className="h-2.5 w-2.5 text-slate-600 inline" />
+                                    )}
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Duration */}
+                        <td className="p-3.5 whitespace-nowrap font-mono text-slate-300 font-bold">
+                          {formatDuration(v.durationSeconds)}
+                        </td>
+
+                        {/* Timestamps */}
+                        <td className="p-3.5 whitespace-nowrap text-slate-400">
+                          <div className="text-white font-semibold">
+                            {v.firstSeen ? new Date(v.firstSeen).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            Son: {v.lastHeartbeat ? new Date(v.lastHeartbeat).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'}
+                          </div>
+                        </td>
+
+                        {/* IP */}
+                        <td className="p-3.5 whitespace-nowrap text-right font-mono text-[11px] text-slate-500">
+                          {v.ip || 'Gizli'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

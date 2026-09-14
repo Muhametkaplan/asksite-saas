@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import WhatsAppSupportWidget from "@/components/WhatsAppSupportWidget";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import VisitorPresenceTracker from "@/components/VisitorPresenceTracker";
 import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
@@ -60,6 +62,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-full flex flex-col m-0 p-0">
+        <Suspense fallback={null}>
+          <VisitorPresenceTracker />
+        </Suspense>
         <AnalyticsProvider />
         <Analytics />
         {children}
