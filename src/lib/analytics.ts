@@ -18,12 +18,14 @@ declare global {
       load: (id: string) => void;
       [key: string]: any;
     };
+    clarity?: (...args: any[]) => void;
   }
 }
 
 export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || '';
 export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID?.trim() || '';
 export const TIKTOK_PIXEL_ID = process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID?.trim() || '';
+export const CLARITY_PROJECT_ID = process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID?.trim() || 'yiaplnklki';
 
 /**
  * 1. Track Page View across all platforms

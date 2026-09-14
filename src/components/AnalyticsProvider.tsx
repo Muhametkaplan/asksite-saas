@@ -3,7 +3,7 @@
 import React, { useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Script from 'next/script';
-import { GA_MEASUREMENT_ID, META_PIXEL_ID, TIKTOK_PIXEL_ID, trackPageView } from '@/lib/analytics';
+import { GA_MEASUREMENT_ID, META_PIXEL_ID, TIKTOK_PIXEL_ID, CLARITY_PROJECT_ID, trackPageView } from '@/lib/analytics';
 
 function RouteChangeTracker() {
   const pathname = usePathname();
@@ -85,6 +85,23 @@ export default function AnalyticsProvider() {
                 ttq.load('${TIKTOK_PIXEL_ID}');
                 ttq.page();
               }(window, document, 'ttq');
+            `,
+          }}
+        />
+      )}
+
+      {/* 4. Microsoft Clarity (Session Replay & Heatmaps) */}
+      {CLARITY_PROJECT_ID && (
+        <Script
+          id="microsoft-clarity-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window, document, "clarity", "script", "${CLARITY_PROJECT_ID}");
             `,
           }}
         />

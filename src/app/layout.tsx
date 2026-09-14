@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import WhatsAppSupportWidget from "@/components/WhatsAppSupportWidget";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col m-0 p-0">
         <AnalyticsProvider />
+        <Analytics />
         {children}
         <WhatsAppSupportWidget />
         <script
