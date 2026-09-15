@@ -137,7 +137,7 @@ export default function PureDemoPage() {
 
         {/* Couple Bucket List */}
         {toggles.bucket_list !== false && (
-          <CoupleBucketList items={couple.bucket_list} />
+          <CoupleBucketList items={couple.bucket_list} slug="demo" />
         )}
 
         {/* Navigation Grid to Subpages */}

@@ -394,6 +394,15 @@ function DashboardContent() {
     }));
   };
 
+  const handleToggleBucketItem = (id: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      bucket_list: (prev.bucket_list || []).map((b) =>
+        b.id === id ? { ...b, completed: !b.completed } : b
+      ),
+    }));
+  };
+
   const handleAddReason = () => {
     if (!newReasonText.trim()) return;
     setConfig((prev) => ({
@@ -2053,9 +2062,17 @@ function DashboardContent() {
                 <div className="space-y-1.5 max-h-36 overflow-y-auto">
                   {(config.bucket_list || []).map((b) => (
                     <div key={b.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs">
-                      <span>
-                        {b.category === 'city' ? '🏙️' : b.category === 'movie' ? '🍿' : '🎯'} {b.title}
-                      </span>
+                      <div
+                        onClick={() => handleToggleBucketItem(b.id)}
+                        className="flex items-center gap-2 cursor-pointer select-none"
+                      >
+                        <span className={`h-4 w-4 rounded-full flex items-center justify-center border text-[10px] ${b.completed ? 'bg-emerald-500 border-emerald-500 text-white font-bold' : 'border-gray-300'}`}>
+                          {b.completed && '✓'}
+                        </span>
+                        <span className={b.completed ? 'line-through text-gray-400' : 'text-gray-800 font-medium'}>
+                          {b.category === 'city' ? '🏙️' : b.category === 'movie' ? '🍿' : '🎯'} {b.title}
+                        </span>
+                      </div>
                       <button onClick={() => handleRemoveBucketItem(b.id)} className="text-red-400 hover:text-red-600">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

@@ -234,7 +234,7 @@ export default async function CouplePage({ params }: PageProps) {
 
         {/* Couple Bucket List */}
         {toggles.bucket_list !== false && (
-          <CoupleBucketList items={couple.bucket_list} />
+          <CoupleBucketList items={couple.bucket_list} slug={couple.slug} />
         )}
 
         {/* Navigation Grid to Subpages */}

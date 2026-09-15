@@ -1,45 +1,120 @@
 'use client';
 
-import { useState } from 'react';
-import { Plane, Film, Sparkles, CheckCircle, Circle, MapPin, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plane, Film, Sparkles, CheckCircle, Circle, MapPin, Activity, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { BucketListItem } from '@/types/couple';
 
 interface CoupleBucketListProps {
   items?: BucketListItem[];
+  slug?: string;
 }
 
 const DEFAULT_BUCKET_ITEMS: BucketListItem[] = [
   { id: '1', title: 'Roma & Venedik Gezisi 🇮🇹', category: 'city', completed: false },
   { id: '2', title: 'Kapadokya Balon Turu 🎈', category: 'activity', completed: true },
-  { id: '3', title: 'Interstellar Sinema Gecesi 🍿', category: 'movie', completed: true },
-  { id: '4', title: 'Paris’te Eyfel Altında Kahve ☕', category: 'city', completed: false },
-  { id: '5', title: 'Kuzey Işıkları (Aurora) Kampı 🌌', category: 'activity', completed: false },
+  { id: '3', title: 'Romantik Sinema Gecesi 🍿', category: 'movie', completed: true },
+  { id: '4', title: 'İzmir Gezisi', category: 'city', completed: false },
+  { id: '5', title: 'İstanbul Gezisi', category: 'city', completed: false },
+  { id: '6', title: 'Blok3 Konseri', category: 'activity', completed: false },
 ];
 
-export default function CoupleBucketList({ items }: CoupleBucketListProps) {
-  const [list, setList] = useState<BucketListItem[]>(items && items.length > 0 ? items : DEFAULT_BUCKET_ITEMS);
+export default function CoupleBucketList({ items, slug }: CoupleBucketListProps) {
+  const [list, setList] = useState<BucketListItem[]>(() => {
+    // İlk renderda items varsa items, yoksa default
+    return items && items.length > 0 ? items : DEFAULT_BUCKET_ITEMS;
+  });
   const [filter, setFilter] = useState<'all' | 'city' | 'movie' | 'activity'>('all');
+  const [isSaving, setIsSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
-  const toggleItem = (id: string) => {
-    setList((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const nextCompleted = !item.completed;
-          if (nextCompleted) {
-            // Trigger confetti explosion on completion
+  // items prop'u değiştiğinde veya localStorage senkronizasyonu
+  useEffect(() => {
+    if (items && items.length > 0) {
+      setList(items);
+    } else if (slug) {
+      try {
+        const cached = localStorage.getItem(`asksite_bl_${slug}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setList(parsed);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [items, slug]);
+
+  const toggleItem = async (id: string) => {
+    let nextCompletedState = false;
+
+    const nextList = list.map((item) => {
+      if (item.id === id) {
+        nextCompletedState = !item.completed;
+        if (nextCompletedState) {
+          // Konfeti patlat
+          try {
             confetti({
-              particleCount: 50,
+              particleCount: 60,
               spread: 70,
               origin: { y: 0.6 },
               colors: ['#ff4d6d', '#ff758f', '#38ef7d', '#11998e', '#ffd166'],
             });
+          } catch (e) {
+            // ignore
           }
-          return { ...item, completed: nextCompleted };
         }
-        return item;
-      })
-    );
+        return { ...item, completed: nextCompletedState };
+      }
+      return item;
+    });
+
+    // 1. Ekranı anında güncelle (0ms gecikme)
+    setList(nextList);
+
+    // 2. Tarayıcı önbelleğine (localStorage) hemen kaydet
+    const cacheKey = `asksite_bl_${slug || 'demo'}`;
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(nextList));
+    } catch (e) {
+      // ignore
+    }
+
+    // 3. Sunucuya ve veritabanına (Firestore) kalıcı kaydet
+    if (slug && slug !== 'demo') {
+      setIsSaving(true);
+      try {
+        const res = await fetch('/api/couples/bucket-list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug,
+            itemId: id,
+            completed: nextCompletedState,
+            items: nextList,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.bucket_list)) {
+            setList(data.bucket_list);
+            localStorage.setItem(cacheKey, JSON.stringify(data.bucket_list));
+          }
+          setJustSaved(true);
+          setTimeout(() => setJustSaved(false), 2000);
+        }
+      } catch (err) {
+        console.error('[CoupleBucketList] Kaydetme hatası:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 1500);
+    }
   };
 
   const filteredList = list.filter((item) => filter === 'all' || item.category === filter);
@@ -61,8 +136,20 @@ export default function CoupleBucketList({ items }: CoupleBucketListProps) {
           </div>
         </div>
 
-        <div className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 border border-purple-100">
-          {completedCount} / {list.length} Tamamlandı
+        <div className="flex items-center gap-2">
+          {isSaving && (
+            <span className="text-[10px] text-purple-600 font-bold animate-pulse">
+              Kaydediliyor...
+            </span>
+          )}
+          {justSaved && !isSaving && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 animate-in fade-in">
+              <Check className="h-3 w-3" /> Kaydedildi
+            </span>
+          )}
+          <div className="rounded-full bg-purple-50 px-3 py-1 text-xs font-bold text-purple-700 border border-purple-100">
+            {completedCount} / {list.length} Tamamlandı
+          </div>
         </div>
       </div>
 
@@ -70,7 +157,7 @@ export default function CoupleBucketList({ items }: CoupleBucketListProps) {
       <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1">
         <button
           onClick={() => setFilter('all')}
-          className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+          className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
             filter === 'all' ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
@@ -78,7 +165,7 @@ export default function CoupleBucketList({ items }: CoupleBucketListProps) {
         </button>
         <button
           onClick={() => setFilter('city')}
-          className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+          className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
             filter === 'city' ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
@@ -86,7 +173,7 @@ export default function CoupleBucketList({ items }: CoupleBucketListProps) {
         </button>
         <button
           onClick={() => setFilter('movie')}
-          className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+          className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
             filter === 'movie' ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
@@ -94,7 +181,7 @@ export default function CoupleBucketList({ items }: CoupleBucketListProps) {
         </button>
         <button
           onClick={() => setFilter('activity')}
-          className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+          className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
             filter === 'activity' ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
