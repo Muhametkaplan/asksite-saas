@@ -83,7 +83,7 @@ export default function IptalVeIadeKosullariPage() {
           <div className="flex items-center gap-2 font-bold text-gray-900 text-xs">
             <Mail className="h-4 w-4 text-rose-500 shrink-0" />
             <span>Destek E-Posta:</span>
-            <a href="mailto:muhammet.2713ka@gmail.com" className="text-rose-600 hover:underline">muhammet.2713ka@gmail.com</a>
+            <a href="mailto:asksitesaas@gmail.com" className="text-rose-600 hover:underline">asksitesaas@gmail.com</a>
           </div>
           <div className="flex items-center gap-2 font-bold text-gray-900 text-xs">
             <Phone className="h-4 w-4 text-emerald-500 shrink-0" />

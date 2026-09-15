@@ -41,7 +41,7 @@ export default function MesafeliSatisSozlesmesiPage() {
             </p>
             <p className="flex items-center gap-1">
               <Mail className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-              <span><strong>E-Posta:</strong> <a href="mailto:muhammet.2713ka@gmail.com" className="text-rose-600 hover:underline">muhammet.2713ka@gmail.com</a></span>
+              <span><strong>E-Posta:</strong> <a href="mailto:asksitesaas@gmail.com" className="text-rose-600 hover:underline">asksitesaas@gmail.com</a></span>
             </p>
             <p className="flex items-center gap-1">
               <Phone className="h-3.5 w-3.5 text-gray-500 shrink-0" />

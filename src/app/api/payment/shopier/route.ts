@@ -63,7 +63,7 @@ function sanitizeEmail(email: string | null | undefined): string {
   if (clean && clean.includes('@') && clean.includes('.')) {
     return clean;
   }
-  return 'destek@asksite.com.tr';
+  return 'asksitesaas@gmail.com';
 }
 
 export async function POST(req: NextRequest) {

@@ -105,11 +105,11 @@ export default function Footer() {
             <h4 className="text-xs font-black uppercase tracking-wider text-white">Müşteri Destek & İletişim</h4>
             <div className="space-y-2.5 text-xs text-gray-400">
               <a
-                href="mailto:muhammet.2713ka@gmail.com"
+                href="mailto:asksitesaas@gmail.com"
                 className="flex items-center gap-2 hover:text-white transition group"
               >
                 <Mail className="h-4 w-4 text-rose-400 group-hover:scale-110 transition shrink-0" />
-                <span className="truncate">muhammet.2713ka@gmail.com</span>
+                <span className="truncate">asksitesaas@gmail.com</span>
               </a>
               <a
                 href="https://wa.me/905524185530"

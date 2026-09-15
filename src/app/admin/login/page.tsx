@@ -91,7 +91,7 @@ export default function AdminLoginPage() {
                 <input
                   type="email"
                   required
-                  placeholder="admin@asksite.com.tr"
+                  placeholder="asksitesaas@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl bg-slate-950/70 border border-slate-700/80 pl-10 pr-4 py-3 text-xs font-semibold text-white outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition placeholder:text-slate-600"

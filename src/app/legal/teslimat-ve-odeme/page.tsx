@@ -102,7 +102,7 @@ export default function TeslimatVeOdemePage() {
           <div className="flex items-center gap-2 font-bold text-gray-900">
             <Mail className="h-4 w-4 text-rose-500 shrink-0" />
             <span>E-Posta:</span>
-            <a href="mailto:muhammet.2713ka@gmail.com" className="text-rose-600 hover:underline">muhammet.2713ka@gmail.com</a>
+            <a href="mailto:asksitesaas@gmail.com" className="text-rose-600 hover:underline">asksitesaas@gmail.com</a>
           </div>
           <div className="flex items-center gap-2 font-bold text-gray-900">
             <Phone className="h-4 w-4 text-emerald-500 shrink-0" />
